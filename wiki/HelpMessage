@@ -1,0 +1,232 @@
+Note: Apologies for the crappy highlighting. Get on Google to allow us [http://code.google.com/p/support/issues/detail?id=44 to disable syntax highlighting].
+=== Help Message === 
+{{{
+RSSDler is a Python based program to automatically grab the link elements of an rss feed, aka an RSS broadcatcher. It
+    happens to work just fine for grabbing RSS feeds of torrents, so called torrent broadcatching. It may also used
+    with podcasts and such. Though designed with an eye toward rtorrent, it should work with any torrenting program
+    that can read torrent files written to a directory. It does not explicitly interface with rtorrent in anyway and
+    therefore has no dependency on it. You can find the webpage here: http://code.google.com/p/rssdler/
+
+Effort has been put into keeping the program from crashing from random errors like bad links and such. However, some of
+    the exceptions caught are too broad and keep users from knowing what is wrong with their configuration, though this
+    problem should be significantly mitigated by the new verbosity options. Try to be careful when setting up your
+    configuration file. If you are having problems, try to start with a very basic setup and slowly increase its
+    complexity. You need to have a basic understanding of regular expressions to setup the regex and download<x>
+    options, which is probably necessary to broadcatch in an efficient manner. If you do not know what and/or how to
+    use regular expressions, google is your friend. There are literally dozens of tutorials and documentation on the
+    subject with a range of difficulty levels from beginner to expert. If you are having problems that you believe are
+    RSSDler's fault, feel free to email me at the below address. Please be sure to include as much information as you
+    can.
+
+Command Line Options:
+    --config/-c can be used with all the options except --comment-config, --help, and --set-default-config. Otherwise,
+        do not mix and match options
+    --comment-config: Prints a commented config file to stdout. (hint: rssdler.py --comment-config > myConfigToEdit.txt)
+    --help/-h: print the help message
+    --run/-r: run according to the configuration file
+    --runonce/-o: run only once then exit, otherwise according to the configuration file.
+    --daemon/-d: run in the background, according to the configuration file (except sets verbose = 0, a note if you
+        invoke Config.save in postDownloadFunction ) (Unix-like only)
+    --kill/-k: kill the daemonized instance (Unix like only)
+    --config/-c: specify a config file (default config.txt).
+    --list-failed: Will list the urls of all the failed downloads
+    --purge-failed: Use to clear the failed download queue. Use when you have a download stuck (perhaps removed from
+        the site or wrong url in RSS feed) and you no longer care about RSSDler attempting to grab it. Will be appended
+        to the saved download list to prevent readdition to the failed queue. Should be used alone or with -c/--config.
+        Exits after completion.
+    --list-saved: Will list everything that has been registered as downloaded
+    --purge-saved: Clear the list of saved downloads
+    --set-default-config: Edits rssdler.py to reset the default config to the path you specify. will have to reset
+        after upgrading/overwriting the file. helps to not have to specify -c/--config each time you run. Advised only
+        for single user systems/installs. Should be used alone. Exits after completion.
+
+
+Non-standard Python libraries used:
+    feedparser: [REQUIRED] http://www.feedparser.org/
+    mechanize: [RECOMMENDED] http://wwwsearch.sourceforge.net/mechanize/ (this can now be overridden by setting urllib
+        = True in global options. See below for details. If import of mechanize fails, will automatically set urllib
+        =True)
+    BitTorrent: [OPTIONAL]  http://www.bittorrent.com (the python reference client). Instead of BitTorrent, you can
+        also just save the module bencode in your python path as bencode.py (perhaps most conveniently  in your working
+        directory aka where you store all your RSSDler related files). This seems to work best for Python 2.5 as many
+        distros do not have BitTorrent in 2.5's path: http://cheeseshop.python.org/pypi/BitTorrent-bencode/. There is
+        also a function in the program that can take care of bdecoding if you fail to provide the library, but it is
+        not nearly as fast.
+    For debian based distros: "sudo apt-get install python-feedparser python-mechanize bittorrent" 
+    
+Security Note: 
+    Prior to 0.2.4, there were several 'eval' statements in this program, which allowed running arbitrary code.
+        Although removed, there is an attempt to import 'userFunctions' if you specify a postDownloadFunction in your
+        configuration. Make sure only you have write permissions in the directory you run this from/what you set
+        workingDir to so that userFunctions cannot be setup to run arbitrary code that you do not want running. Also
+        make sure only you have write permissions to your configuration file. It would be wise to make a file
+        userFunctions.py in your working directory to which only you have write access. I've also had reports of users
+        running this as root. PLEASE do not do that. You shouldn't even be logging into your system as root, much less
+        running programs meant for userland, especially when they are Internet facing.
+
+Configuration File:
+There are two types of sections: global and threads. There can be as many thread sections as you wish, but only one
+    global section. global must be named "global." Threads can be named however you wish, except 'global,' and each
+    name should be unique. With a couple of noted exceptions, there are three types of options:
+    
+Boolean Options: 'True' is indicated by "True", "yes", or "1". "False" is indicated by "False", "no", or "0" (without
+    the quotes)
+Integer Options: Just an integer. 1, 2, 10, 1000, 2348. Not 1.1, 2.0, 999.3 or 'a'.
+String Options: any string, should make sense in terms of the option being provided (e.g. a valid file/directory on
+    disk; url to rss feed)
+
+Required indicates RSSDler will not work if the option is not set. 
+Recommended indicates that the default is probably not what you want. 
+Optional indicates that circumstances such as use pattern, type of feed, etc. determine if/how it should be set.
+
+Run with --comment-config to see what a configuration file would look like, comments and all.
+
+Global Options:
+    downloadDir: [Recommended] A string option. Default is current directory. Set to a directory in which you have
+        write permission where downloaded files will go.
+    workingDir: [Recommended] A string option. Default is current directory. Only needed with -d. Set to a directory on
+        disk. Useful to make sure you don't run this from a partition that might get unmounted. If you use the -d
+        switch (to run as a deamon) you must have this set or the program will die.
+    minSize: [Optional] An integer option. Default None. Specify, in MB, the minimum size for a download to be. Files
+        less than this size will not be saved to disk.
+    maxSize: [Optional] An integer option. Default None. Specify, in MB, the maximum size for a download to be. Files
+        greater than this size will not be saved to disk.
+    log: [Optional] An integer option. Default 0. Will write meassages a log file (specified by logFile). See verbose
+        for what options mean.
+    logFile: [Optional] A string option. Default downloads.log. Specify a file on disk to write the log to.
+    verbose: [Optional] An integer option, defaulting to 3. Lower numbers mean less output. 5 is absurdly verbose, 1 is
+        major errors only. Set to 0 to disable all output.  Errors go to stderr, others go to stdout.
+    cookieFile: [Optional] A string option. Default 'None'. The file on disk, in Netscape Format (requires headers)
+        that has cookie information for whatever site(s) you have set that require it.
+    cookieType: [Optional] A string option. Default 'MozillaCookieJar.' Possible values (case sensitive):
+        'MozillaCookieJar', 'LWPCookieJar', 'MSIECookieJar'. only mechanize supports MSIECookieJar. Program will exit
+        with error if you try to use urllib=True and MSIECookieJar.
+    scanMins: [Optional] An integer option. Default 15. Values are in minutes. The number of minutes between scans. If
+        a feed uses the <ttl> tag, it will be respected. That is, if you have scanMins set to 10 and the site sets
+        <ttl>900</ttl> (900 seconds; 15 mins); then the feed will be scanned every other time. More formally, the
+        effective scan time for each thread is, for X = global scanMins, Y = ttl Mins: min{nX | nX >= Y ; n ∈ ℕ }
+    sleepTime: [Optional] An integer option. Default 0. Values are in seconds. Amount of time to pause between fetches
+        of urls. Some servers do not like when they are hit too quickly, causing weird errors (e.g. inexplicable
+        logouts). Setting this to 1 or 2 can sometimes help prevent such errors.
+    runOnce: [Optional] A boolean option, default False. Set to True to force RSSDler to exit after it has scanned the
+        configured feeds.
+    urllib: [Optional]. Boolean Option. Default False. Setting this to true removes the dependency on mechanize for
+        those platforms where mechanize may not be available or may work improperly. You lose several pieces of
+        functionality, however. 1) Referers will no longer work. On most sites, this will not be a problem, but some
+        sites require referers and will deny requests if the referer is not passed back to the site. 2) Some sites have
+        various 'refresh' mechanisms that may redirect you around before actually giving you the file to download.
+        Mechanize has the ability to follow these sites.
+    noClobber: [Optional]. Boolean. Default True. Setting this to False means that files downloaded with the same
+        name/directory as a previous file, the previous file will get overwritten. When True, a number (starting with
+        1, if that's taken, then 2..) will be added at the end of the name before the extension. If no extension,
+        appended to the end of the file.
+    rssFeed: [Optional] Boolean Option. Default False. Setting this option allows you to create your own rss feed of
+        the objects you have downloaded. It's a basic feed, likely to not include links to the original files. The
+        related rss items (all are required if this is set to True):
+    rssLength: [Optional]  Integer. Default 20. An integer. How many entries should the RSS feed store before it starts
+        dropping old items. 0 means that the feed will never be truncated.
+    rssTitle: [Optional] A string. Default "some RSS Title".  The title the rss feed will carry.
+    rssLink: [Optional]   string: Default 'somelink.com/%%s' %% self['rssFilename']. Where the rss feed can be located.
+        Typically an http link.
+    rssDescription: [Optional] A string. Default "Some RSS Description". A short description of what the feed contains.
+    rssFilename: [Optional] A string. Default 'rssdownloadfeed.xml'. Where to store the feed on disk.
+    saveFile: [Optional] A string option. Default savedstate.dat. Specify a file on disk to write the saved state
+        information to. This keeps track of previously downloaded files and other 'state' information necessary to keep
+        the program running coherently, especially between shutdown/startup
+    maxLogLength: [Optional] An integer option. Default 0. The number of lines of internal state to save. rssdler keeps
+        all messages that could possibly be printed in an internal class (_sharedData). If you leave it running, oh,
+        for say a month or two (yes, I have seen it run that long without crashing). It can grow rather large. Setting
+        this to a positive number will limit the length of the internal state to about the number of lines you specify.
+        This is especially useful in case you are running on a platform with minimal memory available. However, the
+        lower you set the number above 0, the more likely you are to get repeat error messages.
+    lockPort: [Optional] An integer option. Default 8023. The port on which the savedstate.dat file will be locked for
+        writing. Necessary to maintain the integrity of the state information.
+    daemonInfo: [Optional] A string option. Default daemon.info. Only needed with -d. Set to a file on disk. Daemon
+        info will be written there so that -k and such will work.
+    umask: [Optional] An integer option. Default 63. Sets umask for file creation. (unix, windows only). THIS MUST BE
+        IN BASE10. 0027 will be read as decimal 27, not octal 0027 aka decimal 23. 63 in octal is 0077. To convert
+        quickly, just open the python interpreter (type 'python' at the command line), type the umask you want in octal
+        (say 0022), press enter. The interpreter will spit out a number, this is your octal representation in
+        decimal/base10. Note, the leading zeros are necessary for the conversion.  Do not edit this if you do not know
+        what it does. 
+    rss: DEPRECATED, will no longer be processed.
+    error: DEPRECATED, wil no longer be processed. (yes, already)
+
+    
+Thread options:
+    link: [Required] A string option. Link to the rss feed.
+    active:  [Optional] A boolean option. Default is True, set to False to disable checking of that feed.
+    maxSize: [Optional] An integer option, in MB. default is None. A thread based maxSize like in global. If set to
+        None, will default to global's maxSize. Other values override global, including 0 to indicate no maxSize.
+    minSize: [Optional] An integer opton, in MB. default is None. A thread based minSize, like in global. If set to
+        None, will default to global's minSize. Other values override global, including 0 to indicate no minSize.
+    noSave: [Optional] A boolean option. Default to False. If true, will remember download objects for the save
+        processor on run, but does not download. If set to True, Must be set to False manually.
+    directory: [Optional] A string option. Default to None. If set, overrides global's downloadDir, directory to
+        download download objects to.
+    checkTime<x>Day: [Optional] A string option. Either the standard 3 letter abbreviation of the day of the week, or
+        the full name. One of Three options that will specify a scan time. the <x> is an integer. Will only scan the
+        rss feed during the day specified. Can Further curtail scan time with Start and Stop (see next).
+    checkTime<x>Start: [Optional] An integer option. Default: 0. The hour (0-23) at which to start scanning on
+        correlated day. MUST specify checkTime<x>Day.
+    checkTime<x>Stop: [Optional] An integer option. Default 23. The hour (0-23) at which to stop scanning on correlated
+        day. MUST specify checkTime<x>Day.
+    regExTrue: [Optional] A string (regex) option. Default None. If specified, will only download if a regex search of
+        the download name (title key in entry dictionary of feedparser instance) returns True. This will be converted
+        to a python regex object. Use all lower case, as the name is converted to all lower case.
+    regExTrueOptions: [Optional] A string option. Default None. Options (like re.IGNORECASE) to go along with regExTrue
+        when compiling the regex object. IGNORECASE is unnecessary however.
+    regExFalse: [Optional] A string (regex) option. Default None. If specified, will only download if a regex search of
+        the download name returns False. This will be converted to a python regex object. Use all lower case, as the
+        name is converted to all lower case.
+    regExFalseOptions: [Optional] A string option. Default None. Options (like re.IGNORECASE) to go along with
+        regExFalse when compiling the regex object
+    postDownloadFunction: [Optional] A string option. Default None. The name of a function, stored in userFunctions.py
+        found in the current working directory. Any changes to this requires a restart of RSSDler. calls the named
+        function in userFunctions with arguments: directory, filename, rssItemNode, retrievedLink, downloadDict,
+        threadName. Exception handling is up to the function, no exceptions are caught. Check docstrings (or source) of
+        userFunctHandling and callUserFunction to see reserved words/access to RSSDler functions/classes/methods.
+    The following options are ignored if not set (obviously). But once set, they change the behavior of regExTrue (RET)
+        and regExFalse (REF). Without specifying these options, if something matches RET and doesn't match REF, it is
+        downloaded, i.e. RET and REF constitute sufficient conditions to download a file. Once these are specified, RET
+        and REF become necessary (well, when download<x>(True|False) are set to True, or a string for False) but not
+        sufficient conditions for any given download. If you set RET/REF to None, they are of course ignored and
+        fulfill their 'necessity.' You can specify these options as many times as you like, by just changing <x> to
+        another number. 
+    download<x>: [Optional] No default. This apparently  where <x> is an integer, this is a 'positive' hit regex. This
+        is required for download<x>true and download<x>false.
+    download<x>False: [Optional] Default = True. However, this is not strictly a boolean option. True means you want to
+        keep regExFalse against download<x>. If not, set to False, and there will be no 'negative' regex that will be
+        checked against. You can also set this to a string (i.e. a regex) that will be a negative regex ONLY for the
+        corresponding download<x>. Most strings are legal, however the following False/True/Yes/No/0/1 are reserved
+        words when used alone and are interpreted, in a case insensitive manner as Boolean arguments. Requires a
+        corresponding download<x> argument.
+    download<x>True. [Optional] A Boolean option. default True. True checks against regExTrue. False ignores regExTrue.
+        Requires a corresponding download<x> argument.
+    download<x>Dir. [Optional] A String option. Default None. If specified, the first of the download<x> tuples to
+        match up with the download name, downloads the file to the directory specified here. Full path is recommended.
+    download<x>MinSize. [Optional]. An Integer option. Default None. Analogous to minSize.
+    download<x>MaxSize. [Optional]. An integer option. Default None. Analogous to maxSize.
+    scanMins [Optional]. An integer option. Default 0. Sets the MINIMUM interval at which to scan the thread. If global
+        is set to, say, 5, and thread is set to 3, the thread will still only be scanned every 5 minutes.
+        Alternatively, if you have the thread set to 7 and global to 5, the actual interval will be 10. More formally,
+        the effective scan time for each thread is, for X = global scanMins, Y = thread scanMins, Z = ttl Mins: min{nX
+        | nX >= Y ; nX >= Z ; n ∈ ℕ }
+    checkTime: DEPRECATED. Will no longer be processed.
+    Programmers Note: 
+        download<x>* stored in a DownloadItemConfig() Dict in .downloads. 
+        checkTime* stored as tuple of (DoW, startHour, endHour)
+    
+
+
+A Netscape cookies file must have the proper header that looks like this:
+# HTTP Cookie File
+# http://www.netscape.com/newsref/std/cookie_spec.html
+# This is a generated file!  Do not edit.
+# To delete cookies, use the Cookie Manager.
+
+cookiedata ....
+
+RSSDler - RSS Broadcatcher
+
+}}}

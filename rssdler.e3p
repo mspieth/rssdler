@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Project SYSTEM "Project-3.9.dtd">
+<!-- Project file for project rssdler -->
+<!-- Saved: 2007-12-13, 13:18:51 -->
+<!-- Copyright (C) 2007 lostnihilist, lostnihilist@gmail.com -->
+<Project version="3.9">
+  <ProgLanguage mixed="0">Python</ProgLanguage>
+  <UIType>Console</UIType>
+  <Description>A utility to automatically download enclosures and other objects linked to from various types of RSS feeds. Features filtering through regular expressions and file size; global, feed, and filter based download locations; can run in the background (at least on GNU/Linux) ; various logging and verbosity levels ; cookies ; global and feed scan times ; respects 'ttl' tag ; call custom functions after a download ; and can even generate an RSS feed of what is has downloaded. Because it is written in Python, it is highly cross-platform compatible. Tries to be memory efficient, with reports of it functioning on consumer routers. Minimal external dependencies help keep that a reality.</Description>
+  <Version>0.3.2</Version>
+  <Author>lostnihilist</Author>
+  <Email>lostnihilist@gmail.com</Email>
+  <Sources>
+    <Source>
+      <Name>rssdlerDev.py</Name>
+    </Source>
+    <Source>
+      <Name>__init__.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler023.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler024.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>__init__.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler021.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler02.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler01.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler022a.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler030.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler022.py</Name>
+    </Source>
+    <Source>
+      <Dir>Old</Dir>
+      <Name>rssdler031.py</Name>
+    </Source>
+    <Source>
+      <Name>changelog.txt.py</Name>
+    </Source>
+    <Source>
+      <Name>userFunctions.py</Name>
+    </Source>
+  </Sources>
+  <Forms>
+  </Forms>
+  <Translations>
+  </Translations>
+  <Interfaces>
+  </Interfaces>
+  <Others>
+  </Others>
+  <MainScript>
+    <Name>rssdlerDev.py</Name>
+  </MainScript>
+  <Vcs>
+    <VcsType>Subversion</VcsType>
+    <VcsOptions>(dp0
+S'status'
+p1
+(lp2
+sS'log'
+p3
+(lp4
+sS'global'
+p5
+(lp6
+V--username
+p7
+aVlostnihilist
+p8
+asS'update'
+p9
+(lp10
+sS'remove'
+p11
+(lp12
+sS'add'
+p13
+(lp14
+sS'tag'
+p15
+(lp16
+sS'export'
+p17
+(lp18
+sS'commit'
+p19
+(lp20
+sS'diff'
+p21
+(lp22
+sS'checkout'
+p23
+(lp24
+sS'history'
+p25
+(lp26
+s.</VcsOptions>
+    <VcsOtherData>(dp0
+S'standardLayout'
+p1
+I00
+s.</VcsOtherData>
+  </Vcs>
+  <FiletypeAssociations>
+    <FiletypeAssociation pattern="*.ui.h" type="FORMS" />
+    <FiletypeAssociation pattern="*.ui" type="FORMS" />
+    <FiletypeAssociation pattern="*.idl" type="INTERFACES" />
+    <FiletypeAssociation pattern="*.py" type="SOURCES" />
+    <FiletypeAssociation pattern="*.ptl" type="SOURCES" />
+  </FiletypeAssociations>
+</Project>
