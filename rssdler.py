@@ -22,6 +22,7 @@ import ConfigParser
 import cookielib
 import copy
 import getopt
+import httplib
 import mimetypes
 import os
 import pickle
@@ -55,7 +56,7 @@ except ImportError:
 
 # if action == "daemon" import resource
 # if urllib == False: import mechanize
-# of verbose >0 and os.name =='nt' or 'dos' or 'ce'
+# if verbose >0 and os.name =='nt' or 'dos' or 'ce' and not daemon
 # from ctypes import windll, create_string_buffer
 # struct
 # if generating rss feed: from xml.dom import minidom  and import random
@@ -686,7 +687,8 @@ def rssparse(thread, threadName):
 	if not page: 
 		logStatusMsg( u"failed to grab url %s" % ThreadLink['link'], 1)
 		return ThreadLink
-	try: ppage = feedparser.parse(page.read())
+	pr = page.read()
+	try: ppage = feedparser.parse(pr)
 	# feedparser does not seem to throw exceptions properly, is a dictionary of some kind
 	except Exception, m:
 		logStatusMsg( unicode(m) + os.linesep + u"page grabbed was not a parseable rss feed", 1)
@@ -734,6 +736,8 @@ def rssparse(thread, threadName):
 			if getConfig()['threads'][threadName]['postDownloadFunction']: 
 				callUserFunction( getConfig()['threads'][threadName]['postDownloadFunction'], *userFunctArgs )
 		ThreadLink['noSave'] = False
+	if getConfig()['threads'][threadName]['postScanFunction']:
+		callUserFunction( getConfig()['threads'][threadName]['postScanFunction'], pr, ppage, page.geturl(), threadName )
 	return ThreadLink
 
 def writeNewFile(filename, directory, data):
@@ -1217,7 +1221,8 @@ class ThreadLink(UserDict):
 	regExTrueOptions: [Optional] A string option. Default None. Options (like re.IGNORECASE) to go along with regExTrue when compiling the regex object. IGNORECASE is unnecessary however.
 	regExFalse: [Optional] A string (regex) option. Default None. If specified, will only download if a regex search of the download name returns False. This will be converted to a python regex object. Use all lower case, as the name is converted to all lower case.
 	regExFalseOptions: [Optional] A string option. Default None. Options (like re.IGNORECASE) to go along with regExFalse when compiling the regex object
-	postDownloadFunction: [Optional] A string option. Default None. The name of a function, stored in userFunctions.py found in the current working directory. Any changes to this requires a restart of RSSDler. calls the named function in userFunctions with arguments: directory, filename, rssItemNode, retrievedLink, downloadDict, threadName. Exception handling is up to the function, no exceptions are caught. Check docstrings (or source) of userFunctHandling and callUserFunction to see reserved words/access to RSSDler functions/classes/methods.
+	postDownloadFunction: [Optional] A string option. Default None. The name of a function, stored in userFunctions.py found in the current working directory. Any changes to this requires a restart of RSSDler. Calls the named function in userFunctions after a successful download with arguments: directory, filename, rssItemNode, retrievedLink, downloadDict, threadName. Exception handling is up to the function, no exceptions are caught. Check docstrings (or source) of userFunctHandling and callUserFunction to see reserved words/access to RSSDler functions/classes/methods.
+	postScanFunction: [Optional] A string option. Default None. The name of a function, stored in userFunctions.py. Any changes to this requires a restart of RSSDler. Calls the named function after a scan of a feed with arguments, page, ppage, retrievedLink, and threadName. Exception Handling is up to the function, no exceptions are caught. Check docstrings of userFunctHandling and callUserFunctions for more information.
 	The following options are ignored if not set (obviously). But once set, they change the behavior of regExTrue (RET) and regExFalse (REF). Without specifying these options, if something matches RET and doesn't match REF, it is downloaded, i.e. RET and REF constitute sufficient conditions to download a file. Once these are specified, RET and REF become necessary (well, when download<x>(True|False) are set to True, or a string for False) but not sufficient conditions for any given download. If you set RET/REF to None, they are of course ignored and fulfill their 'necessity.' You can specify these options as many times as you like, by just changing <x> to another number. 
 	download<x>: [Optional] No default. This apparently  where <x> is an integer, this is a 'positive' hit regex. This is required for download<x>true and download<x>false.
 	download<x>False: [Optional] Default = True. However, this is not strictly a boolean option. True means you want to keep regExFalse against download<x>. If not, set to False, and there will be no 'negative' regex that will be checked against. You can also set this to a string (i.e. a regex) that will be a negative regex ONLY for the corresponding download<x>. Most strings are legal, however the following False/True/Yes/No/0/1 are reserved words when used alone and are interpreted, in a case insensitive manner as Boolean arguments. Requires a corresponding download<x> argument.
@@ -1247,6 +1252,7 @@ class ThreadLink(UserDict):
 		self['postDownloadFunction'] = postDownloadFunction
 		self['scanMins'] = scanMins
 		self['downloads'] = []
+		self['postScanFunction'] = None
 
 class SaveInfo(UserDict):
 	u"""lastChecked: when we last checked the rss feeds
@@ -1365,7 +1371,7 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 		self.boolOptionsGlobal = ['runOnce', 'active', 'rssFeed', 'urllib', 'noClobber']
 		self.boolOptionsThread = ['active', 'noSave']
 		self.stringOptionsGlobal = ['downloadDir', 'saveFile', 'cookieFile', 'cookieType', 'logFile', 'workingDir', 'daemonInfo', 'rssFilename', 'rssLink', 'rssDescription', 'rssTitle']
-		self.stringOptionsThread = ['link', 'directory', 'postDownloadFunction', 'regExTrue', 'regExTrueOptions', 'regExFalse', 'regExFalseOptions']	
+		self.stringOptionsThread = ['link', 'directory', 'postDownloadFunction', 'regExTrue', 'regExTrueOptions', 'regExFalse', 'regExFalseOptions', 'postScanFunction']	
 		self.intOptionsGlobal = ['maxSize', 'minSize', 'lockPort', 'scanMins', 'rssLength', 'sleepTime', 'verbose', 'log', 'umask', 'maxLogLength']
 		self.intOptionsThread = ['maxSize', 'minSize', 'scanMins']
 		if filename: self.filename = filename
@@ -1572,19 +1578,28 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 # # # # #
 # User/InterProcess Communication
 # # # # #
-def callUserFunction( functionName, directory, filename, rssItemNode, retrievedLink, downloadDict, threadName ):
-	u"""calls the named function in userFunctions with arguments (these are not keyword arguments): directory, filename, rssItemNode, retrievedLink, downloadDict, threadName.
-directory: name of the directory the file was saved to
-filename: name of the file the downloaded data was saved to
-rssItemNode: the feedparser entry for the item we are downloading. This will have been altered such that the original ['link'] element is now at ['oldlink'] and the ['link'] element has been made to be friendly with urllib2RetrievePage and mechRetrievePage
-retrievedLink: the resultant url from the retrieval. May be different from ['link'] and ['oldlink'] in a number of ways (percent quoting and character encoding, in particular, plus any changes to the url from server redirection, etc.)
-downloadDict: a dictionary representing the download<x> options. keys are: 'localTrue' (corresponding to download<x>) ; 'False' ; 'True' ; 'Dir' ; 'minSize' ; and 'maxSize' corresponding to their analogues in download<x>.
-threadName: the name of the config entry. to be accessed like getConfig()['threads'][threadName]
+def callUserFunction( functionName, *args ):
+	u"""calls the named function in userFunctions with arguments (these are positional, not keyword, arguments): 
+	if postDownloadFunction: directory, filename, rssItemNode, retrievedLink, downloadDict, threadName
+	if postScanFunction: page, ppage, retrievedLink, and threadName 
+	directory: name of the directory the file was saved to
+	filename: name of the file the downloaded data was saved to
+	rssItemNode: the feedparser entry for the item we are downloading. This will have been altered such that the original ['link'] element is now at ['oldlink'] and the ['link'] element has been made to be friendly with urllib2RetrievePage and mechRetrievePage
+	retrievedLink: the resultant url from the retrieval. May be different from ['link'] and ['oldlink'] in a number of ways (percent quoting and character encoding, in particular, plus any changes to the url from server redirection, etc.)
+	downloadDict: a dictionary representing the download<x> options. keys are: 'localTrue' (corresponding to download<x>) ; 'False' ; 'True' ; 'Dir' ; 'minSize' ; and 'maxSize' corresponding to their analogues in download<x>.
+	threadName: the name of the config entry. to be accessed like getConfig()['threads'][threadName]
+	
+	page: the raw feed fetched from the server
+	ppage: the feedparser parsed feed
+	retrievedLink: the url that was sent by the server
 	"""
 	global userFunctions
-	logStatusMsg( u"attempting postDownloadFunction", 5)
-	userFunct = userFunctions.__getattribute__(functionName)
-	userFunct(directory, filename, rssItemNode, retrievedLink, downloadDict, threadName )
+	logStatusMsg( u"attempting a user function", 5)
+	if not hasattr(userFunctions, functionName):
+		logStatusMsg( u"module does not have function named %s called from thread %s" % (functionName, threadName), 1)
+		return None
+	userFunct = getattr(userFunctions, functionName)
+	userFunct( *args )
 
 def userFunctHandling():
 	u"""tries to import userFunctions, sets up the namespace
@@ -1596,8 +1611,8 @@ reserved words in userFunctions: everything in globals() except '__builtins__', 
 	# echo globalList | sed -r 's/([a-zA-Z0-9_]*), /userFunctions.\1 = \1\n/g' | xclip, paste below
 	if not userFunctions:
 		for threadKey in getConfig()['threads'].keys():
-			if getConfig()['threads'][threadKey]['postDownloadFunction']:
-				logStatusMsg( os.path.realpath('./'), 5)
+			if getConfig()['threads'][threadKey]['postDownloadFunction'] or getConfig()['threads'][threadKey]['postScanFunction']:
+				# logStatusMsg( os.path.realpath('./'), 5)  # this makes no sense whatsoever
 				import userFunctions
 				break
 		else: 			userFunctions = 1
@@ -1745,12 +1760,12 @@ def logStatusMsg( msg, level, config=True ):
 	u"""write a message to the log/stdout/stderr, depending on the level. if config=False, goes straight to stderr"""
 	TimeCode = u"[%4d%02d%02d.%02d:%02d.%02d]" % time.localtime()[:6]
 	newmsg = TimeCode + '   ' + unicode( msg ) 
-	if not config and _action != "daemon": # daemon == no stdout!
+	if not config and _action != "daemon": # daemon == no stdout/err!
 		sys.stderrUTF.write(  unicode(ReFormatString( inputstring=newmsg)) )
 		return None
 	sharedData = getSharedData()
 	# level >=3 is vebose. we don't want to repeatedly send the same error message (the second part), but if we want verbosity, the first part is enough to print the message
-	if level >= 3 or not ( msg in sharedData.scanoutput or unicode( msg ) in sharedData.scanoutput ) : 
+	if level >= 3 or not ( filter( lambda x: unicode( msg ) in x[1],  sharedData.scanoutput ) ) : 
 		sharedData.scanoutput.append( (level, unicode( newmsg ) + os.linesep) )
 		logMsg( newmsg, level )
 		status( newmsg, level )
@@ -1768,7 +1783,7 @@ def getSharedData():
 	global _sharedData
 	if not _sharedData:
 		_sharedData = SharedData()
-	if getConfig()['global']['maxLogLength']:
+	if getConfig()['global']['maxLogLength'] and len(_sharedData.scanoutput) > getConfig()['global']['maxLogLength']:
 		del _sharedData.scanoutput[:len(_sharedData.scanoutput) - getConfig()['global']['maxLogLength'] ]
 	return _sharedData
 
@@ -1981,12 +1996,10 @@ def main( ):
 	global _runOnce
 	config = getConfig(filename=configFile)
 	sharedData = getSharedData()
-	sharedData.scanoutput = ""
 	if not _runOnce:
 		_runOnce = getConfig()['global']['runOnce']
 	while True:
 		try:
-			sharedData.scanoutput += os.linesep * 2
 			sharedData.scanning = True
 			logStatusMsg( u"[Waking up] %s" % time.asctime() , 4)
 			startTime = time.time()

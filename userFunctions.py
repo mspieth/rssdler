@@ -38,3 +38,31 @@ def rmObj(directory, filename, rssItemNode, retrievedLink, downloadDict, threadN
 		newfilename = filename[:-4]
 		try: os.rename( os.path.join(directory, filename), os.path.join(directory, newfilename) )
 		except Exception, m: logStatusMsg(u"could not remove .obj from filename %s" % filename, 2)
+
+def _saveFeed(page, ppage, retrievedLink, threadName, filename, length):
+	global minidom, random
+	try:
+		if not minidom: from xml.dom import minidom
+	except ImportError, m:
+		logStatusMsg(unicode(m), 1 )
+		raise ImportError
+	try:
+		if not random: import random
+	except ImportError, m:
+		logStatusMsg( unicode(m), 1 )
+		raise ImportError
+	rssl = MakeRss(filename=filename, itemsQuaDictBool=True)
+	if os.path.isfile( filename ):		rssl.parse()
+	rssl.channelMeta = ppage['feed']
+	links = [ x['link'] for x in rssl.itemsQuaDict ] # if no link key, this will fail without proper handling
+	for entry in reversed( ppage['entries'] ):
+		if entry['link'] in links: rssl.makeItemNode( entry ) # this logic could be better
+	rssl.close(length=length)
+	rssl.write()
+	
+
+def saveFeed(*args):
+	args = list(args)
+	desiredLength = 100
+	args.extend( ('afilenameforfeed.xml', desiredLength) )
+	_saveFeed( *args )

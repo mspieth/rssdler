@@ -41,6 +41,7 @@ ver032 = u"""0.3.2 alpha (development version)
 	- global umask option (reads as decimal NOT OCTAL, read documentation for details and before using (i'm serious))
 	- got proper signal handling. Exit the program cleanly (like -k.). aka: let ctrl-c (somewhat) cleanly exit the program.
 	- added global option maxLogLength. the internal message log can grow rather large, make a setting to allow truncating at a certain number of lines to keep memory usage after long run times under control.
+	- added postScan function for threads
 	- ReFormatString got called with no config, when config should indicate there is no stdout/stderr (daemon mode) and tries to print. this causes a crash. Now notices daemon mode and fails to print anything.
 	- scanMins for threads (see documentation on implementation notes)
 	- MakeRss methods changed slightly, storage of items as dictionaries until .close(). (This means you should redownload the userFunctions.py if you were using mine, as there had to be some minor changes.) (MakeRss)
