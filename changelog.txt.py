@@ -4,6 +4,8 @@
 # release steps:
 # edit note on init script as being in development
 # re-edit globals used in userFunctHandling()
+# a) import rssdler as r
+# b) z = userFunctHandling() 
 # if change comment config, change \b corrupted to \b
 # change membership test and natural numbers to appropriate values
 #  min{nX | nX >= Y ; nX >= Z ; n ∈ ℕ }

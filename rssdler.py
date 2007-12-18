@@ -298,7 +298,7 @@ class Locked( Exception ):
 def xmlUnEscape( sStr, percent=1, percentunQuoteDict=percentunQuoteDict ):
 	u"""xml unescape a string, by default also checking for percent encoded characters. set percent=0 to ignore percent encoding. 
 	can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentunQuoteDict.
-	Unicode safe"""
+	"""
 	sStr = sStr.replace("&lt;", "<")
 	sStr = sStr.replace("&gt;", ">")
 	if percent:	
@@ -309,7 +309,7 @@ def xmlUnEscape( sStr, percent=1, percentunQuoteDict=percentunQuoteDict ):
 def xmlEscape( sStr, percent=1, percentQuoteDict=percentQuoteDict ):
 	u"""this does not function perfectly with percent=1 aka also doing percent encoding. trailing ; get converted to %3B. perhaps they should be? but not likely. 
 	can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentQuoteDict.
-	Unicode Safe."""
+	"""
 	sStr = sStr.replace("&", "&amp;")
 	sStr = sStr.replace(">", "&gt;")
 	sStr = sStr.replace("<", "&lt;")
@@ -320,16 +320,6 @@ def xmlEscape( sStr, percent=1, percentQuoteDict=percentQuoteDict ):
 def percentIsQuoted(sStr, testCases=percentQuoteDict.values()):
 	u"""does not include query string or page marker (#) in detection. these seem to cause the most problems.
 	Specify your own test values with testCases
-	Unicode Safe
-	Test cases:
-	should return False
-	http://www.google.com/search?num=50&hl=en&c2coff=1&safe=off&q=*nrg*&btnG=Search
-	should return True
-	http://links.jstor.org/sici?sici=0364-765X(198102)6%3A1%3C58%3AOAD%3E2.0.CO%3B2-C
-	should return False
-	%ab
-	Original version worked mostly well: return '%' in aStr
-	
 	"""
 	b = testCases
 	for i in b:
@@ -337,8 +327,7 @@ def percentIsQuoted(sStr, testCases=percentQuoteDict.values()):
 	else: return False
 
 def percentNeedsQuoted(sStr, testCases=percentQuoteDict.keys()):
-	u"""check to see if there is a character in the path part of the url that is 'reserved'
-	Unicode Safe"""
+	u"""check to see if there is a character in the path part of the url that is 'reserved'"""
 	c = testCases
 	# this is much more questionable
 	for aStr in urlparse.urlparse(sStr)[:4]:
@@ -347,18 +336,15 @@ def percentNeedsQuoted(sStr, testCases=percentQuoteDict.keys()):
 	else: return False
 
 def percentUnQuote( sStr, percentunQuoteDict=percentunQuoteDict ):
-	u"""percent unquote a string. will also unescape xml entities. should maybe just unquote the path? for now, left to the calling function to decide
-	Unicode Safe"""
+	u"""percent unquote a string. will also unescape xml entities. should maybe just unquote the path? for now, left to the calling function to decide"""
 	for search, replace in percentunQuoteDict.iteritems():
 		if search == '%25': continue
 		sStr = sStr.replace( search, replace )
 	sStr = sStr.replace( '%25', '%' )
 	return sStr
 
-#NOT (necessarily) UNICODE SAFE in default mode
 def percentQuote(sStr, urlPart=(2,), unicode=0, percentQuoteDict=percentQuoteDict):
-	u"""quote the path part of the url. urlPart is a sequence of parts of the urlunparsed entries to quote
-	NOT UNICODE SAFE?"""
+	u"""quote the path part of the url. urlPart is a sequence of parts of the urlunparsed entries to quote"""
 	if unicode:
 		return percentQuoteCustom( sStr, urlPart, percentQuoteDict )
 	urlList = list( urlparse.urlparse(sStr) )
@@ -368,8 +354,7 @@ def percentQuote(sStr, urlPart=(2,), unicode=0, percentQuoteDict=percentQuoteDic
 	return urlparse.urlunparse( urlList )
 
 def percentQuoteCustom(sStr, urlPart=(2,), percentQuoteDict=percentQuoteDict ):
-	u"""quote the path part of he url. urlPart is a sequence of parts of the urlunparsed entries to quote. should maintain unicodedness. maybe not as robust as urllib.quote. can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentQuoteDict
-	Unicode Safe"""
+	u"""quote the path part of he url. urlPart is a sequence of parts of the urlunparsed entries to quote. should maintain unicodedness. maybe not as robust as urllib.quote. can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentQuoteDict"""
 	urlList = list( urlparse.urlparse(sStr) )
 	for i in urlPart:
 		aStr = urlList[i]
@@ -390,7 +375,6 @@ def unQuoteReQuote( url, quote=1, unicode=0 ):
 	elif quote and unicode: url = percentQuote( url, unicode=1 )
 	return url
 
-# NOT UNICODE SAFE, pretty much b/c it is designed to encode to utf-8 for httplib
 def encodeQuoteUrl( url, encoding='utf-8', unicode=0 ):
 	u"""take a url, percent quote it, if necessary and encode the string to encoding, default utf-8"""
 	logStatusMsg( u"encoding url %s" % url, 5)
@@ -404,8 +388,7 @@ def encodeQuoteUrl( url, encoding='utf-8', unicode=0 ):
 	return url
 	
 def cookieHandler():
-	u"""returns 0 if no cookie configured, 1 if cookie configured, 2 if cookie already configured (even if it is for a null value)
-	I think Unicode Safe"""
+	u"""returns 0 if no cookie configured, 1 if cookie configured, 2 if cookie already configured (even if it is for a null value)"""
 	global cj
 	returnValue = 2
 	logStatusMsg(u"""testing cookieFile settings""", 5)
@@ -487,8 +470,7 @@ def mechRetrievePage(url, txheaders=(('User-agent', _USER_AGENT),), ):
 	return mechanize.urlopen( mechanize.Request( url, headers=dict( txheadersEncoded ) ) )
 
 def getFileSize( info, data=None ):
-	u"""give me the HTTP headers (info) and, if you expect it to be a torrent file, the actual file, i'll return the filesize, of type None if not determined
-	Unicode Safe"""
+	u"""give me the HTTP headers (info) and, if you expect it to be a torrent file, the actual file, i'll return the filesize, of type None if not determined"""
 	logStatusMsg(u"determining size of file", 5)
 	size = None
 	if 'torrent' in info.gettype():
@@ -513,7 +495,7 @@ def getFileSize( info, data=None ):
 def checkFileSize(size, threadName, downloadDict):
 	u"""returns True if size is within size constraints specified by config file. False if not.
 	takes the size (determined by getFileSize?) in bytes, threadName (to look in config), and downloadDict (parsed download<x> options).
-	Unicode Safe"""
+	"""
 	returnValue = True
 	logStatusMsg(u"checking file size", 5)
 	if downloadDict['maxSize'] != None: maxSize = downloadDict['maxSize']
@@ -537,8 +519,7 @@ def checkFileSize(size, threadName, downloadDict):
 	return returnValue
 
 def getFilenameFromHTTP(info, url):
-	u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed.
-	Unsure of Unicode Fitness see bug (a)"""
+	u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed."""
 	filename = None
 	logStatusMsg(u"determining filename", 5)
 	if info.has_key('content-disposition') and info['content-disposition'].count('filename='):
@@ -733,7 +714,9 @@ def rssparse(thread, threadName):
 		elif userFunctArgs:
 			logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
 			saved.downloads.append( ppage['entries'][i]['link'] )
-			if getConfig()['threads'][threadName]['postDownloadFunction']: 
+			if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
+				callUserFunction( dirDict['Function'], *userFunctArgs )
+			elif getConfig()['threads'][threadName]['postDownloadFunction']: 
 				callUserFunction( getConfig()['threads'][threadName]['postDownloadFunction'], *userFunctArgs )
 		ThreadLink['noSave'] = False
 	if getConfig()['threads'][threadName]['postScanFunction']:
@@ -1013,7 +996,7 @@ class FailedItem(UserDict):
 class DownloadItemConfig(UserDict):
 	u"""downloadDict: a dictionary representing the download<x> options. keys are: 'localTrue' (corresponding to download<x>) ; 'False' ; 'True' ; 'Dir' ; 'minSize' ; and 'maxSize' corresponding to their analogues in download<x>.
 	Unicode Safe"""
-	def __init__(self, regextrue=None, dFalse=True, dTrue=True, dir=None, minSize=None, maxSize=None):
+	def __init__(self, regextrue=None, dFalse=True, dTrue=True, dir=None, minSize=None, maxSize=None, Function=None):
 		u"was [0] = localTrue, [1] = False, [2] = True, [3] = dir"
 		UserDict.__init__(self)
 		self['localTrue'] = regextrue
@@ -1022,6 +1005,7 @@ class DownloadItemConfig(UserDict):
 		self['Dir'] = dir
 		self['minSize'] = minSize
 		self['maxSize'] = maxSize
+		self['Function'] = Function
 
 class MakeRss:
 	u"""A class to generate, and optionally parse and load, an RSS 2.0 feed. Example usage:
@@ -1228,6 +1212,7 @@ class ThreadLink(UserDict):
 	download<x>False: [Optional] Default = True. However, this is not strictly a boolean option. True means you want to keep regExFalse against download<x>. If not, set to False, and there will be no 'negative' regex that will be checked against. You can also set this to a string (i.e. a regex) that will be a negative regex ONLY for the corresponding download<x>. Most strings are legal, however the following False/True/Yes/No/0/1 are reserved words when used alone and are interpreted, in a case insensitive manner as Boolean arguments. Requires a corresponding download<x> argument.
 	download<x>True. [Optional] A Boolean option. default True. True checks against regExTrue. False ignores regExTrue. Requires a corresponding download<x> argument.
 	download<x>Dir. [Optional] A String option. Default None. If specified, the first of the download<x> tuples to match up with the download name, downloads the file to the directory specified here. Full path is recommended.
+	download<x>Function. [Optional] A String option. Default None. just like postDownloadFunction, but will override it if specified.
 	download<x>MinSize. [Optional]. An Integer option. Default None. Analogous to minSize.
 	download<x>MaxSize. [Optional]. An integer option. Default None. Analogous to maxSize.
 	scanMins [Optional]. An integer option. Default 0. Sets the MINIMUM interval at which to scan the thread. If global is set to, say, 5, and thread is set to 3, the thread will still only be scanned every 5 minutes. Alternatively, if you have the thread set to 7 and global to 5, the actual interval will be 10. More formally, the effective scan time for each thread is, for X = global scanMins, Y = thread scanMins, Z = ttl Mins: min{nX | nX >= Y ; nX >= Z ; n \u2208 \u2115 }
@@ -1426,8 +1411,10 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 					except ValueError: logStatusMsg(u'failed to parse option %s in thread %s' % (option, thread), 1, config=False)
 			#populate thread.downloads
 			downList = []
+			checkList = []
 			for threadOption in self.options(thread):
 				if threadOption.startswith('download'): downList.append(threadOption)
+				elif threadOption.startswith('checktime'): checkList.append(threadOption)
 			downList.sort()
 			for i in downList:
 				if i.lower().endswith('false'): 
@@ -1449,11 +1436,10 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 				elif i.lower().endswith('minsize'):
 					try: self['threads'][thread]['downloads'][-1]['minSize'] = self.getint(thread, i)
 					except ValueError: pass
+				elif i.lower().endswith('function'):
+					optionFunct = self.get(thread, i)
+					if optionFunct.lower() != 'none': self['threads'][thread]['downloads'][-1]['Function'] = optionFunct
 				else: self['threads'][thread]['downloads'].append( DownloadItemConfig( self.get(thread, i) ) )
-			# populate checkTime
-			checkList = []
-			for threadOption in self.options(thread):
-				if threadOption.startswith('checktime'): checkList.append(threadOption)
 			checkList.sort()
 			checkTuple = []
 			for j in checkList:
@@ -1603,8 +1589,8 @@ def callUserFunction( functionName, *args ):
 
 def userFunctHandling():
 	u"""tries to import userFunctions, sets up the namespace
-reserved words in userFunctions: everything in globals() except '__builtins__', '__name__', '__doc__', 'userFunctHandling', 'callUserFunction', 'userFunctions'. If using daemon mode, 'resource' is reserved.
-	Reserved words: 'Config', 'ConfigParser', 'DownloadItemConfig', 'FailedItem', 'Fatal', 'GlobalOptions', 'Locked', 'Log', 'MAXFD', 'MakeRss', 'PrettyPrint', 'ReFormatString', 'SaveInfo', 'SaveProcessor', 'SharedData', 'ThreadLink', 'UserDict', 'Warning', '_USER_AGENT', '__version__', '__file__', '_action', '_bdecode', '_configInstance', '_log', '_runOnce', '_sharedData', 'bdecode', 'callDaemon', 'cgi', 'checkFileSize', 'checkRegEx', 'checkRegExDown', 'checkRegExGFalse', 'checkRegExGTrue', 'checkSleep', 'cj', 'cliOptions', 'codecs', 'commentConfig', 'config', 'configFile', 'configFileNotes', 'contact', 'cookieHandler', 'cookielib', 'copy', 'copyright', 'createDaemon', 'deque', 'downloadFile', 'downloader', 'encodeQuoteUrl', 'feedparser', 'findNewFile', 'getConfig', 'getFileSize', 'getFilenameFromHTTP', 'getSharedData', 'getVersion', 'getopt', 'helpMessage', 'httplib', 'killDaemon', 'logMsg', 'logStatusMsg', 'main', 'mechRetrievePage', 'mechanize', 'mimetypes', 'minidom', 'mybdecode', 'mydeque', 'nonCoreDependencies', 'opener', 'os', 'percentIsQuoted', 'percentNeedsQuoted', 'percentQuote', 'percentQuoteCustom', 'percentQuoteDict', 'percentUnQuote', 'percentunQuoteDict', 'pickle', 'random', 're', 'rss', 'rssparse', 'run', 'saved', 'searchFailed', 'securityIssues', 'signalHandler', 'socket', 'status', 'sys', 'time', 'unQuoteReQuote', 'urllib', 'urllib2', 'urllib2RetrievePage', 'urlparse', 'utfWriter', 'writeNewFile', 'xmlEscape', 'xmlUnEscape'
+	reserved words in userFunctions: everything in globals() except '__builtins__', '__name__', '__doc__', 'userFunctHandling', 'callUserFunction', 'userFunctions'. If using daemon mode, 'resource' is reserved.
+	Reserved words: 'Config', 'ConfigParser', 'DownloadItemConfig', 'FailedItem', 'Fatal', 'GlobalOptions', 'Locked', 'Log', 'MAXFD', 'MakeRss', 'ReFormatString', 'SaveInfo', 'SaveProcessor', 'SharedData', 'ThreadLink', 'UserDict', 'Warning', '_USER_AGENT', '__author__', '__copyright__', '__file__', '__version__', '_action', '_bdecode', '_configInstance', '_log', '_runOnce', '_sharedData', 'bdecode', 'callDaemon', 'checkFileSize', 'checkRegEx', 'checkRegExDown', 'checkRegExGFalse', 'checkRegExGTrue', 'checkScanTime', 'checkSleep', 'cj', 'cliOptions', 'codecs', 'commentConfig', 'config', 'configFile', 'configFileNotes', 'cookieHandler', 'cookielib', 'copy', 'createDaemon', 'create_string_buffer', 'deque', 'downloadFile', 'downloader', 'encodeQuoteUrl', 'feedparser', 'findNewFile', 'getConfig', 'getFileSize', 'getFilenameFromHTTP', 'getSharedData', 'getVersion', 'getopt', 'helpMessage', 'httplib', 'killDaemon', 'logMsg', 'logStatusMsg', 'main', 'mechRetrievePage', 'mechanize', 'mimetypes', 'minidom', 'mybdecode', 'mydeque', 'nonCoreDependencies', 'opener', 'os', 'percentIsQuoted', 'percentNeedsQuoted', 'percentQuote', 'percentQuoteCustom', 'percentQuoteDict', 'percentUnQuote', 'percentunQuoteDict', 'pickle', 'random', 're', 'resource', 'rss', 'rssparse', 'run', 'saved', 'searchFailed', 'securityIssues', 'signal', 'signalHandler', 'socket', 'status', 'struct', 'sys', 'time', 'unQuoteReQuote', 'urllib', 'urllib2', 'urllib2RetrievePage', 'urlparse', 'utfWriter', 'windll', 'writeNewFile', 'xmlEscape', 'xmlUnEscape'
 	check docstrings/source for use notes on these reserved words."""
 	global userFunctions
 	# to generate if userFunctions part, add ", " to end of global list, then feed to sed: 
@@ -2095,6 +2081,10 @@ if __name__ == '__main__':
 	elif _action == "daemon":
 		#call daemon
 		config = getConfig(filename=configFile, reload=True)
+		if os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
+			logStatusMsg( u"daemon mode not supported on Windows. will try to continue, but this is likely to crash", 1)
+		elif os.name == u'mac' or os.name == u"os2":
+			logStatusMsg( u"daemon mode may have issues on your platform. will try to continue, but may crash. feel free to submit a ticket with relevant output on this issue", 1)
 		getConfig()['global']['verbose'] = 0
 		if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
 			os.chdir(getConfig()['global']['workingDir'])
