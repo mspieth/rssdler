@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.2 alpha"
+__version__ = u"0.3.2"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
