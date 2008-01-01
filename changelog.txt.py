@@ -5,7 +5,7 @@
 # edit note on init script as being in development
 # re-edit globals used in userFunctHandling()
 # a) import rssdler as r
-# b) z = userFunctHandling() 
+# b) z = r.userFunctHandling() 
 # if change comment config, change \b corrupted to \b
 # change membership test and natural numbers to appropriate values
 #  min{nX | nX >= Y ; nX >= Z ; n ∈ ℕ }
@@ -28,15 +28,6 @@ printaction = None
 ##from Old.rssdler032 import *
 from rssdlerDev import *
 
-Bugs=u"""Known Bugs:
-	- python's networking modules do not deal with unicode strings. Effort has been made to encode to utf-8 before passing on to any of the networking functions. If you see anything about a Unicode error, PLEASE email me the traceback message and any more information you can provide about it.
-	- generic mimetype causes .obj to be appended to filename. Maybe trust filename from header, and only check mimetype if filename is from url?
-"""
-Requests = """Requests: NONE!?!""" 
-Todo = """TODO:
-	- MakeRss class full convert arbitrary feedparser Dictionary to XML (low priority, look for other implementations, if anyone sees this has been done somewhere, let me know)
-	- make a decision of whether to use percentQuote or percentQuoteCustom. If you get any unicode errors, especially with urls, this is a good place to look to see if handling can be improved."""
-	
 ver032 = u"""0.3.2 alpha (development version)
 	<DATE>
 	- made init script for debian based distros
