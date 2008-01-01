@@ -293,7 +293,7 @@ class Locked( Exception ):
 		return repr( self.value)
 
 # # # # #
-#Downloading
+#String/URI Handling
 # # # # #
 def xmlUnEscape( sStr, percent=1, percentunQuoteDict=percentunQuoteDict ):
 	u"""xml unescape a string, by default also checking for percent encoded characters. set percent=0 to ignore percent encoding. 
@@ -365,7 +365,6 @@ def percentQuoteCustom(sStr, urlPart=(2,), percentQuoteDict=percentQuoteDict ):
 		urlList[i] = aStr
 	return urlparse.urlunparse( urlList )
 
-# uses percentQuote, make with unicode=1
 def unQuoteReQuote( url, quote=1, unicode=0 ):
 	u"""fix urls from feedparser. they are not always properly unquoted then unescaped. will requote by default"""
 	logStatusMsg(u"unQuoteReQuote %s" % url, 5)
@@ -386,7 +385,40 @@ def encodeQuoteUrl( url, encoding='utf-8', unicode=0 ):
 		logStatusMsg( unicode(m) + os.linesep + url, 1 )
 		return None
 	return url
-	
+
+# # # # #
+# Network Communication
+# # # # #
+def getFilenameFromHTTP(info, url):
+	u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed."""
+	filename = None
+	logStatusMsg(u"determining filename", 5)
+	if info.has_key('content-disposition') and info['content-disposition'].count('filename='):
+			logStatusMsg(u"filename from content-disposition header", 5)
+			filename = info['content-disposition'][ info['content-disposition'].index('filename=') + 10:-1] # 10 = len(filename=")
+			if filename: return unicode( filename ) # trust filename from http header over our URL extraction technique
+	logStatusMsg(u"filename from url", 5)
+	filename = percentUnQuote( urlparse.urlparse( url )[2].split('/')[-1] ) # Tup[2] is the path
+	try: typeGuess = info.gettype()
+	except AttributeError: typeGuess = None
+	typeGuess1 = mimetypes.guess_type(filename)[0]
+	if typeGuess and typeGuess1 and typeGuess == typeGuess1: pass # we're good
+	elif typeGuess: # trust server content-type over filename
+		logStatusMsg(u"getting extension from content-type header", 5)
+		fileExt = mimetypes.guess_extension(typeGuess)
+		if fileExt:			# sloppy filename guess, probably will never get hit
+			if not filename: 
+				logStatusMsg(u"never guessed filename, just setting it to the time", 5)
+				filename = unicode( int(time.time()) ) + fileExt
+			else: filename += fileExt
+	elif not info.has_key('content_type'):
+			msg = u"Proper file extension could not be determined for the downloaded file: %s you may need to add an extension to the file for it to work in some programs. It came from url %s. It may be correct, but I have no way of knowing due to insufficient information from the server." % (filename, url)
+			logStatusMsg( msg, 1 )
+	if not filename: 
+		logStatusMsg('Could not determine filename for torrent from %s' % url, 1)
+		return None
+	return unicode( filename )
+
 def cookieHandler():
 	u"""returns 0 if no cookie configured, 1 if cookie configured, 2 if cookie already configured (even if it is for a null value)"""
 	global cj
@@ -491,7 +523,17 @@ def getFileSize( info, data=None ):
 		except ValueError:	pass # don't know it, out of options, just return None
 	logStatusMsg(u"filesize seems to be %s" % size, 5)
 	return size, data
-	
+
+# # # # #
+# Check Download
+# # # # #
+def searchFailed(urlTest):
+	u"""see if url is in saved.failedDown list"""
+	global saved
+	for failedItem in saved.failedDown:
+		if urlTest == failedItem['link']: return True
+	return False
+
 def checkFileSize(size, threadName, downloadDict):
 	u"""returns True if size is within size constraints specified by config file. False if not.
 	takes the size (determined by getFileSize?) in bytes, threadName (to look in config), and downloadDict (parsed download<x> options).
@@ -518,42 +560,65 @@ def checkFileSize(size, threadName, downloadDict):
 	else: logStatusMsg(u"size outside parameters", 5)
 	return returnValue
 
-def getFilenameFromHTTP(info, url):
-	u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed."""
-	filename = None
-	logStatusMsg(u"determining filename", 5)
-	if info.has_key('content-disposition') and info['content-disposition'].count('filename='):
-			logStatusMsg(u"filename from content-disposition header", 5)
-			filename = info['content-disposition'][ info['content-disposition'].index('filename=') + 10:-1] # 10 = len(filename=")
-	if not filename: 
-		logStatusMsg(u"filename from url", 5)
-		# Tup[2] is the path
-		filename = percentUnQuote( urlparse.urlparse( url )[2].split('/')[-1] )
-	try: typeGuess = info.gettype()
-	except: typeGuess = None
-	typeGuess1 = mimetypes.guess_type(filename)[0]
-	if typeGuess and typeGuess1 and typeGuess == typeGuess1: pass # we're good
-	elif typeGuess: # trust server content-type over filename
-		logStatusMsg(u"getting extension from content-type header", 5)
-		fileExt = mimetypes.guess_extension(typeGuess)
-		if fileExt:			# sloppy filename guess, probably will never get hit
-			if not filename: 
-				logStatusMsg(u"never guessed filename, just setting it to the time", 5)
-				filename = unicode( int(time.time()) ) + fileExt
-			else: filename += fileExt
-	# we don't really ever drop down to the typeGuess1 ( from the filename )
-	# that's because if it exists, it's already in the filename and we don't need to add the extension
-	elif not info.has_key('content_type'):
-			msg = u"Proper file extension could not be determined for the downloaded file: %s you may need to add an extension to the file for it to work in some programs. It came from url %s. It may be correct, but I have no way of knowing due to insufficient information from the server." % (filename, url)
-			logStatusMsg( msg, 1 )
-	if not filename: 
-		logStatusMsg('Could not determine filename for torrent from %s' % url, 1)
-		return None
-	return unicode( filename )
+def checkRegExGTrue(ThreadLink, itemNode):
+	u"""return type True or False if search matches or no, respectively."""
+	# [response from regExTrue, regExFalse, downloads, downloadFalse, downloadTrue]
+	if ThreadLink['regExTrue']:
+		logStatusMsg(u"checking regExTrue on %s" % itemNode['title'].lower(), 5)
+		if ThreadLink['regExTrueOptions']: regExSearch = re.compile(ThreadLink['regExTrue'], re.__getattribute__(ThreadLink['regExTrueOptions']) )
+		else: regExSearch = re.compile(ThreadLink['regExTrue'])
+		if regExSearch.search(itemNode['title'].lower()): return True
+		else: return False
+	else: return True
 
+def checkRegExGFalse(ThreadLink, itemNode):
+	u"""return type True or False if search doesn't match or does, respectively."""
+	if ThreadLink['regExFalse']:
+		logStatusMsg(u"checking regExFalse on %s" % itemNode['title'].lower(), 5)
+		if ThreadLink['regExFalseOptions']: regExSearch = re.compile(ThreadLink['regExFalse'], re.__getattribute__(ThreadLink['regExFalseOptions']) )
+		else: regExSearch = re.compile(ThreadLink['regExFalse'])
+		if regExSearch.search(itemNode['title'].lower()):	return False
+		else: return True
+	else: return True
+
+def checkRegEx(ThreadLink, itemNode):
+	u"""goes through regEx* and download<x> options to see if any of them provide a positive match. Returns False if Not. Returns a DownloadItemConfig dictionary if so"""
+	if ThreadLink['downloads']:
+		# save this as a type. It will return a tuple. Check against tuple[0], return the tuple
+		LDown = checkRegExDown(ThreadLink, itemNode)
+		if LDown: 			return LDown
+		else: 			return False
+	elif checkRegExGFalse(ThreadLink, itemNode) and checkRegExGTrue(ThreadLink, itemNode): 		return DownloadItemConfig()
+	else: 	return False
+
+def checkRegExDown(ThreadLink, itemNode):
+	u"""returns false if nothing found in download<x> to match itemNode. returns DownloadItemConfig instance otherwise"""
+	# Also, it's incredibly inefficient
+	# for every x rss entries and y download items, it runs this xy times.
+	# ( local true, 
+	logStatusMsg(u"checking download<x>", 5)
+	for downloadDict in ThreadLink['downloads']:
+		if ThreadLink['regExTrueOptions']: LTrue = re.compile( downloadDict['localTrue'], re.__getattribute__(ThreadLink['regExTrueOptions']) )
+		else: LTrue = re.compile(downloadDict['localTrue'])
+		if not LTrue.search(itemNode['title'].lower()): continue
+		if type(downloadDict['False']) == type(''):
+			if ThreadLink['regExFalseOptions']: LFalse = re.compile(downloadDict['False'], re.__getattribute__(ThreadLink['regExFalseOptions']))
+			else: LFalse = re.compile(downloadDict['False'])
+			if LFalse.search(itemNode['title'].lower()): continue
+		elif downloadDict['False'] == False: pass
+		elif downloadDict['False'] == True:
+			if not checkRegExGFalse(ThreadLink, itemNode): continue
+		if downloadDict['True'] == True:
+			if not checkRegExGTrue(ThreadLink, itemNode): continue
+		elif downloadDict['True'] == False: pass
+		return downloadDict
+	return False
+
+# # # # #
+# Download
+# # # # #
 def downloadFile(url, threadName, rssItemNode, downloadDict):
-	u"""tries to download data at URL. returns None if it was not supposed to, False if it failed, and a tuple of arguments for userFunct
-	Seems to be Unicode Safe"""
+	u"""tries to download data at URL. returns None if it was not supposed to, False if it failed, and a tuple of arguments for userFunct"""
 	try: data = downloader(url)
 	except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m: 
 		logStatusMsg( unicode(m) + os.linesep + u'error grabbing url: %s' % url, 1 )
@@ -591,141 +656,8 @@ def downloadFile(url, threadName, rssItemNode, downloadDict):
 	userFunctArgs = directory, filename, rssItemNode, dataUrl, downloadDict, threadName 
 	return userFunctArgs
 
-def searchFailed(urlTest):
-	u"""see if url is in saved.failedDown list
-	Unicode safe"""
-	global saved
-	for failedItem in saved.failedDown:
-		if urlTest == failedItem['link']: return True
-	return False
-
-def checkRegExGTrue(ThreadLink, itemNode):
-	u"""return type True or False if search matches or no, respectively.
-	Unicode Safe"""
-	# [response from regExTrue, regExFalse, downloads, downloadFalse, downloadTrue]
-	if ThreadLink['regExTrue']:
-		logStatusMsg(u"checking regExTrue on %s" % itemNode['title'].lower(), 5)
-		if ThreadLink['regExTrueOptions']: regExSearch = re.compile(ThreadLink['regExTrue'], re.__getattribute__(ThreadLink['regExTrueOptions']) )
-		else: regExSearch = re.compile(ThreadLink['regExTrue'])
-		if regExSearch.search(itemNode['title'].lower()): return True
-		else: return False
-	else: return True
-
-def checkRegExGFalse(ThreadLink, itemNode):
-	u"""return type True or False if search doesn't match or does, respectively.
-	Unicode Safe"""
-	if ThreadLink['regExFalse']:
-		logStatusMsg(u"checking regExFalse on %s" % itemNode['title'].lower(), 5)
-		if ThreadLink['regExFalseOptions']: regExSearch = re.compile(ThreadLink['regExFalse'], re.__getattribute__(ThreadLink['regExFalseOptions']) )
-		else: regExSearch = re.compile(ThreadLink['regExFalse'])
-		if regExSearch.search(itemNode['title'].lower()):	return False
-		else: return True
-	else: return True
-
-def checkRegEx(ThreadLink, itemNode):
-	u"""goes through regEx* and download<x> options to see if any of them provide a positive match. Returns False if Not. Returns a DownloadItemConfig dictionary if so
-	Unicode Safe"""
-	if ThreadLink['downloads']:
-		# save this as a type. It will return a tuple. Check against tuple[0], return the tuple
-		LDown = checkRegExDown(ThreadLink, itemNode)
-		if LDown: 			return LDown
-		else: 			return False
-	elif checkRegExGFalse(ThreadLink, itemNode) and checkRegExGTrue(ThreadLink, itemNode): 		return DownloadItemConfig()
-	else: 	return False
-
-def checkRegExDown(ThreadLink, itemNode):
-	u"""returns false if nothing found in download<x> to match itemNode. returns DownloadItemConfig instance otherwise
-	Unicode Safe"""
-	# Also, it's incredibly inefficient
-	# for every x rss entries and y download items, it runs this xy times.
-	# ( local true, 
-	logStatusMsg(u"checking download<x>", 5)
-	for downloadDict in ThreadLink['downloads']:
-		if ThreadLink['regExTrueOptions']: LTrue = re.compile( downloadDict['localTrue'], re.__getattribute__(ThreadLink['regExTrueOptions']) )
-		else: LTrue = re.compile(downloadDict['localTrue'])
-		if not LTrue.search(itemNode['title'].lower()): continue
-		if type(downloadDict['False']) == type(''):
-			if ThreadLink['regExFalseOptions']: LFalse = re.compile(downloadDict['False'], re.__getattribute__(ThreadLink['regExFalseOptions']))
-			else: LFalse = re.compile(downloadDict['False'])
-			if LFalse.search(itemNode['title'].lower()): continue
-		elif downloadDict['False'] == False: pass
-		elif downloadDict['False'] == True:
-			if not checkRegExGFalse(ThreadLink, itemNode): continue
-		if downloadDict['True'] == True:
-			if not checkRegExGTrue(ThreadLink, itemNode): continue
-		elif downloadDict['True'] == False: pass
-		return downloadDict
-	return False
-
-def rssparse(thread, threadName):
-	u"""loops through the rss feed, searching for downloadable files"""
-	ThreadLink = copy.deepcopy(thread)
-	page = None
-	try: page = downloader(ThreadLink['link'])
-	except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, ), m:	
-		logStatusMsg( unicode(m) + os.linesep + u'error grabbing url %s' % ThreadLink['link'] , 1)
-		return ThreadLink
-	if not page: 
-		logStatusMsg( u"failed to grab url %s" % ThreadLink['link'], 1)
-		return ThreadLink
-	pr = page.read()
-	try: ppage = feedparser.parse(pr)
-	# feedparser does not seem to throw exceptions properly, is a dictionary of some kind
-	except Exception, m:
-		logStatusMsg( unicode(m) + os.linesep + u"page grabbed was not a parseable rss feed", 1)
-		return ThreadLink
-	if ppage['feed'].has_key('ttl') and ppage['feed']['ttl'] != '':
-		logStatusMsg(u"setting ttl", 5)
-		saved.minScanTime[threadName] = (time.time(), int(ppage['feed']['ttl']) )
-	elif getConfig()['threads'][threadName]['scanMins']:
-		saved.minScanTime[threadName] = (time.time(), getConfig()['threads'][threadName]['scanMins'] )
-	for i in range(len(ppage['entries'])):
-		# deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
-		ppage['entries'][i]['oldlink'] = ppage['entries'][i]['link']
-		if ( ppage['entries'][i].has_key('enclosures') 
-			and len(ppage['entries'][i]['enclosures']) 
-			and ppage['entries'][i]['enclosures'][0].has_key('href') ):
-				ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
-		else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
-		#if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
-		if ppage['entries'][i]['link'] in saved.downloads: 
-			logStatusMsg(u"already downloaded %s" % ppage['entries'][i]['link'], 5)
-			continue
-		# if it failed before, no reason to believe it will work now, plus it's already queued up
-		if searchFailed( ppage['entries'][i]['link'] ): 
-			logStatusMsg(u"link was in failedDown", 5)
-			continue
-		# make sure it matches what we want
-		dirDict = checkRegEx(ThreadLink, ppage['entries'][i])
-		if not dirDict: continue
-		# if we matched above, but don't want to download, register as downloaded, and then move on
-		if ThreadLink['noSave']:  
-			logStatusMsg( u"noSave triggered for %s" % ppage['entries'][i]['link'] , 5)
-			saved.downloads.append(ppage['entries'][i]['link'] )
-			continue
-		userFunctArgs = downloadFile(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict)
-		# size was inappropriate == None
-		if userFunctArgs == None: continue
-		# was supposed to download, but failed
-		elif userFunctArgs == False:
-			logStatusMsg(u"adding to failedDown: %s" % ppage['entries'][i]['link'] , 5)
-			saved.failedDown.append( FailedItem(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict) )
-		# should have succeeded
-		elif userFunctArgs:
-			logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
-			saved.downloads.append( ppage['entries'][i]['link'] )
-			if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
-				callUserFunction( dirDict['Function'], *userFunctArgs )
-			elif getConfig()['threads'][threadName]['postDownloadFunction']: 
-				callUserFunction( getConfig()['threads'][threadName]['postDownloadFunction'], *userFunctArgs )
-		ThreadLink['noSave'] = False
-	if getConfig()['threads'][threadName]['postScanFunction']:
-		callUserFunction( getConfig()['threads'][threadName]['postScanFunction'], pr, ppage, page.geturl(), threadName )
-	return ThreadLink
-
 def writeNewFile(filename, directory, data):
-	u"""write a file to disk at location. won't clobber, depending on config. writes to .__filename.tmp first, then moves to filename
-	Unicode Safe"""
+	u"""write a file to disk at location. won't clobber, depending on config. writes to .__filename.tmp first, then moves to filename"""
 	# would be nice to scan filename for illegal characters, only that is file system dependent and rather sketchy
 	if getConfig()['global']['noClobber']: 
 		directory, filename = findNewFile( filename, directory)
@@ -758,8 +690,7 @@ def writeNewFile(filename, directory, data):
 	return filename
 
 def findNewFile(filename, directory):
-	u"""find a filename in the given directory that isn't already taken. adds '.1' before the file extension, or just .1 on the end if no file extension
-	Unicode Safe"""
+	u"""find a filename in the given directory that isn't already taken. adds '.1' before the file extension, or just .1 on the end if no file extension"""
 	if os.path.isfile( os.path.join(directory, filename) ):
 		logStatusMsg(u"filename already taken, looking for another: %s" % filename, 2)
 		filenameList = filename.split('.')
@@ -780,7 +711,9 @@ def findNewFile(filename, directory):
 		return findNewFile( filename, directory )
 	else: return directory, filename
 
-
+# # # # #
+# Torrent
+# # # # #
 if deque and not bdecode:
 	class xrangeslice(object):
 		"""A pure-python implementation of xrange. from http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/521885
@@ -1812,7 +1745,7 @@ def createDaemon():
 	try:		pid = os.fork()
 	except OSError, e:
 		logStatusMsg(u"s [%d]" % (e.strerror, e.errno), 1)
-		raise Exception
+		raise OSError
 	logStatusMsg(u"seems to have forked", 5)
 	if pid == 0:	# The first child.
 		logStatusMsg(u"setsid", 5)
@@ -1876,6 +1809,72 @@ def signalHandler(signal, frame):
 # # # # #
 #Running
 # # # # #
+def rssparse(thread, threadName):
+	u"""loops through the rss feed, searching for downloadable files"""
+	ThreadLink = copy.deepcopy(thread)
+	page = None
+	try: page = downloader(ThreadLink['link'])
+	except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, ), m:	
+		logStatusMsg( unicode(m) + os.linesep + u'error grabbing url %s' % ThreadLink['link'] , 1)
+		return ThreadLink
+	if not page: 
+		logStatusMsg( u"failed to grab url %s" % ThreadLink['link'], 1)
+		return ThreadLink
+	pr = page.read()
+	try: ppage = feedparser.parse(pr)
+	# feedparser does not seem to throw exceptions properly, is a dictionary of some kind
+	except Exception, m:
+		logStatusMsg( unicode(m) + os.linesep + u"page grabbed was not a parseable rss feed", 1)
+		return ThreadLink
+	if ppage['feed'].has_key('ttl') and ppage['feed']['ttl'] != '':
+		logStatusMsg(u"setting ttl", 5)
+		saved.minScanTime[threadName] = (time.time(), int(ppage['feed']['ttl']) )
+	elif getConfig()['threads'][threadName]['scanMins']:
+		saved.minScanTime[threadName] = (time.time(), getConfig()['threads'][threadName]['scanMins'] )
+	for i in range(len(ppage['entries'])):
+		# deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
+		ppage['entries'][i]['oldlink'] = ppage['entries'][i]['link']
+		if ( ppage['entries'][i].has_key('enclosures') 
+			and len(ppage['entries'][i]['enclosures']) 
+			and ppage['entries'][i]['enclosures'][0].has_key('href') ):
+				ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
+		else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
+		#if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
+		if ppage['entries'][i]['link'] in saved.downloads: 
+			logStatusMsg(u"already downloaded %s" % ppage['entries'][i]['link'], 5)
+			continue
+		# if it failed before, no reason to believe it will work now, plus it's already queued up
+		if searchFailed( ppage['entries'][i]['link'] ): 
+			logStatusMsg(u"link was in failedDown", 5)
+			continue
+		# make sure it matches what we want
+		dirDict = checkRegEx(ThreadLink, ppage['entries'][i])
+		if not dirDict: continue
+		# if we matched above, but don't want to download, register as downloaded, and then move on
+		if ThreadLink['noSave']:  
+			logStatusMsg( u"noSave triggered for %s" % ppage['entries'][i]['link'] , 5)
+			saved.downloads.append(ppage['entries'][i]['link'] )
+			continue
+		userFunctArgs = downloadFile(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict)
+		# size was inappropriate == None
+		if userFunctArgs == None: continue
+		# was supposed to download, but failed
+		elif userFunctArgs == False:
+			logStatusMsg(u"adding to failedDown: %s" % ppage['entries'][i]['link'] , 5)
+			saved.failedDown.append( FailedItem(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict) )
+		# should have succeeded
+		elif userFunctArgs:
+			logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
+			saved.downloads.append( ppage['entries'][i]['link'] )
+			if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
+				callUserFunction( dirDict['Function'], *userFunctArgs )
+			elif getConfig()['threads'][threadName]['postDownloadFunction']: 
+				callUserFunction( getConfig()['threads'][threadName]['postDownloadFunction'], *userFunctArgs )
+		ThreadLink['noSave'] = False
+	if getConfig()['threads'][threadName]['postScanFunction']:
+		callUserFunction( getConfig()['threads'][threadName]['postScanFunction'], pr, ppage, page.geturl(), threadName )
+	return ThreadLink
+
 def checkScanTime( threadName , failed=False):
 	u"""looks for a reason to not scan the thread, through minScanTime, checkTime."""
 	global saved

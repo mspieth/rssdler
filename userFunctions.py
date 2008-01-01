@@ -69,7 +69,7 @@ def _saveFeed(page, ppage, retrievedLink, threadName, filename, length):
 	rssl.channelMeta = ppage['feed']
 	links = [ x['link'] for x in rssl.itemsQuaDict ] # if no link key, this will fail without proper handling
 	for entry in reversed( ppage['entries'] ):
-		if entry['link'] in links: rssl.makeItemNode( entry ) # this logic could be better
+		if entry['link'] not in links: rssl.makeItemNode( entry ) # this logic could be better
 	rssl.close(length=length)
 	rssl.write()
 	
