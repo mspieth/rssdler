@@ -1550,7 +1550,7 @@ class ReFormatString:
 		if not inputstring and not filename: raise Exception, u"must provide at least a filename or inputstring"
 		elif inputstring and filename: raise Exception, u"cannot provide a filename and inputstring, only one or the other"
 		if inputstring: self.inputstring = inputstring
-		elif file:
+		elif filename:
 			fd = codecs.open(filename, 'r', 'utf-8')
 			self.inputstring= fd.read()
 			fd.close()
@@ -1632,8 +1632,16 @@ class ReFormatString:
 		width = 80
 		# 'posix', 'nt', 'dos', 'os2', 'mac', or 'ce'
 		if os.name == u'posix' or os.name == u'mac' or os.name == u'os2':
-			try: width = int(os.popen('stty size').read().split()[1])
-			except ValueError: pass
+			try: width_in, width_tmp, width_err = os.popen3('stty size')
+			except ValueError: width_tmp, width_in, width_err = None
+			if not width_err.read():
+				width_tmp = width_tmp.read()
+				width_in.close()
+				width_tmp = width_tmp.splitlines()
+				width_tmp = width_tmp[0].split()
+				if len(width_tmp) == 2:
+					try: width= int(width_tmp[1])
+					except ValueError: pass
 		elif os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
 			try:
 				try: from ctypes import windll, create_string_buffer
