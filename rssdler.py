@@ -429,9 +429,9 @@ def cookieHandler():
 	elif cj == None and not getConfig()['global']['cookieFile']: 
 		logStatusMsg(u"""no cookies set""", 5)
 		returnValue = 0
-	elif getConfig()['global']['urllib'] and not isinstance(cj, (urllib2.cookielib.MozillaCookieJar, urllib2.cookielib.LWPCookieJar) ):
+	elif getConfig()['global']['urllib'] and not isinstance(cj, (cookielib.MozillaCookieJar, cookielib.LWPCookieJar) ):
 		logStatusMsg(u"""attempting to load cookie type: %s """ % getConfig()['global']['cookieType'], 5)
-		cj = urllib2.cookielib.__getattribute__( getConfig()['global']['cookieType'] )()
+		cj = cookielib.__getattribute__( getConfig()['global']['cookieType'] )()
 		try: 
 			cj.load(getConfig()['global']['cookieFile'])
 			returnValue = 1
