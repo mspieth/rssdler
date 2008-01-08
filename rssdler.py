@@ -26,6 +26,7 @@ import httplib
 import mimetypes
 import os
 import pickle
+import random
 import re
 import signal
 import socket
@@ -35,6 +36,7 @@ import urllib
 import urllib2
 import urlparse
 from UserDict import UserDict
+import xml.dom.minidom as minidom
 
 # if using a symlink, I say current directory should be in the path, 
 # but it uses the effective directory of the symlink, I promise effective
@@ -59,7 +61,6 @@ except ImportError:
 # if verbose >0 and os.name =='nt' or 'dos' or 'ce' and not daemon
 # from ctypes import windll, create_string_buffer
 # struct
-# if generating rss feed: from xml.dom import minidom  and import random
 
 # # # # #
 # == Globals ==
@@ -67,8 +68,6 @@ except ImportError:
 # Reminders of potential import globals elsewhere.
 create_string_buffer = None
 mechanize = None
-minidom = None
-random = None
 resource = None
 struct = None
 userFunctions = None
@@ -395,7 +394,9 @@ def getFilenameFromHTTP(info, url):
 	logStatusMsg(u"determining filename", 5)
 	if info.has_key('content-disposition') and info['content-disposition'].count('filename='):
 			logStatusMsg(u"filename from content-disposition header", 5)
-			filename = info['content-disposition'][ info['content-disposition'].index('filename=') + 10:-1] # 10 = len(filename=")
+			filename = info['content-disposition'][ info['content-disposition'].index('filename=') + 9:] # 10 = len(filename=")
+			if filename.startswith("'") and filename.endswith("'"): filename = filename.strip("'")
+			elif filename.startswith('"') and filename.endswith('"'): filename = filename.strip('"')
 			if filename: return unicode( filename ) # trust filename from http header over our URL extraction technique
 	logStatusMsg(u"filename from url", 5)
 	filename = percentUnQuote( urlparse.urlparse( url )[2].split('/')[-1] ) # Tup[2] is the path
@@ -1934,17 +1935,6 @@ def run():
 			raise Warning
 	if getConfig()['global']['rssFeed']:
 		logStatusMsg(u'trying to generate rss feed', 5)
-		global minidom, random
-		try:
-			if not minidom: from xml.dom import minidom
-		except ImportError, m:
-			logStatusMsg(unicode(m), 1 )
-			raise ImportError
-		try:
-			if not random: import random
-		except ImportError, m:
-			logStatusMsg( unicode(m), 1 )
-			raise ImportError
 		if getConfig()['global']['rssFilename']:
 			logStatusMsg(u'rss filename set', 5)
 			rss = MakeRss(filename=getConfig()['global']['rssFilename'], itemsQuaDictBool=True)
