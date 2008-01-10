@@ -1026,12 +1026,14 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
 		"""give parse a raw feed (just the xml/rss file, unparsed) and it will fill in the class attributes, and allow you to modify the feed.
 		Or give me a feedparser.parsed feed (parsedfeed) and I'll do the same"""
 		if filename:
+			if not os.path.isfile(filename): return None
 			filedata = codecs.open(filename, 'r', 'utf-8')
 			p = feedparser.parse(filedata.read())
 			filedata.close()
 		elif rawfeed:	p = feedparser.parse(rawfeed)
 		elif parsedfeed: p = parsedfeed
 		elif self.filename:
+			if not os.path.isfile(self.filename): return None
 			filedata = codecs.open(self.filename, 'r', 'utf-8')
 			p = feedparser.parse(filedata.read())
 			filedata.close()
