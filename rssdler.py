@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.2"
+__version__ = u"0.3.3"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -232,7 +232,7 @@ download1Dir = /home/user/ubuntustuff
 download3 = fedora
 
 # you have to have the base setting to have the other options
-# will not work b/c download3 is not specified
+# will not work b/c download4 is not specified
 # download4Dir = /home/user/something
 """
 configFileNotes = u"""There are two types of sections: global and threads. There can be as many thread sections as you wish, but only one global section. global must be named "global." Threads can be named however you wish, except 'global,' and each name should be unique. With a couple of noted exceptions, there are three types of options:
@@ -635,7 +635,7 @@ def downloadFile(url, threadName, rssItemNode, downloadDict):
 	# check size against configuration options
 	if size and not checkFileSize(size, threadName, downloadDict): 
 		# size is outside range, don't need the data, but want to report that we succeeded in getting data
-		del data, dataPage, dataInfo
+		del data, data2, dataInfo, dataU
 		return None
 	if downloadDict['Dir']: directory = downloadDict['Dir']
 	elif getConfig()['threads'][threadName]['directory']: directory = getConfig()['threads'][threadName]['directory']
