@@ -941,7 +941,7 @@ class DownloadItemConfig(UserDict):
 		self['maxSize'] = maxSize
 		self['Function'] = Function
 
-class MakeRss:
+class MakeRss(object):
 	u"""A class to generate, and optionally parse and load, an RSS 2.0 feed. Example usage:
 rss = MakeRss(filename='rss.xml')
 rss.addItem(dict)
@@ -964,15 +964,12 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
 		self.items = []
 		self.itemsQuaDict = []
 		self.itemsQuaDictBool = itemsQuaDictBool
-		if parse == True: self.parse()
+		if parse: self.parse()
 	def loadChanOpt(self):
 		u"""takes self.channelMeta and  turns it into xml and adds the nodes to self.channel. Will only add those elements which are part of the rss standard (aka those elements in self.chanMetOpt. If you add to this list, you can override what is allowed to be added to the feed."""
 		if not self.channelMeta.has_key('title') or not self.channelMeta.has_key('description') or not self.channelMeta.has_key('link'):
 			raise ValueError, "channelMeta must specify at least 'title', 'description', and 'link' according to RSS2.0 spec. these are case sensitive"
-		for key in self.chanMetOpt:
-			if self.channelMeta.has_key(key):
-				chanMet = self.makeTextNode(key, self.channelMeta[key])
-				self.channel.appendChild(chanMet)
+		[ self.channel.appendChild(self.makeTextNode(key, self.channelMeta[key])) for key in self.chanMetOpt if key in self.channelMeta ]
 	def makeTextNode(self, nodeName, nodeText, nodeAttributes=()):
 		"""returns an xml text element node, with input being the name of the node, text, and optionally node attributes as a sequence
 		of tuple pairs (attributeName, attributeValue)
@@ -980,9 +977,7 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
 		node = self.feed.createElement(nodeName)
 		text = self.feed.createTextNode(unicode(nodeText))
 		node.appendChild(text)
-		if nodeAttributes:
-			for attribute, value in nodeAttributes: 
-				node.setAttribute(attribute, value)
+		if nodeAttributes:	[ node.setAttribute(attribute, value) for attribute, value in nodeAttributes ]
 		return node
 	def makeItemNode(self, itemAttr={}, action='insert'):
 		"""Generates xml ItemNodes from a Dictionary. Only allows elements in RSS specification. Overridden by adding elements to self.itemMeta. Should not need to call directly unless action='return'.
@@ -990,32 +985,25 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
 			insert: put at 0th position in list.
 			return: do not attach to self.items at all, just return the XML object.
 		"""
-		if 'title' in itemAttr.keys() or 'description' in itemAttr.keys(): pass
-		else:	raise Exception, "must provide at least a title OR description for each item"
-		if 'pubdate' not in itemAttr.keys() and 'pubDate' not in itemAttr.keys():
-			if itemAttr.has_key('updated_parsed'): 
+		if 'title' not in itemAttr and 'description' not in itemAttr: raise Exception, "must provide at least a title OR description for each item"
+		if 'pubdate' not in itemAttr and 'pubDate' not in itemAttr:
+			if 'updated_parsed' in itemAttr: 
 				itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", itemAttr['updated_parsed'])
-			elif itemAttr.has_key('updated'): itemAttr['pubDate'] = itemAttr['pubdate'] = itemAttr['updated']
+			elif 'updated' in itemAttr: itemAttr['pubDate'] = itemAttr['pubdate'] = itemAttr['updated']
 			else: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
-		if not itemAttr.has_key('guid'):
-			if itemAttr.has_key('link'): itemAttr['guid'] = itemAttr['link']
+		if 'guid' not in itemAttr:
+			if 'link' in itemAttr: itemAttr['guid'] = itemAttr['link']
 			else: itemAttr['guid'] = random.randint(0,9000000000)
 		item = self.feed.createElement('item')
-		for key in self.itemMeta:
-			if itemAttr.has_key(key):
-				itemNode = self.makeTextNode(key, itemAttr[key])
-				item.appendChild(itemNode)
+		[ item.appendChild(self.makeTextNode(key, itemAttr[key])) for key in self.itemMeta if key in itemAttr ]
 		if action.lower() == 'insert':	self.items.insert(0, item)
 		elif action.lower() == 'return': return item
 		else: raise Exception, "Illegal value for action, must be insert, append, or return"
 	def appendItemNodes(self, length=20):
 		"""adds the items in self.items to self.channel. starts at the front of the list."""
-		if self.itemsQuaDictBool:
-			for item in reversed(self.itemsQuaDict):	self.makeItemNode(item)
-		if length==0:
-			for item in self.items: self.channel.appendChild( item )
-		else:
-			for item in self.items[:length]: self.channel.appendChild( item )
+		if self.itemsQuaDictBool: [ self.makeItemNode(item) for item in reversed(self.itemsQuaDict) ]
+		if length==0: [ self.channel.appendChild( item ) for item in self.items ]
+		else: [ self.channel.appendChild( item ) for item in self.items[:length] ]
 	def close(self, length=20):
 		u"""takes care of taking the channelMeta data and the items (dictionary or XML), and putting it all together in self.feed"""
 		self.loadChanOpt()
@@ -1027,26 +1015,20 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
 		Or give me a feedparser.parsed feed (parsedfeed) and I'll do the same"""
 		if filename:
 			if not os.path.isfile(filename): return None
-			filedata = codecs.open(filename, 'r', 'utf-8')
-			p = feedparser.parse(filedata.read())
-			filedata.close()
+			p = feedparser.parse(filename)
 		elif rawfeed:	p = feedparser.parse(rawfeed)
 		elif parsedfeed: p = parsedfeed
 		elif self.filename:
-			if not os.path.isfile(self.filename): return None
-			filedata = codecs.open(self.filename, 'r', 'utf-8')
-			p = feedparser.parse(filedata.read())
-			filedata.close()
+			if not os.path.isfile(self.filename): 				return None
+			p = feedparser.parse(self.filename)
 		else: raise Exception, "Must give either a rawfeed, filename, set self.filename, or parsedfeed"
 		if not itemsonly:
-			if p['feed'].has_key('updated'): p['feed']['pubDate'] = p['feed']['pubdate']  = p['feed']['updated']
-			elif p['feed'].has_key('updated_parsed'): 
+			if 'updated' in p['feed']: p['feed']['pubDate'] = p['feed']['pubdate']  = p['feed']['updated']
+			elif 'updated_parsed' in p['feed']: 
 				p['feed']['pubDate'] = p['feed']['pubdate']  = time.strftime("%a, %d %b %Y %H:%M:%S GMT", p['feed']['updated_parsed'])
 			self.channelMeta = p['feed']
-		if self.itemsQuaDictBool:		
-			for entry in p['entries']: self.itemsQuaDict.append(entry)
-		else:		
-			for entry in reversed( p['entries'] ):	self.makeItemNode(itemAttr=entry)
+		if self.itemsQuaDictBool:	self.itemsQuaDict.extend(p['entries'])
+		else:  [ self.makeItemNode(itemAttr=x) for x in reversed(p['entries']) ]
 	def _write(self, data, fd):
 		fd.write( data.toprettyxml() )
 		fd.flush()
