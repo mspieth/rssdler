@@ -1264,7 +1264,7 @@ def getConfig(reload=False, filename=None):
 	return _configInstance
 
 class Config(ConfigParser.RawConfigParser, UserDict):
-	def __init__(self, filename=None):
+	def __init__(self, filename=None, parsecheck=1):
 		u"""
 		see helpMessage
 		"""
@@ -1290,8 +1290,9 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 			raise SystemExit
 		self['global'] = GlobalOptions()
 		self['threads'] = {}
-		self.parse()
-		self.check()
+		if parsecheck:
+			self.parse()
+			self.check()
 	def parse(self):
 		for option in self.boolOptionsGlobal:
 			try: 
@@ -1301,12 +1302,9 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 			except ConfigParser.NoSectionError, m:
 				logStatusMsg( unicode(m), 1 , False)
 				raise SystemExit
-				# now set by GlobalOptions()
-				#except: self['global'][option] = None
 		for option in self.stringOptionsGlobal:
 			if option.lower() in self.options('global'):
-				self['global'][option] = self.get('global', option)
-				if self['global'][option] == '' or self['global'][option].lower() == 'none' : self['global'][option] = None
+				self['global'][option] = self._ifnone( self.get('global', option) )
 		for option in self.intOptionsGlobal:
 			if option.lower() in self.options('global'):
 				try: self['global'][option] = self.getint('global', option)
@@ -1321,33 +1319,24 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 					except ValueError: logStatusMsg(u'failed to parse option %s in thread %s' % (option, thread), 1, config=False)
 			for option in self.stringOptionsThread:
 				if option.lower() in self.options(thread):
-					self['threads'][thread][option] = self.get(thread, option)
-					if self['threads'][thread][option] == '' or self['threads'][thread][option].lower() == 'none': self['threads'][thread][option] = None
+					self['threads'][thread][option] = self._ifnone( self.get(thread, option) )
 			for option in self.intOptionsThread:
 				if option.lower() in self.options(thread):
 					try: self['threads'][thread][option] = self.getint(thread, option)
 					except ValueError: logStatusMsg(u'failed to parse option %s in thread %s' % (option, thread), 1, config=False)
 			#populate thread.downloads
-			downList = []
-			checkList = []
-			for threadOption in self.options(thread):
-				if threadOption.startswith('download'): downList.append(threadOption)
-				elif threadOption.startswith('checktime'): checkList.append(threadOption)
+			downList = [ x for x in self.options(thread) if x.lower().startswith('download') ]
+			checkList = [ x for x in self.options(thread) if x.lower().startswith('checktime') ]
 			downList.sort()
 			for i in downList:
 				if i.lower().endswith('false'): 
-					optionDown = self.get(thread, i)
-					if optionDown.lower() == 'false' or optionDown.lower() == '0' or optionDown.lower() == 'no':
-						self['threads'][thread]['downloads'][-1]['False']  = False
-					elif optionDown.lower() =='true' or optionDown.lower() == '1' or optionDown.lower() == 'yes':
-						self['threads'][thread]['downloads'][-1]['False'] = True
-					else: self['threads'][thread]['downloads'][-1]['False'] = optionDown
+					try: self['threads'][thread]['downloads'][-1]['False'] = self.getboolean(thread, i) # either boolean
+					except ValueError: self['threads'][thread]['downloads'][-1]['False'] = self._ifnone( self.get(thread, i) ) # or a string
 				elif i.lower().endswith('true'): 
 					try: self['threads'][thread]['downloads'][-1]['True'] = self.getboolean(thread, i)
-					except ValueError: pass
+					except ValueError: pass # let default holder
 				elif i.lower().endswith('dir'):
-					optionDown = self.get(thread, i)
-					if optionDown.lower() != 'none': self['threads'][thread]['downloads'][-1]['Dir'] = optionDown
+					self['threads'][thread]['downloads'][-1]['Dir'] = self._ifnone( self.get(thread, i) )
 				elif i.lower().endswith('maxsize'):
 					try: self['threads'][thread]['downloads'][-1]['maxSize'] = self.getint(thread, i)
 					except ValueError: pass
@@ -1355,29 +1344,26 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 					try: self['threads'][thread]['downloads'][-1]['minSize'] = self.getint(thread, i)
 					except ValueError: pass
 				elif i.lower().endswith('function'):
-					optionFunct = self.get(thread, i)
-					if optionFunct.lower() != 'none': self['threads'][thread]['downloads'][-1]['Function'] = optionFunct
-				else: self['threads'][thread]['downloads'].append( DownloadItemConfig( self.get(thread, i) ) )
+					self['threads'][thread]['downloads'][-1]['Function'] = self._ifnone( self.get(thread, i) )
+				else: self['threads'][thread]['downloads'].append( DownloadItemConfig( self.get(thread, i) ) ) # regex'd, would fail with None
 			checkList.sort()
-			checkTuple = []
 			for j in checkList:
 				optionCheck = self.get(thread, j)
 				if j.endswith('day'):
 					if self.dayList.count(optionCheck.capitalize()): 
-						checkTuple.append( [self.dayList.index(optionCheck.capitalize()) % 7 , 0, 23] )
-					else:
-						raise Exception, u"Could not identify valid day of the week for %s" % optionCheck
+						self['threads'][thread]['checkTime'].append( [self.dayList.index(optionCheck.capitalize()) % 7 , 0, 23] )
+					else: raise Exception, u"Could not identify valid day of the week for %s" % optionCheck
 				elif j.endswith('start'): 
-					checkTuple[-1][1] = int(optionCheck)
-					if checkTuple[-1][1] > 23: checkTuple[-1][1] = 23
-					elif checkTuple[-1][1] < 0: checkTuple[-1][1] = 0
+					self['threads'][thread]['checkTime'][-1][1] = int(optionCheck)
+					if self['threads'][thread]['checkTime'][-1][1] > 23: self['threads'][thread]['checkTime'][-1][1] = 23
+					elif self['threads'][thread]['checkTime'][-1][1] < 0: self['threads'][thread]['checkTime'][-1][1] = 0
 				elif j.endswith('stop'): 
-					checkTuple[-1][2] = int(optionCheck)
-					if checkTuple[-1][2] > 23: checkTuple[-1][2] = 23
-					elif checkTuple[-1][2] < 0: checkTuple[-1][2] = 0
-			checkTuple2 = []
-			for checkPair in checkTuple: checkTuple2.append( tuple(checkPair))
-			if checkTuple2: self['threads'][thread]['checkTime'] = tuple(checkTuple2)
+					self['threads'][thread]['checkTime'][-1][2] = int(optionCheck)
+					if self['threads'][thread]['checkTime'][-1][2] > 23: self['threads'][thread]['checkTime'][-1][2] = 23
+					elif self['threads'][thread]['checkTime'][-1][2] < 0: self['threads'][thread]['checkTime'][-1][2] = 0
+	def _ifnone(self, option):
+		if option == '' or option.lower() == 'none': return None
+		else: return option
 	def check(self):
 		global mechanize
 		if not self['global']['urllib']:
@@ -1386,25 +1372,25 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 				except ImportError, m:
 					logStatusMsg( unicode(m) + ' using urllib2 instead of mechanize. setting urllib = True', 1, False)
 					self['global']['urllib'] = True
-		if not self['global'].has_key('saveFile') or self['global']['saveFile'] == None:
+		if 'saveFile' not  in self['global'] or self['global']['saveFile'] == None:
 			self['global']['saveFile'] = u'savedstate.dat'
-		if not self['global'].has_key('downloadDir') or self['global']['downloadDir'] == None:
+		if 'downloadDir' not in self['global'] or self['global']['downloadDir'] == None:
 			logStatusMsg(u"Must specify downloadDir in [global] config", 1, False )
-			raise SystemExit
-		if not self['global'].has_key('runOnce') or self['global']['runOnce'] == None:
+			raise SystemExit, "Invalid configuration, no download directory"
+		if 'runOnce' not in self['global'] or self['global']['runOnce'] == None:
 			self['global']['runOnce'] = False
-		if not self['global'].has_key('scanMins') or self['global']['scanMins'] == None:
+		if 'scanMins' not in self['global'] or self['global']['scanMins'] == None:
 			self['global']['scanMins'] = 15
 		if self['global']['cookieType'] == 'MSIECookieJar' and self['global']['urllib']:
-			logStatusMsg(u'Cannot use MSIECookieJar with urllib. Choose one or the other', 1, False )
-			raise SystemExit
-		if self['global']['cookieType'] != 'MSIECookieJar' and self['global']['cookieType'] != 'LWPCookieJar' and self['global']['cookieType'] != 'MozillaCookieJar':
+			logStatusMsg(u'Cannot use MSIECookieJar with urllib = True. Choose one or the other. May be caused by failed mechanize import', 1, False )
+			raise SystemExit, "Incompatible configuration, IE cookies must use mechanize. please install and configure mechanize"
+		if self['global']['cookieType'] not in ['MSIECookieJar' ,'LWPCookieJar' , 'MozillaCookieJar' ]:
 			logStatusMsg(u'Invalid cookieType option: %s. Only MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...' % self['global']['cookieType'], 1, False)
 			raise SystemExit
-		if not self['global'].has_key('lockPort') or self['global']['lockPort'] == None:
+		if 'lockPort' not in self['global'] or self['global']['lockPort'] == None:
 			self['global']['lockPort'] = 8023
-		if self['global'].has_key('log') and self['global']['log']:
-			if not self['global'].has_key('logFile') or self['global']['logFile'] == None:
+		if 'log' in self['global'] and self['global']['log']:
+			if 'logFile' not in self['global'] or self['global']['logFile'] == None:
 				self['global']['logFile'] = u'downloads.log'
 		# check all directories to make sure they exist. Ask for creation?
 		if self['global']['downloadDir']:
@@ -1414,30 +1400,25 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 					logStatusMsg( unicode(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']), 1, False )
 					raise SystemExit
 		for thread in self['threads']:
-			if self['threads'][thread]['directory']:
-				if not os.path.isdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) ):
-					try: os.mkdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) )
-					except OSError, m: 
-						logStatusMsg( unicode(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']), 1, False)
+			if self['threads'][thread]['directory'] and not os.path.isdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) ):
+				try: os.mkdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) )
+				except OSError, m: 
+					logStatusMsg( unicode(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']), 1, False)
+					raise SystemExit
+			for downDict in self['threads'][thread]['downloads']:
+				if downDict['Dir'] and not os.path.isdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) ):
+					try: os.mkdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) )
+					except OSError, m:
+						logStatusMsg( unicode(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], downDict['Dir'] ), 1, False)
 						raise SystemExit
-			if len(self['threads'][thread]['downloads']) != 0: 
-				for downDict in self['threads'][thread]['downloads']:
-					if downDict['Dir']:
-						if not os.path.isdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) ):
-							try: os.mkdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) )
-							except OSError, m:
-								logStatusMsg( unicode(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], downDict['Dir'] ), 1, False)
-								raise SystemExit
 	def save(self):
 		fd = codecs.open(self.filename, 'w', 'utf-8')
 		fd.write("%s%s" %('[global]', os.linesep))
 		keys = self['global'].keys()
 		keys.sort()
 		for key in keys:
-			# rss option deprecated
-			if key == 'rss': continue
-			# don't write defaults
-			if self['global'][key] == GlobalOptions()[key]: continue
+			if key == 'rss': continue # rss option deprecated
+			if self['global'][key] == GlobalOptions()[key]: continue # don't write defaults
 			fd.write("%s = %s%s" % (key, unicode(self['global'][key]), os.linesep))
 		fd.write(os.linesep)
 		threads = self['threads'].keys()
@@ -1447,32 +1428,28 @@ class Config(ConfigParser.RawConfigParser, UserDict):
 			threadKeys = self['threads'][thread].keys()
 			threadKeys.sort()
 			for threadKey in threadKeys:
-				downNum = 1
 				checkNum = 1
 				if threadKey.lower() == 'downloads':
-					if len(self['threads'][thread][threadKey]) == 0 : continue
-					for downDict in self['threads'][thread][threadKey]:
+					for downNum, downDict in enumerate(self['threads'][thread][threadKey]):
 						fd.write('download%s = %s%s' % (downNum, unicode(downDict['localTrue']), os.linesep))
 						# don't bother writing if it's the default value
 						if downDict['Dir'] != DownloadItemConfig()['Dir']: 
 							fd.write('download%sDir = %s%s' % (downNum, unicode(downDict['Dir']), os.linesep))
 						if downDict['False'] != DownloadItemConfig()['False']: 
 							fd.write('download%sFalse = %s%s' % (downNum, unicode(downDict['False']), os.linesep))
+						if downDict['Function'] != DownloadItemConfig()['Function']:
+							fd.write('download%sFunction = %s%s' % (downNum, unicode(downDict['Function']), os.linesep))
 						if downDict['maxSize'] != DownloadItemConfig()['maxSize']: 
 							fd.write('download%sMaxSize = %s%s' % (downNum, unicode(downDict['maxSize']), os.linesep) )
 						if downDict['minSize'] != DownloadItemConfig()['minSize']: 
 							fd.write('download%sMinSize = %s%s' % (downNum, unicode(downDict['minSize']), os.linesep) )
 						if downDict['True'] != DownloadItemConfig()['True']: 
 							fd.write('download%sTrue = %s%s' % (downNum, unicode(downDict['True']), os.linesep))
-						downNum += 1
 				elif 'checkTime' == threadKey:
-					if len(self['threads'][thread][threadKey]) == 0: continue
-					for checkTup in self['threads'][thread][threadKey]:
-						# checkNum is the item number we started on
+					for checkNum, checkTup in enumerate( self['threads'][thread][threadKey] ):
 						fd.write('checkTime%sDay = %s%s' % (checkNum, self.dayList[checkTup[0]], os.linesep))
 						fd.write('checkTime%sStart = %s%s' % (checkNum, unicode(checkTup[1]), os.linesep))
 						fd.write('checkTime%sStop = %s%s' % (checkNum, unicode(checkTup[2]), os.linesep))
-						checkNum += 1
 				else:
 					if self['threads'][thread][threadKey] == ThreadLink()[threadKey]: continue
 					fd.write('%s = %s%s' % (threadKey, unicode(self['threads'][thread][threadKey]), os.linesep))
