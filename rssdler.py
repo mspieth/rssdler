@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.3"
+__version__ = u"0.3.4"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -635,7 +635,7 @@ def downloadFile(url, threadName, rssItemNode, downloadDict):
 	# check size against configuration options
 	if size and not checkFileSize(size, threadName, downloadDict): 
 		# size is outside range, don't need the data, but want to report that we succeeded in getting data
-		del data, data2, dataInfo, dataU
+		del data, data2, dataInfo, dataUrl
 		return None
 	if downloadDict['Dir']: directory = downloadDict['Dir']
 	elif getConfig()['threads'][threadName]['directory']: directory = getConfig()['threads'][threadName]['directory']
@@ -1263,12 +1263,12 @@ def getConfig(reload=False, filename=None):
 		_configInstance = Config(filename)
 	return _configInstance
 
-class Config(ConfigParser.RawConfigParser, UserDict):
+class Config(ConfigParser.SafeConfigParser, UserDict):
 	def __init__(self, filename=None, parsecheck=1):
 		u"""
 		see helpMessage
 		"""
-		ConfigParser.RawConfigParser.__init__(self)
+		ConfigParser.SafeConfigParser.__init__(self)
 		UserDict.__init__(self)
 		self.dayList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', '0', '1', '2', '3', '4', '5', '6']
 		self.boolOptionsGlobal = ['runOnce', 'active', 'rssFeed', 'urllib', 'noClobber']
