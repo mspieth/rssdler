@@ -42,23 +42,10 @@ def _saveFeed(page, ppage, retrievedLink, threadName, filename, length):
 	WILL generate an invalid feed that may break some readers. See issue #3 (link below).
 	http://code.google.com/p/rssdler/issues/detail?id=3
 	"""
-	global minidom, random
-	try:
-		if not minidom: from xml.dom import minidom
-	except ImportError, m:
-		logStatusMsg(unicode(m), 1 )
-		raise ImportError
-	try:
-		if not random: import random
-	except ImportError, m:
-		logStatusMsg( unicode(m), 1 )
-		raise ImportError
-	rssl = MakeRss(filename=filename, itemsQuaDictBool=True)
-	if os.path.isfile( filename ):		rssl.parse()
+	rssl = MakeRss(filename=filename, parse=True, itemsQuaDictBool=True)
 	rssl.channelMeta = ppage['feed']
 	links = [ x['link'] for x in rssl.itemsQuaDict ] # if no link key, this will fail without proper handling
-	for entry in reversed( ppage['entries'] ):
-		if entry['link'] not in links: rssl.makeItemNode( entry ) # this logic could be better
+	[ rssl.addItem(x) for x in reversed(ppage['entries']) if x['link'] not in links ]
 	rssl.close(length=length)
 	rssl.write()
 	

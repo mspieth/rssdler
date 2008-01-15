@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.4"
+__version__ = u"0.3.5 alpha"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -551,12 +551,10 @@ def checkFileSize(size, threadName, downloadDict):
 	else: minSize = None
 	if maxSize:
 		maxSize = maxSize * 1024 * 1024
-		if size > maxSize: 
-			returnValue = False
+		if size > maxSize: 	returnValue = False
 	if minSize:
 		minSize = minSize * 1024 * 1024
-		if size <  minSize:
-			returnValue = False
+		if size <  minSize:	returnValue = False
 	if returnValue: logStatusMsg(u"size within parameters", 5)
 	else: logStatusMsg(u"size outside parameters", 5)
 	return returnValue
@@ -1792,11 +1790,10 @@ def rssparse(thread, threadName):
 		return ThreadLink
 	pr = page.read()
 	try: ppage = feedparser.parse(pr)
-	# feedparser does not seem to throw exceptions properly, is a dictionary of some kind
-	except Exception, m:
+	except Exception, m: # feedparser does not seem to throw exceptions properly, is a dictionary of some kind
 		logStatusMsg( unicode(m) + os.linesep + u"page grabbed was not a parseable rss feed", 1)
 		return ThreadLink
-	if ppage['feed'].has_key('ttl') and ppage['feed']['ttl'] != '':
+	if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '':
 		logStatusMsg(u"setting ttl", 5)
 		saved.minScanTime[threadName] = (time.time(), int(ppage['feed']['ttl']) )
 	elif getConfig()['threads'][threadName]['scanMins']:
@@ -1804,9 +1801,11 @@ def rssparse(thread, threadName):
 	for i in range(len(ppage['entries'])):
 		# deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
 		ppage['entries'][i]['oldlink'] = ppage['entries'][i]['link']
-		if ( ppage['entries'][i].has_key('enclosures') 
+		if ( 'enclosures' in ppage['entries'][i]  
 			and len(ppage['entries'][i]['enclosures']) 
-			and ppage['entries'][i]['enclosures'][0].has_key('href') ):
+			and 'href' in ppage['entries'][i]['enclosures'][0]
+			#and not getConfig()['threads'][threadName]['preferLink'] # proposed configuration option
+			):
 				ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
 		else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
 		#if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
@@ -1817,23 +1816,18 @@ def rssparse(thread, threadName):
 		if searchFailed( ppage['entries'][i]['link'] ): 
 			logStatusMsg(u"link was in failedDown", 5)
 			continue
-		# make sure it matches what we want
 		dirDict = checkRegEx(ThreadLink, ppage['entries'][i])
 		if not dirDict: continue
-		# if we matched above, but don't want to download, register as downloaded, and then move on
-		if ThreadLink['noSave']:  
+		if ThreadLink['noSave']: # if we matched above, but don't want to download, register as downloaded  
 			logStatusMsg( u"noSave triggered for %s" % ppage['entries'][i]['link'] , 5)
 			saved.downloads.append(ppage['entries'][i]['link'] )
 			continue
 		userFunctArgs = downloadFile(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict)
-		# size was inappropriate == None
-		if userFunctArgs == None: continue
-		# was supposed to download, but failed
-		elif userFunctArgs == False:
+		if userFunctArgs == None: continue # size was inappropriate == None
+		elif userFunctArgs == False: # was supposed to download, but failed
 			logStatusMsg(u"adding to failedDown: %s" % ppage['entries'][i]['link'] , 5)
 			saved.failedDown.append( FailedItem(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict) )
-		# should have succeeded
-		elif userFunctArgs:
+		elif userFunctArgs: # should have succeeded
 			logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
 			saved.downloads.append( ppage['entries'][i]['link'] )
 			if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
@@ -2004,7 +1998,10 @@ cookiedata ....
 
 %s
 
-Contact:  %s
+Contact for problems, bugs, and/or feature requests: 
+  http://groups.google.com/group/rssdler or 
+  http://code.google.com/p/rssdler/issues/list or
+Author: %s
 """ % (cliOptions, nonCoreDependencies, securityIssues, configFileNotes, GlobalOptions.__doc__, ThreadLink.__doc__, copyright, __author__)
 #if we lock saved before calling kill, it will be locked and we will never get to an unlock state which is our indicator that it is ok to kill.
 if not bdecode: bdecode = mybdecode
