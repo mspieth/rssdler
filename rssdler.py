@@ -6,7 +6,7 @@ __version__ = u"0.3.5 alpha"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
-Copyright (C) 2007, lostnihilist
+Copyright (C) 2007, 2008, lostnihilist
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -93,10 +93,15 @@ utfWriter = codecs.getwriter( "utf-8" )
 sys.stdoutUTF = utfWriter( sys.stdout, "replace" )
 sys.stderrUTF = utfWriter( sys.stderr, "replace" )
 # ~ defined helps with feedburner feeds
-percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25', u'$': u'%24', u"'": u'%27', u'&': u'%26', u')': u'%29', u'(': u'%28', u'+': u'%2B', u'*': u'%2A', u',': u'%2C', u'=': u'%3D', u'@': u'%40', u';': u'%3B', u':': u'%3A', u']': u'%5D', u'[': u'%5B', u'?': u'%3F', u'!':u'%7E'}
-percentunQuoteDict = dict(map(lambda x: (x[1],x[0]), percentQuoteDict.iteritems() ))
+percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25', 
+  u'$': u'%24', u"'": u'%27', u'&': u'%26', u')': u'%29', u'(': u'%28', 
+  u'+': u'%2B', u'*': u'%2A', u',': u'%2C', u'=': u'%3D', u'@': u'%40', 
+  u';': u'%3B', u':': u'%3A', u']': u'%5D', u'[': u'%5B', u'?': u'%3F', 
+  u'!':u'%7E'}
+percentunQuoteDict = dict(((j,i) for (i,j) in percentQuoteDict.iteritems()))
 
-commentConfig = u"""# lines (like this one) starting with # are comments and will be ignored by the config parser
+commentConfig = u"""# lines (like this one) starting with # are comments and 
+# will be ignored by the config parser
 # the only required section (though the program won't do much without others)
 # sections are denoted by a line starting with [
 # then the name of the section, then ending with ]
@@ -105,10 +110,12 @@ commentConfig = u"""# lines (like this one) starting with # are comments and wil
 # download files to this directory. Defaults to the working directory.
 downloadDir = /home/user/downloads
 
-# makes this the 'working directory' of RSSDler. anytime you specify a filename without an absolute path, it will be relative to this 
+# makes this the 'working directory' of RSSDler. anytime you specify a filename
+# without an absolute path, it will be relative to this 
 workingDir = /home/user/.rssdler
 
-# if a file is smaller than this, it will not be downloaded. if filesize cannot be determined, this is ignored. 
+# if a file is smaller than this, it will not be downloaded. 
+# if filesize cannot be determined, this is ignored. 
 # Specified in MB. Remember 1024 MB == 1GB
 # 0 means no minimum, as does "None" (w/o the quotes)
 minSize = 10
@@ -117,7 +124,8 @@ minSize = 10
 # though this line is ignored because it starts with a #
 # maxSize = None
 
-# write messages to a log file. 0 is off, 1 is just error messages, 3 is quite wordy, 5 is very, very wordy. (default = 0)
+# write messages to a log file. 0 is off, 1 is just error messages, 
+# 3 tells you when yo download something, 5 is very, very wordy. (default = 0)
 log = 0
 # where to write those log messages (default 'downloads.log')
 logFile = downloads.log
@@ -145,10 +153,12 @@ sleepTime = 2
 # to exit after scanning all the feeds, or to keep looping. Default False.
 runOnce = True
 
-# set to true to avoid having to install mechanize. side effects described in help. Default False.
+# set to true to avoid having to install mechanize. 
+# side effects described in help. Default False.
 urllib = True
 
-# the rest of the global options are described in the help, let's move on to a thread
+# the rest of the global options are described in the help,
+# let's move on to a thread
 
 ###################
 # each section represents a feed, except for the one called global. 
@@ -171,23 +181,27 @@ minSize = 10
 # if specified, will download files in this thread to this directory
 directory = /home/user/someotherfiles
 
-# if you do not know what regular expressions are, stop now, do not pass go, do not collect USD200 (CAN195)
-# google "regular expressions tutorial" and find one that suits your reading level
+# if you do not know what regular expressions are, stop now, do not pass go, 
+# do not collect USD200 (CAN195)
+# google "regular expressions tutorial" and find one that suits your needs
 # one with an emphasis on Python may be to your advantage
 
 # Now, without any of the download<x> or regEx options (detailed below)
-# every item in the rss feed will be downloaded, provided that it has not previously been downloaded
+# every item in the rss feed will be downloaded, 
+# provided that it has not previously been downloaded
 # all the regular expression should be specified in lower case 
-# (except for character classes and other special regular expression characters, if you know what that means)
+# (except for character classes and other special regular expression characters,
+#  if you know what that means)
 # as the string that it is searched against is set to lower case.
 # Starting with regExTrue (RET)
-# let's say we want to make sure there are two numbers, separated by something not a number
+# let's say we want to make sure there are two numbers,
+# separated by something not a number
 # for everything we download in this thread.
 regExTrue = \d[^\d]+\d
 # the default value, None, makes RET ignored
 # regExTrue = None
 
-# but we want to make sure we don't download anything with nrg in the name or ccd
+# but we want to make sure we don't get anything with nrg or ccd in the name
 # because those are undesirable formats, but we want to make sure to not match
 # a name that may have those as a substring e.g. enrgy 
 # (ok, not a great example, come up with something better and I'll include it)
@@ -196,43 +210,61 @@ regExFalse = (\bnrg\b|\bccd\b)
 # the default value, which means it will be ignored
 # regExFalse = None
 
-# at this point, as long as the file gets a positive hit in RET and no hit in REF, the file will be downloaded
-# equivalently said, RET and REF are necessary and sufficient conditions for a download.
-# lengthy expressions can be constructed to deal with every combination of things you want, but there is 
-# a looping facility to allow us to get more fine grained control over the items we want to grab
-# without having to have hundreds of characters on a single line, which of course gets rather unreadable
+# at this point, as long as the file gets a positive hit in RET 
+# and no hit in REF, the file will be downloaded
+# equivalently said, RET and REF are necessary and sufficient conditions.
+# lengthy expressions can be constructed
+# to deal with every combination of things you want, but there is 
+# a looping facility to allow us to get more fine grained control
+#  over the items we want to grab without having to have hundreds 
+# of characters on a single line, which of course gets rather unreadable
 
-# making use of this looping facility makes RET and REF neccessary (though that can be bypassed too, more later) conditions
+# making use of this looping facility makes RET and REF neccessary 
+# (though that can be bypassed too, more later) conditions
 # however, they are no longer sufficient....
-# download<x> is like regExTrue, but begins the definition of an 'item' and we can associate further actions with it
-# if we so choose
+# download<x> is like regExTrue, but begins the definition of an 'item' and 
+# we can associate further actions with it if we so choose
 # put a non-negative integer where <x> goes
 download1 = ubuntu
 # but say we love ubuntu, and want to always grab everything that mentions it
-# so we want to ignore regExTrue, this 'bypasses' RET when set to False. Default True.
+# so we want to ignore regExTrue, this 'bypasses' RET when set to False. 
+# Default True.
 download1True = False
 
-# we could also bypass REF. but we really don't like nrg, but we'll deal with ccd's, just for ubuntu
-# to be clear, download<x>False is a mixed type option, taking both True, False for dealing with the global REF 
-# or a string (like here) to specify what amounts to a 'localized REF', which effectively says False to the global REF
+# we could also bypass REF. but we really don't like nrg, 
+# but we'll deal with ccd's, just for ubuntu
+# to be clear, download<x>False is a mixed type option,
+# taking both True, False for dealing with the global REF 
+# or a string (like here) to specify what amounts to a 'localized REF',
+# which effectively says False to the global REF
 # while at the same time specifying the local REF
-download1False = \bnrg\b
+download1False = \\bnrg\\b
 
-# we don't want to download things like howto, md5 files, etc, so we can set a minSize (MB)
+# with %()s interpolation, we can effectively add on to REF in a basic manner
+# say for Ubuntu, we don't want want the 'hoary version, 
+download1False = hoary.*%(regExFalse)s
+# this will insert the value for regExFalse in place of the %()s expression
+# resulting in: hoarsy.*(\bnrg\b|\bccd\b)
+# note the parantheses are there b/c they are in the original REF
+
+# we don't want to download things like howto, md5 files, etc, 
+# so we can set a minSize (MB)
 # this overrides the global/thread minSize when not set to None
-# Default None. works like thread-based minSize. a maxSize option is also available
+# Default None. works like thread-based minSize.
+# a maxSize option is also available
 download1MinSize = 10
 download1MaxSize = 750
 
 # and finally, we can put our ubuntu stuff in a special folder, if we choose
 download1Dir = /home/user/ubuntustuff
 
-# note that the numbers are not important, as long as the options correspond to each other
-# thas ,s, there is no download2, and that is ok.
+# note that the numbers are not important
+# as long as the options correspond to each other
+# there is no download2, and that is ok.
 download3 = fedora
 
 # you have to have the base setting to have the other options
-# will not work b/c download4 is not specified
+# this will not work b/c download4 is not specified
 # download4Dir = /home/user/something
 """
 configFileNotes = u"""There are two types of sections: global and threads. There can be as many thread sections as you wish, but only one global section. global must be named "global." Threads can be named however you wish, except 'global,' and each name should be unique. With a couple of noted exceptions, there are three types of options:
@@ -249,7 +281,8 @@ Run with --comment-config to see what a configuration file would look like, comm
 cliOptions = u"""Command Line Options:
     --config/-c can be used with all the options except --comment-config, --help, and --set-default-config. Otherwise, do not mix and match options
     --comment-config: Prints a commented config file to stdout. (hint: rssdler.py --comment-config > myConfigToEdit.txt)
-    --help/-h: print the help message
+    --help/-h: print the short help message (command line options)
+    --full-help/-f: print the complete help message (quite long)
     --run/-r: run according to the configuration file
     --runonce/-o: run only once then exit, otherwise according to the configuration file.
     --daemon/-d: run in the background, according to the configuration file (except sets verbose = 0, a note if you invoke Config.save in postDownloadFunction ) (Unix-like only)
@@ -1593,7 +1626,7 @@ class ReFormatString:
         # 'posix', 'nt', 'dos', 'os2', 'mac', or 'ce'
         if os.name == u'posix' or os.name == u'mac' or os.name == u'os2':
             try: width_in, width_tmp, width_err = os.popen3('stty size')
-            except ValueError: width_tmp, width_in, width_err = None
+            except ValueError: return width
             if not width_err.read():
                 width_tmp = width_tmp.read()
                 width_in.close()
@@ -1603,21 +1636,17 @@ class ReFormatString:
                     try: width= int(width_tmp[1])
                     except ValueError: pass
         elif os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
-            try:
-                try: from ctypes import windll, create_string_buffer
-                except ImportError, m:
-                    raise Warning
-                # from http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/440694
-                h = windll.kernel32.GetStdHandle(-12)
-                csbi = create_string_buffer(22)
-                res = windll.kernel32.GetConsoleScreenBufferInfo(h, csbi)
-                if res:
-                    import struct
-                    (bufx, bufy, curx, cury, wattr, left, top, right, bottom, maxx, maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
-                    width = right - left + 1
-            # would be good to know what possible exceptions there might be here
-            except Warning: pass
-            except: pass
+            try: from ctypes import windll, create_string_buffer
+            except ImportError, m: return width
+            # from http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/440694
+            h = windll.kernel32.GetStdHandle(-12)
+            csbi = create_string_buffer(22)
+            res = windll.kernel32.GetConsoleScreenBufferInfo(h, csbi)
+            if res:
+                try: import struct
+                except ImportError: return width
+                (bufx, bufy, curx, cury, wattr, left, top, right, bottom, maxx, maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
+                width = right - left + 1
         elif os.name == u'mac': pass
         return width
         
@@ -1967,7 +1996,7 @@ def main( ):
     
 
 
-helpMessage=u"""RSSDler is a Python based program to automatically grab the link elements of an rss feed, aka an RSS broadcatcher. It happens to work just fine for grabbing RSS feeds of torrents, so called torrent broadcatching. It may also used with podcasts and such. Though designed with an eye toward rtorrent, it should work with any torrenting program that can read torrent files written to a directory. It does not explicitly interface with rtorrent in anyway and therefore has no dependency on it. You can find the webpage here: http://libtorrent.rakshasa.no/wiki/UtilsRSSDler
+helpMessage=u"""RSSDler is a Python based program to automatically grab the link elements of an rss feed, aka an RSS broadcatcher. It happens to work just fine for grabbing RSS feeds of torrents, so called torrent broadcatching. It may also used with podcasts and such. Though designed with an eye toward rtorrent, it should work with any torrenting program that can read torrent files written to a directory. It does not explicitly interface with rtorrent in anyway and therefore has no dependency on it. You can find the webpage here: http://code.google.com/p/rssdler/
 
 Effort has been put into keeping the program from crashing from random errors like bad links and such. However, some of the exceptions caught are too broad and keep users from knowing what is wrong with their configuration, though this problem should be significantly mitigated by the new verbosity options. Try to be careful when setting up your configuration file. If you are having problems, try to start with a very basic setup and slowly increase its complexity. You need to have a basic understanding of regular expressions to setup the regex and download<x> options, which is probably necessary to broadcatch in an efficient manner. If you do not know what and/or how to use regular expressions, google is your friend. There are literally dozens of tutorials and documentation on the subject with a range of difficulty levels from beginner to expert. If you are having problems that you believe are RSSDler's fault, post an issue at: http://code.google.com/p/rssdler/issues/list or post a message on: http://groups.google.com/group/rssdler. Please be sure to include as much information as you can.
 
@@ -2008,7 +2037,7 @@ if not bdecode: bdecode = mybdecode
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signalHandler)
     try: 
-        (argp, rest) =  getopt.gnu_getopt(sys.argv[1:], "drokc:h", longopts=["daemon", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
+        (argp, rest) =  getopt.gnu_getopt(sys.argv[1:], "dfrokc:h", longopts=["daemon", "full-help", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
     except  getopt.GetoptError:
             sys.stderrUTF.write(helpMessage)
             sys.exit(1)
@@ -2023,6 +2052,7 @@ if __name__ == '__main__':
         elif param == "--config" or param == "-c": configFile = argum
         elif param == "--purge-failed": _action="purge-failed"
         elif param == "--help" or param == "-h":  _action = 'help'
+        elif param == "--full-help" or param == "-f": _action = 'fullhelp'
         elif param == "--set-default-config": _action ='set-default-config'
         elif param == "--list-failed":  _action = 'list-failed'
         elif param == "--list-saved": _action = 'list-saved'
@@ -2054,8 +2084,11 @@ if __name__ == '__main__':
         callDaemon()
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         main()
-    elif _action == 'help':
+    elif _action == 'fullhelp':
         sys.stdoutUTF.write(unicode(ReFormatString(inputstring=helpMessage)) + os.linesep)
+        raise SystemExit
+    elif _action == 'help':
+        sys.stdoutUTF.write(unicode(ReFormatString(inputstring=cliOptions)) + os.linesep)
         raise SystemExit
     elif _action == "kill":
         config = getConfig(filename=configFile, reload=True)
@@ -2187,7 +2220,7 @@ if __name__ == '__main__':
         print "success!"
         raise SystemExit
     else:
-        sys.stdoutUTF.write(u"use -h/--help to print the help message.%s" % os.linesep)
+        sys.stdoutUTF.write(u"use -h/--help to print the short help message.%s" % os.linesep)
         sys.stdoutUTF.flush()
         raise SystemExit
     
