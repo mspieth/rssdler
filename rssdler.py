@@ -35,7 +35,6 @@ import time
 import urllib
 import urllib2
 import urlparse
-from UserDict import UserDict
 import xml.dom.minidom as minidom
 
 # if using a symlink, I say current directory should be in the path, 
@@ -638,26 +637,26 @@ def checkRegExDown(ThreadLink, itemNode):
 # # # # #
 # Download
 # # # # #
-def downloadFile(url, threadName, rssItemNode, downloadDict):
+def downloadFile(link=None, threadName=None, rssItemNode=None, downItemConfig=None):
     u"""tries to download data at URL. returns None if it was not supposed to, False if it failed, and a tuple of arguments for userFunct"""
-    try: data = downloader(url)
+    try: data = downloader(link)
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m: 
-        logStatusMsg( unicode(m) + os.linesep + u'error grabbing url: %s' % url, 1 )
+        logStatusMsg( unicode(m) + os.linesep + u'error grabbing url: %s' % link, 1 )
         return False
     dataInfo = data.info()
     dataUrl = data.geturl()
     # could try to grab filename from ppage item title attribute, but this seems safer for file extension assurance
     # could use url from attempted grab, but it won't be properly encoded. when python network stuff works properly with unicode
     # use dataUrl here?
-    filename = getFilenameFromHTTP(dataInfo, url)
+    filename = getFilenameFromHTTP(dataInfo, link)
     if not filename: return False
     size, data2 = getFileSize(dataInfo, data)
     # check size against configuration options
-    if size and not checkFileSize(size, threadName, downloadDict): 
+    if size and not checkFileSize(size, threadName, downItemConfig): 
         # size is outside range, don't need the data, but want to report that we succeeded in getting data
         del data, data2, dataInfo, dataUrl
         return None
-    if downloadDict['Dir']: directory = downloadDict['Dir']
+    if downItemConfig['Dir']: directory = downItemConfig['Dir']
     elif getConfig()['threads'][threadName]['directory']: directory = getConfig()['threads'][threadName]['directory']
     else: directory = getConfig()['global']['downloadDir']
     try: filename = writeNewFile( filename, directory, data2 )
@@ -674,7 +673,7 @@ def downloadFile(url, threadName, rssItemNode, downloadDict):
         pubdate = time.strftime(u"%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         itemLoad = {'title':title , 'description':description , 'pubDate':pubdate }
         rss.addItem( itemLoad )
-    userFunctArgs = directory, filename, rssItemNode, dataUrl, downloadDict, threadName 
+    userFunctArgs = directory, filename, rssItemNode, dataUrl, downItemConfig, threadName 
     return userFunctArgs
 
 def writeNewFile(filename, directory, data):
@@ -794,25 +793,24 @@ def bdecode(x):
 # # # # #
 #Persistence
 # # # # #
-class FailedItem(UserDict):
+class FailedItem(dict):
     u"""represents an item that we tried to download, but failed, either due to IOError, HTTPError, or some such"""
-    def __init__(self, link, threadName, rssItemNode, downItemConfig):
-        u"""upgrade note: [0] = link, [1] = threadName, [2] = itemNode, [3] = downloadLDir"""
-        UserDict.__init__(self)
+    def __init__(self, link=None, threadName=None, rssItemNode=None, downItemConfig=None):
+        u"""upgrade note: [0] = link, [1] = threadName, [2] = itemNode, [3] = downloadLDir #oldnote"""
+        dict.__init__(self)
         self['link'] = link
         self['threadName'] = threadName
         self['rssItemNode'] = rssItemNode
         self['downItemConfig'] = downItemConfig
-    def returnTuple(self):
-        u"""allows us to be sure the ordering is proper .values() won't do that. """
-        return ( self['link'], self['threadName'], self['rssItemNode'], self['downItemConfig'] )
+    def __setstate__(self,state):
+        if 'data' in state: self.update(state['data'])
         
-class DownloadItemConfig(UserDict):
+class DownloadItemConfig(dict):
     u"""downloadDict: a dictionary representing the download<x> options. keys are: 'localTrue' (corresponding to download<x>) ; 'False' ; 'True' ; 'Dir' ; 'minSize' ; and 'maxSize' corresponding to their analogues in download<x>.
     Unicode Safe"""
     def __init__(self, regextrue=None, dFalse=True, dTrue=True, dir=None, minSize=None, maxSize=None, Function=None):
         u"was [0] = localTrue, [1] = False, [2] = True, [3] = dir"
-        UserDict.__init__(self)
+        dict.__init__(self)
         self['localTrue'] = regextrue
         self['False'] = dFalse
         self['True'] = dTrue
@@ -933,7 +931,7 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         if self.itemsQuaDictBool: self.itemsQuaDict.pop(x)
         else: self.items.pop(x)
 
-class GlobalOptions(UserDict):
+class GlobalOptions(dict):
     u"""    downloadDir: [Recommended] A string option. Default is current directory. Set to a directory in which you have write permission where downloaded files will go.
     workingDir: [Recommended] A string option. Default is current directory. Only needed with -d. Set to a directory on disk. Useful to make sure you don't run this from a partition that might get unmounted. If you use the -d switch (to run as a deamon) you must have this set or the program will die.
     minSize: [Optional] An integer option. Default None. Specify, in MB, the minimum size for a download to be. Files less than this size will not be saved to disk.
@@ -962,7 +960,7 @@ class GlobalOptions(UserDict):
     rss: DEPRECATED, will no longer be processed.
     error: DEPRECATED, wil no longer be processed. (yes, already)"""
     def __init__(self):
-        UserDict.__init__(self)
+        dict.__init__(self)
         self['verbose'] = 3
         self['downloadDir'] = os.getcwd()
         self['runOnce'] = False
@@ -989,7 +987,7 @@ class GlobalOptions(UserDict):
         self['umask'] = 63 #0077
         self['maxLogLength'] = 0
 
-class ThreadLink(UserDict):
+class ThreadLink(dict):
     u"""    link: [Required] A string option. Link to the rss feed.
     active:  [Optional] A boolean option. Default is True, set to False to disable checking of that feed.
     maxSize: [Optional] An integer option, in MB. default is None. A thread based maxSize like in global. If set to None, will default to global's maxSize. Other values override global, including 0 to indicate no maxSize.
@@ -1020,7 +1018,7 @@ class ThreadLink(UserDict):
         checkTime* stored as tuple of (DoW, startHour, endHour)
     """ 
     def __init__(self, name=None, link=None, active=True, maxSize=None, minSize=None, noSave=False, directory=None, regExTrue=None, regExTrueOptions=None, regExFalse=None, regExFalseOptions=None, postDownloadFunction=None, scanMins=0):
-        UserDict.__init__(self)
+        dict.__init__(self)
         self['link'] = link
         self['active'] = active
         self['maxSize'] = maxSize
@@ -1037,19 +1035,21 @@ class ThreadLink(UserDict):
         self['downloads'] = []
         self['postScanFunction'] = None
 
-class SaveInfo(UserDict):
+class SaveInfo(dict):
     u"""lastChecked: when we last checked the rss feeds
 downloads: list of urls to downloads that we have grabbed
 minScanTime: if feed has <ttl>, we register that fact here in a dictionary with threadName as key, and scanTime information as values
 failedDown: list of FailedItem instances to be re-attempted to download
 version: specifies which version of the program this was made with"""
     def __init__(self, lastChecked=0, downloads=[]):
-        UserDict.__init__(self)
+        dict.__init__(self)
         self['lastChecked'] = lastChecked
         self['downloads'] = downloads
         self['minScanTime'] = {}
         self['failedDown'] = []
         self['version'] = getVersion()
+    def __setstate__(self,state):
+        if 'data' in state: self.update(state['data'])
 
 class SaveProcessor:
     def __init__(self, saveFileName=None):
@@ -1089,27 +1089,13 @@ class SaveProcessor:
         self.lastChecked = saveFile['lastChecked']
         self.downloads = saveFile['downloads']
         self.minScanTime = saveFile['minScanTime']
-        if self.version <= u'0.2.4':
-            #upgrade from old versions routines here
-            if len(saveFile['failedDown']) > 0 and not isinstance(saveFile['failedDown'][0], FailedItem):
+        if (self.version <= u'0.2.4' and len(saveFile['failedDown'])  and
+          not isinstance(saveFile['failedDown'][0], FailedItem)):
                 for link, threadName, itemNode, LDir  in saveFile['failedDown']:
                     failureDownDict = DownloadItemConfig(None, None, None, LDir)
                     self.failedDown.append( FailedItem( link, threadName, itemNode, failureDownDict ) )
                 self.version = getVersion()
                 self.save()
-            # just here to be explicit about what we are doing
-            if len(saveFile['failedDown']) > 0 and isinstance(saveFile['failedDown'][0], FailedItem):
-                self.version = getVersion()
-                self.save()
-            elif len(saveFile['failedDown']) == 0:
-                self.version = getVersion()
-                self.save()
-        elif self.version <= u'0.3.0':
-            # forgot to include self in returnTuple function in 0.3.0 (and early releases of 0.3.1 ) on failedDown, will cause crash when calling it
-            for eachFailed in saveFile['failedDown']:
-                newFailed = FailedItem()
-                for key, value in eachFailed.iteritems():   newFailed[key] = value
-                self.failedDown.append( newFailed )
         else: self.failedDown = saveFile['failedDown']
         del saveFile
         # upgrade process should be complete, set to current version
@@ -1143,13 +1129,13 @@ def getConfig(reload=False, filename=None):
         _configInstance = Config(filename)
     return _configInstance
 
-class Config(ConfigParser.SafeConfigParser, UserDict):
+class Config(ConfigParser.SafeConfigParser, dict):
     def __init__(self, filename=None, parsecheck=1):
         u"""
         see helpMessage
         """
         ConfigParser.SafeConfigParser.__init__(self)
-        UserDict.__init__(self)
+        dict.__init__(self)
         self.dayList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', '0', '1', '2', '3', '4', '5', '6']
         self.boolOptionsGlobal = ['runOnce', 'active', 'rssFeed', 'urllib', 'noClobber']
         self.boolOptionsThread = ['active', 'noSave']
@@ -1362,7 +1348,7 @@ def callUserFunction( functionName, *args ):
 def userFunctHandling():
     u"""tries to import userFunctions, sets up the namespace
     reserved words in userFunctions: everything in globals() except '__builtins__', '__name__', '__doc__', 'userFunctHandling', 'callUserFunction', 'userFunctions'. If using daemon mode, 'resource' is reserved.
-    Reserved words: 'Config', 'ConfigParser', 'DownloadItemConfig', 'FailedItem', 'Fatal', 'GlobalOptions', 'Locked', 'Log', 'MAXFD', 'MakeRss', 'ReFormatString', 'SaveInfo', 'SaveProcessor', 'SharedData', 'ThreadLink', 'UserDict', 'Warning', '_USER_AGENT', '__author__', '__copyright__', '__file__', '__version__', '_action', '_bdecode', '_configInstance', '_log', '_runOnce', '_sharedData', 'bdecode', 'callDaemon', 'checkFileSize', 'checkRegEx', 'checkRegExDown', 'checkRegExGFalse', 'checkRegExGTrue', 'checkScanTime', 'checkSleep', 'cj', 'cliOptions', 'codecs', 'commentConfig', 'config', 'configFile', 'configFileNotes', 'cookieHandler', 'cookielib', 'copy', 'createDaemon', 'create_string_buffer', 'deque', 'downloadFile', 'downloader', 'encodeQuoteUrl', 'feedparser', 'findNewFile', 'getConfig', 'getFileSize', 'getFilenameFromHTTP', 'getSharedData', 'getVersion', 'getopt', 'helpMessage', 'httplib', 'killDaemon', 'logMsg', 'logStatusMsg', 'main', 'mechRetrievePage', 'mechanize', 'mimetypes', 'minidom', 'mybdecode', 'mydeque', 'nonCoreDependencies', 'opener', 'os', 'percentIsQuoted', 'percentNeedsQuoted', 'percentQuote', 'percentQuoteCustom', 'percentQuoteDict', 'percentUnQuote', 'percentunQuoteDict', 'pickle', 'random', 're', 'resource', 'rss', 'rssparse', 'run', 'saved', 'searchFailed', 'securityIssues', 'signal', 'signalHandler', 'socket', 'status', 'struct', 'sys', 'time', 'unQuoteReQuote', 'urllib', 'urllib2', 'urllib2RetrievePage', 'urlparse', 'utfWriter', 'windll', 'writeNewFile', 'xmlEscape', 'xmlUnEscape'
+    Reserved words: 'Config', 'ConfigParser', 'DownloadItemConfig', 'FailedItem', 'Fatal', 'GlobalOptions', 'Locked', 'Log', 'MAXFD', 'MakeRss', 'ReFormatString', 'SaveInfo', 'SaveProcessor', 'SharedData', 'ThreadLink', 'Warning', '_USER_AGENT', '__author__', '__copyright__', '__file__', '__version__', '_action', '_bdecode', '_configInstance', '_log', '_runOnce', '_sharedData', 'bdecode', 'callDaemon', 'checkFileSize', 'checkRegEx', 'checkRegExDown', 'checkRegExGFalse', 'checkRegExGTrue', 'checkScanTime', 'checkSleep', 'cj', 'cliOptions', 'codecs', 'commentConfig', 'config', 'configFile', 'configFileNotes', 'cookieHandler', 'cookielib', 'copy', 'createDaemon', 'create_string_buffer', 'deque', 'downloadFile', 'downloader', 'encodeQuoteUrl', 'feedparser', 'findNewFile', 'getConfig', 'getFileSize', 'getFilenameFromHTTP', 'getSharedData', 'getVersion', 'getopt', 'helpMessage', 'httplib', 'killDaemon', 'logMsg', 'logStatusMsg', 'main', 'mechRetrievePage', 'mechanize', 'mimetypes', 'minidom', 'mybdecode', 'mydeque', 'nonCoreDependencies', 'opener', 'os', 'percentIsQuoted', 'percentNeedsQuoted', 'percentQuote', 'percentQuoteCustom', 'percentQuoteDict', 'percentUnQuote', 'percentunQuoteDict', 'pickle', 'random', 're', 'resource', 'rss', 'rssparse', 'run', 'saved', 'searchFailed', 'securityIssues', 'signal', 'signalHandler', 'socket', 'status', 'struct', 'sys', 'time', 'unQuoteReQuote', 'urllib', 'urllib2', 'urllib2RetrievePage', 'urlparse', 'utfWriter', 'windll', 'writeNewFile', 'xmlEscape', 'xmlUnEscape'
     check docstrings/source for use notes on these reserved words."""
     global userFunctions
     # to generate if userFunctions part, add ", " to end of global list, then feed to sed: 
@@ -1609,6 +1595,7 @@ def createDaemon():
         logStatusMsg(u"pid wasn't 0", 5)
         os._exit(0) 
     logStatusMsg(u"setup resource information", 5)
+    global resource
     import resource     # Resource usage information.
     logStatusMsg(u"maxfd settings....", 5)
     maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
@@ -1781,7 +1768,7 @@ def run():
         for i in  xrange( len( saved.failedDown) - 1, -1, -1 ):
             if not checkScanTime( saved.failedDown[i]['threadName'], failed=1 ): continue
             logStatusMsg(u"  Attempting to download %s" % saved.failedDown[i]['link'], 4 )
-            if downloadFile( *saved.failedDown[i].returnTuple() ):
+            if downloadFile( **saved.failedDown[i] ):
                 logStatusMsg(u"Success!", 4)
                 del saved.failedDown[ i ]
                 saved.save()
