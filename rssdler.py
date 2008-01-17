@@ -44,20 +44,10 @@ import xml.dom.minidom as minidom
 if not sys.path.count(''): sys.path.insert(0, '') 
 
 import feedparser
-try: 
-    from BitTorrent.bencode import bdecode
-    deque = mydeque = None
-except ImportError: 
-    try: 
-        from bencode import bdecode
-        deque = mydeque = None
-    except ImportError:
-        bdecode = None
-        try: from collections import deque
-        except ImportError: deque = mydeque = None
+try: import mechanize
+except ImportError: mechanize = None
 
 # if action == "daemon" import resource
-# if urllib == False: import mechanize
 # if verbose >0 and os.name =='nt' or 'dos' or 'ce' and not daemon
 # from ctypes import windll, create_string_buffer
 # struct
@@ -67,7 +57,6 @@ except ImportError:
 # # # # #
 # Reminders of potential import globals elsewhere.
 create_string_buffer = None
-mechanize = None
 resource = None
 struct = None
 userFunctions = None
@@ -746,202 +735,62 @@ def findNewFile(filename, directory):
 # # # # #
 # Torrent
 # # # # #
-if deque and not bdecode:
-    class xrangeslice(object):
-        """A pure-python implementation of xrange. from http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/521885
-        Can handle float/long start/stop/step arguments and slice indexing"""
-        __slots__ = ['_slice']
-        def __init__(self, *args):
-            self._slice = slice(*args)
-            if self._slice.stop is None:
-                raise TypeError("xrange stop must not be None")
-        @property
-        def start(self):
-            if self._slice.start is not None:
-                return self._slice.start
-            return 0
-        @property
-        def stop(self):
-            return self._slice.stop
-        @property
-        def step(self):
-            if self._slice.step is not None:
-                return self._slice.step
-            return 1
-        def __hash__(self):
-            return hash(self._slice)
-        def __cmp__(self, other):
-            return (cmp(type(self), type(other)) or
-                    cmp(self._slice, other._slice))
-        def __repr__(self):
-            return '%s(%r, %r, %r)' % (self.__class__.__name__,
-                                       self.start, self.stop, self.step)
-        def __len__(self):
-            return self._len()
-        def _len(self):
-            return max(0, int((self.stop - self.start) / self.step))
-        def __getitem__(self, index):
-            if isinstance(index, slice):
-                start, stop, step = index.indices(self._len())
-                return xrange(self._index(start),
-                              self._index(stop), step*self.step)
-            elif isinstance(index, (int, long)):
-                if index < 0:
-                    fixed_index = index + self._len()
-                else:
-                    fixed_index = index
-                if not 0 <= fixed_index < self._len():
-                    raise IndexError("Index %d out of %r" % (index, self))
-                return self._index(fixed_index)
-            else:
-                raise TypeError("xrange indices must be slices or integers")
-        def _index(self, i):
-            return self.start + self.step * i
+def _decode_int(x, f):
+    f += 1
+    newf = x.index('e', f)
+    try: n = int(x[f:newf])
+    except (OverflowError, ValueError):  n = long(x[f:newf])
+    if x[f] == '-':
+        if x[f + 1] == '0': raise ValueError
+    elif x[f] == '0' and newf != f+1:  raise ValueError
+    return (n, newf+1)
 
-    class mydeque(deque):
-        u"""set item for slices needs work, speed improvements may be possible?"""
-        def __init__(self, x=None):
-            if x != None:   deque.__init__(self, x)
-            else: deque.__init__(self)
-        def __add__(self, y):
-            b = self[:]
-            b.extend(y)
-            return b
-        def __iadd__(self, y):
-            self.extend(y)
-            return self
-        def __mul__(self, y):
-            b =  self[:]
-            c = self[:]
-            extend = b.extend
-            [ extend(c) for i in xrange(y-1) ]
-            return b
-        def __imul__(self, y):
-            b = self[:]
-            extend = self.extend
-            [ extend(b) for i in xrange(y-1) ]
-            return self
-        def count(self, x):
-            num = 0
-            # reduce this function call, but we aren't here much, so not a big deal 
-            # efficiency
-            num += len( filter( lambda y: y==x, self) )
-            return num
-        def remove(self, x): 
-            for i, j in enumerate(self):
-                if j == x:
-                    del self[j]
-                    return None
-            raise ValueError, "x not in mydeque"
-        def pop(self, x=None):
-            if x == None: return super(mydeque, self).pop()
-            elif x == 0: return super(mydeque, self).popleft()
-            else:
-                a= self[x]
-                del self[x]
-                return a
-        def insert(self, index, object ):
-            if index == -1: self.append(object)
-            elif index ==0: self.appendleft(object)
-            elif index >= len(self): self.append(object)
-            else: 
-                # you could say this is slow, and it makes copies, which might be bad
-                a = self[:index]
-                b = self[index:]
-                if hasattr(object, '__getitem__') or hasattr(object, '__iter__'): 
-                    self[:] = a + object + b
-                else:
-                    a.append(object)
-                    self[:] = a + b
-        def index(self, value, start=None, stop=None):
-            # enumerate place holder here is of the copy and not of self
-            if start and not stop:
-                for i, j in enumerate(self[start:]):
-                    if j == value: return i + start
-            elif start and stop:
-                for i, j in enumerate(self[start:stop]):
-                    if j == value: return i + start
-            elif stop and not start:
-                for i, j in enumerate(self[:stop]):
-                    if j == value: return i
-            else:
-                for i,j in enumerate(self):
-                    if j == value: return i
-            raise ValueError, u"mydeque.index(x), x not in deque"
-        def __getitem__(self, x):
-            if not isinstance(x , slice): return super(mydeque, self).__getitem__(x)
-            else:
-                return type(self)( map( super(mydeque, self).__getitem__ , xrange( *x.indices( len(self) ) ) ) )
-        def __delitem__(self, x):
-            if not isinstance(x, slice): super(mydeque, self).__delitem__(x)
-            else:
-                sup = super(mydeque, self).__delitem__
-                # efficiency #[] instead of map may have been faster
-                map( sup, reversed(xrange( *x.indices( len(self) ) ) ) )
-        def __setitem__(self, x, y):
-            if not isinstance(x, slice): super(mydeque, self).__setitem__(x, y)
-            else:
-                if x.step != None and x.step != 1: 
-                    raise ValueError, "only supports contiguous slices"
-                lenSelf = len(self)
-                iterover = xrangeslice( *x.indices( lenSelf ) )
-                iteroverSize = len(iterover)
-                ySize = len(y)
-                if iteroverSize == ySize:
-                    map(super(mydeque, self).__setitem__, iterover, y ) # already tested and shown they are the same size... 
-                    # no, xrange[:] not work map(sup, iterover[:len(y)], y[:len(iterover)]) or map( lambda x: sup(*x) , zip(iterover, y) )
-                elif iterover[-1] >= lenSelf -1:
-                    map( self.__delitem__ , reversed(iterover) )
-                    self.extend( y )
-                elif iterover[0] == 0:
-                    map( self.__delitem__, iterover )
-                    self.extendleft(reversed(y))
-                elif iteroverSize > ySize:
-                    sup = super(mydeque, self).__setitem__
-                    map( lambda x: sup(*x), zip(iterover, y)) 
-                    [ self.__delitem__(i) for i in iterover[ySize:] ]
-                elif iteroverSize < ySize:
-                    map( self.__delitem__, reversed(iterover) )
-                    insert = self.insert
-                    insertPoint = iterover[0]
-                    [ insert( insertPoint, i) for i in y ]
-                else:
-                    raise ValueError, u"cannot do that with slice methods (yet?)"
+def _decode_string(x, f):
+    colon = x.index(':', f)
+    try:  n = int(x[f:colon])
+    except (OverflowError, ValueError):  n = long(x[f:colon])
+    if x[f] == '0' and colon != f+1:  raise ValueError
+    colon += 1
+    return (x[colon:colon+n], colon+n)
 
-def mybdecode(data):
-    if mydeque: 
-        return _bdecode( mydeque(data) )
-    else: 
-        return _bdecode( list(data) )
-    
-def _bdecode( dataL ):
-    itemType = dataL.pop(0)
-    if itemType.isdigit():
-        dataL.insert(0, itemType)
-        strLen = ''.join(dataL[:dataL.index(':')] )
-        del dataL[0:len(strLen) + 1 ]
-        strLen = int(strLen)
-        string = ''.join(dataL[:strLen])
-        del dataL[:strLen]
-        return string
-    elif itemType== 'i':
-        integer = int( u''.join(dataL[:dataL.index('e')] ) )
-        del dataL[: dataL.index('e') + 1]
-        return integer
-    elif itemType == 'l':
-        bdList = []
-        while dataL[0] != 'e':
-            bdList.append( _bdecode(dataL) )
-        del dataL[0]
-        return bdList
-    elif itemType == 'd':
-        bdDict = {}
-        while dataL[0] != 'e':
-                key = _bdecode( dataL )
-                bdDict[key] = _bdecode( dataL )
-        del dataL[0]
-        return bdDict
-    raise ValueError, u"invalid bencoded data"
+def _decode_list(x, f):
+    r, f = [], f+1
+    while x[f] != 'e':
+        v, f = _decode_func[x[f]](x, f)
+        r.append(v)
+    return (r, f + 1)
+
+def _decode_dict(x, f):
+    r, f = {}, f+1
+    lastkey = None
+    while x[f] != 'e':
+        k, f = _decode_string(x, f)
+        if lastkey >= k:   raise ValueError
+        lastkey = k
+        r[k], f = _decode_func[x[f]](x, f)
+    return (r, f + 1)
+
+_decode_func = {
+  'l' : _decode_list ,
+  'd' : _decode_dict,
+  'i' : _decode_int,
+  '0' : _decode_string,
+  '1' : _decode_string,
+  '2' : _decode_string,
+  '3' : _decode_string,
+  '4' : _decode_string,
+  '5' : _decode_string,
+  '6' : _decode_string,
+  '7' : _decode_string,
+  '8' : _decode_string,
+  '9' : _decode_string }
+def bdecode(x):
+    """This function decodes torrent data. 
+    It and related calls _decode_* come from the GPL Python implementation"""
+    try:  r, l = _decode_func[x[0]](x, 0)
+    except (IndexError, KeyError):  raise ValueError
+    if l != len(x):  raise ValueError
+    return r
 # # # # #
 #Persistence
 # # # # #
@@ -1397,12 +1246,9 @@ class Config(ConfigParser.SafeConfigParser, UserDict):
         else: return option
     def check(self):
         global mechanize
-        if not self['global']['urllib']:
-            if not mechanize:
-                try: import mechanize
-                except ImportError, m:
-                    logStatusMsg( unicode(m) + ' using urllib2 instead of mechanize. setting urllib = True', 1, False)
-                    self['global']['urllib'] = True
+        if not self['global']['urllib'] and not mechanize:
+            logStatusMsg( 'Using urllib2 instead of mechanize. setting urllib = True', 1, False)
+            self['global']['urllib'] = True
         if 'saveFile' not  in self['global'] or self['global']['saveFile'] == None:
             self['global']['saveFile'] = u'savedstate.dat'
         if 'downloadDir' not in self['global'] or self['global']['downloadDir'] == None:
