@@ -64,7 +64,6 @@ userFunctions = None
 windll = None
 
 # Rest of Globals
-config = None
 configFile = os.path.expanduser(os.path.join('~','.rssdler', 'config.txt'))
 cj = None
 downloader = None
@@ -413,7 +412,7 @@ def getFilenameFromHTTP(info, url):
     u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed."""
     filename = None
     logStatusMsg(u"determining filename", 5)
-    if info.has_key('content-disposition') and info['content-disposition'].count('filename='):
+    if 'content-disposition' in info and info['content-disposition'].count('filename='):
             logStatusMsg(u"filename from content-disposition header", 5)
             filename = info['content-disposition'][ info['content-disposition'].index('filename=') + 9:] # 10 = len(filename=")
             if filename.startswith("'") and filename.endswith("'"): filename = filename.strip("'")
@@ -433,7 +432,7 @@ def getFilenameFromHTTP(info, url):
                 logStatusMsg(u"never guessed filename, just setting it to the time", 5)
                 filename = unicode( int(time.time()) ) + fileExt
             else: filename += fileExt
-    elif not info.has_key('content_type'):
+    elif 'content_type' not  in info:
             msg = u"Proper file extension could not be determined for the downloaded file: %s you may need to add an extension to the file for it to work in some programs. It came from url %s. It may be correct, but I have no way of knowing due to insufficient information from the server." % (filename, url)
             logStatusMsg( msg, 1 )
     if not filename: 
@@ -535,13 +534,13 @@ def getFileSize( info, data=None ):
             except ValueError, m:
                 logStatusMsg( unicode( m ) + u"File was supposed to be torrent data, but could not be bdecoded, indicates it is not torrent data", 1 )
                 return size
-            if tparse['info'].has_key('length'): size = int(tparse['info']['length'])
-            elif tparse['info'].has_key('files'):
+            if 'length' in tparse['info']: size = int(tparse['info']['length'])
+            elif 'files' in tparse['info']:
                 size = int(0)
                 for j in tparse['info']['files']:   size += int(j['length'])
     else:
         try: 
-            if info.has_key('content-length'): size = int(info['content-length'])
+            if 'content-length' in info: size = int(info['content-length'])
         except ValueError:  pass # don't know it, out of options, just return None
     logStatusMsg(u"filesize seems to be %s" % size, 5)
     return size, data
@@ -665,9 +664,9 @@ def downloadFile(link=None, threadName=None, rssItemNode=None, downItemConfig=No
     logStatusMsg( u"\tFilename: %s%s\tDirectory: %s%s\tFrom Thread: %s%s" % ( filename, os.linesep, directory, os.linesep, threadName, os.linesep ), 3 )
     if rss:
         logStatusMsg( u"generating rss item", 5)
-        if rssItemNode.has_key('description'): description = rssItemNode['description']
+        if 'description' in rssItemNode: description = rssItemNode['description']
         else: description = None
-        if rssItemNode.has_key('title'): title = rssItemNode['title']
+        if 'title' in rssItemNode: title = rssItemNode['title']
         else: title = None
         pubdate = time.strftime(u"%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         itemLoad = {'title':title , 'description':description , 'pubDate':pubdate }
@@ -847,7 +846,7 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         if parse: self.parse()
     def loadChanOpt(self):
         u"""takes self.channelMeta and  turns it into xml and adds the nodes to self.channel. Will only add those elements which are part of the rss standard (aka those elements in self.chanMetOpt. If you add to this list, you can override what is allowed to be added to the feed."""
-        if not self.channelMeta.has_key('title') or not self.channelMeta.has_key('description') or not self.channelMeta.has_key('link'):
+        if 'title' not in self.channelMeta or 'description' not in self.channelMeta or 'link' not in self.channelMeta:
             raise ValueError, "channelMeta must specify at least 'title', 'description', and 'link' according to RSS2.0 spec. these are case sensitive"
         for i in ( self.channel.appendChild(self.makeTextNode(key, self.channelMeta[key])) for key in self.chanMetOpt if key in self.channelMeta ): pass
     def makeTextNode(self, nodeName, nodeText, nodeAttributes=()):
@@ -1091,7 +1090,7 @@ class SaveProcessor:
         u"""take care of conversion from older versions here, then call save to store updates, then continue with loading."""
         f = open(self.saveFileName, 'rb')
         saveFile = pickle.load(f)
-        if not saveFile.has_key('version'): self.version = u'0.2.4'
+        if 'version' not in saveFile: self.version = u'0.2.4'
         else: self.version = saveFile['version']
         self.lastChecked = saveFile['lastChecked']
         self.downloads = saveFile['downloads']
@@ -1518,8 +1517,8 @@ def logMsg( msg, level, close=False,  ):
         _log = None
 
 def logStatusMsg( msg, level, config=True ):
-    global _action
     u"""write a message to the log/stdout/stderr, depending on the level. if config=False, goes straight to stderr"""
+    global _action
     TimeCode = u"[%4d%02d%02d.%02d:%02d.%02d]" % time.localtime()[:6]
     newmsg = TimeCode + '   ' + unicode( msg ) 
     if not config and _action != "daemon": # daemon == no stdout/err!
@@ -1714,11 +1713,10 @@ def rssparse(thread, threadName):
         ThreadLink['noSave'] = False
     if getConfig()['threads'][threadName]['postScanFunction']:
         callUserFunction( getConfig()['threads'][threadName]['postScanFunction'], pr, ppage, page.geturl(), threadName )
-    return ThreadLink
 
 def checkScanTime( threadName , failed=False):
     u"""looks for a reason to not scan the thread, through minScanTime, checkTime."""
-    if getSaved().minScanTime.has_key( threadName ) and getSaved().minScanTime[threadName ][0]  > ( int(time.time()) - getSaved().minScanTime[threadName][1]*60 ):
+    if threadName in getSaved().minScanTime and getSaved().minScanTime[threadName ][0]  > ( int(time.time()) - getSaved().minScanTime[threadName][1]*60 ):
         logStatusMsg(u"""RSS feed "%s" has indicated that we should wait greater than the scan time you have set in your configuration. Will try again at next configured scantime""" % threadName, 4)
         return False
     if not failed and len(getConfig()['threads'][threadName]['checkTime']) != 0: # if it was from failed, don't worry about user set scan time
@@ -1745,8 +1743,8 @@ def checkSleep( totalTime ):
 
 def run():
     u"""Provides main functionality -- scans threads."""
-    global saved, config, rss, downloader, _action
-    config = getConfig(filename=configFile, reload=True)
+    global saved, rss, downloader, _action
+    getConfig(filename=configFile, reload=True)
     if _action == 'daemon': getConfig()['global']['verbose'] = 0
     if isinstance(getConfig()['global']['umask'], int): os.umask( getConfig()['global']['umask'] )
     if getConfig()['global']['urllib']: downloader  = urllib2RetrievePage
@@ -1797,7 +1795,7 @@ def run():
         logStatusMsg( u"finding new downloads in thread %s" % key, 4 )
         if getConfig()['threads'][key]['noSave'] == True:
             logStatusMsg( u"(not saving to disk)", 4)
-        try: config['threads'][key] = rssparse(getConfig()['threads'][key], threadName=key) 
+        try: rssparse(getConfig()['threads'][key], threadName=key) 
         except IOError, ioe: raise Fatal, u"%s: %s" % (ioe.strerror, ioe.filename)
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
@@ -1963,7 +1961,7 @@ def _main(arglist):
         getSaved.unlock()
         raise SystemExit
     elif _action == "list-saved":
-        config = getConfig(filename=configFile, reload=True)
+        getConfig(filename=configFile, reload=True)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
             logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5)
@@ -1982,7 +1980,7 @@ def _main(arglist):
         getSaved().unlock()
         sys.exit()
     elif _action == "purge-failed":
-        config = getConfig(filename=configFile, reload=True)
+        getConfig(filename=configFile, reload=True)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
 ##          logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5)
@@ -2027,7 +2025,7 @@ def _main(arglist):
         getSaved.save()
         raise SystemExit
     elif _action == "run":
-        config = getConfig(filename=configFile, reload=True)
+        getConfig(filename=configFile, reload=True)
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
@@ -2071,5 +2069,4 @@ def _main(arglist):
         raise SystemExit
     
 
-if __name__ == '__main__':
-    _main(sys.argv)
+if __name__ == '__main__':   _main(sys.argv)
