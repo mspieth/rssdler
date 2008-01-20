@@ -24,7 +24,7 @@ setup(
     long_description = """RSSDler - A Broadcatching Script
     Handles all RSS feeds supported by feedparser 0.9x, 1.0, and 2.0; CDF; and
     Atom 0.3 and 1.0
-    Required: Python 2.3 or later
+    Required: Python 2.4 or later
     Required: feedparser 
     Recommended: mechanize""",
     author = 'lostnihilist',

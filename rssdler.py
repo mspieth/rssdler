@@ -287,7 +287,7 @@ cliOptions = u"""Command Line Options:
 nonCoreDependencies = u"""Non-standard Python libraries used:
     feedparser: [REQUIRED] http://www.feedparser.org/
     mechanize: [RECOMMENDED] http://wwwsearch.sourceforge.net/mechanize/ (this can now be overridden by setting urllib = True in global options. See below for details. If import of mechanize fails, will automatically set urllib =True)
-    BitTorrent: [OPTIONAL]  http://www.bittorrent.com (the python reference client). Instead of BitTorrent, you can also just save the module bencode in your python path as bencode.py (perhaps most conveniently  in your working directory aka where you store all your RSSDler related files). This seems to work best for Python 2.5 as many distros do not have BitTorrent in 2.5's path: http://cheeseshop.python.org/pypi/BitTorrent-bencode/. There is also a function in the program that can take care of bdecoding if you fail to provide the library, but it is not nearly as fast.
+    BitTorrent: [0.3.5 deprecates this, message remains for historical purposes][OPTIONAL]  http://www.bittorrent.com (the python reference client). Instead of BitTorrent, you can also just save the module bencode in your python path as bencode.py (perhaps most conveniently  in your working directory aka where you store all your RSSDler related files). This seems to work best for Python 2.5 as many distros do not have BitTorrent in 2.5's path: http://cheeseshop.python.org/pypi/BitTorrent-bencode/. There is also a function in the program that can take care of bdecoding if you fail to provide the library, but it is not nearly as fast.
     For debian based distros: "sudo apt-get install python-feedparser python-mechanize bittorrent" """
 securityIssues = u"""Security Note: 
     Prior to 0.2.4, there were several 'eval' statements in this program, which allowed running arbitrary code. Although removed, there is an attempt to import 'userFunctions' if you specify a postDownloadFunction in your configuration. Make sure only you have write permissions in the directory you run this from/what you set workingDir to so that userFunctions cannot be setup to run arbitrary code that you do not want running. Also make sure only you have write permissions to your configuration file. It would be wise to make a file userFunctions.py in your working directory to which only you have write access. I've also had reports of users running this as root. PLEASE do not do that. You shouldn't even be logging into your system as root, much less running programs meant for userland, especially when they are Internet facing."""
@@ -477,7 +477,7 @@ def urllib2RetrievePage( url, txheaders=((u'User-agent', _USER_AGENT),)):
     txheaders is a sequence of (field,value) pairs of any extra headers you would like to add
     """
     global cj, opener
-    txheadersEncoded = tuple( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in txheaders )
+    txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in txheaders  )
     urlNotEncoded = url
     time.sleep( getConfig()['global']['sleepTime'] )
     url = encodeQuoteUrl( url , encoding='utf-8', unicode=0)
@@ -504,7 +504,7 @@ def mechRetrievePage(url, txheaders=(('User-agent', _USER_AGENT),), ):
     # this could be improved dramatically
     global cj, opener
     urlNotEncoded = url
-    txheadersEncoded = tuple( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in txheaders )
+    txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in txheaders )
     time.sleep( getConfig()['global']['sleepTime'] )
     url = encodeQuoteUrl( url, encoding='utf-8', unicode=0 )
     if not url: 
