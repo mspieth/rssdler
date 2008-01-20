@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.5 alpha"
+__version__ = u"0.3.5a2"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -26,7 +26,8 @@ import httplib
 import mimetypes
 import os
 import pickle
-import random
+try: import random
+except ImportError: random = None
 import re
 import signal
 import socket
@@ -35,7 +36,8 @@ import time
 import urllib
 import urllib2
 import urlparse
-import xml.dom.minidom as minidom
+try: import xml.dom.minidom as minidom
+except ImportError: minidom = None
 
 # if using a symlink, I say current directory should be in the path, 
 # but it uses the effective directory of the symlink, I promise effective
@@ -63,7 +65,7 @@ windll = None
 
 # Rest of Globals
 config = None
-configFile = u"""config.txt"""
+configFile = os.path.expanduser(os.path.join('~','.rssdler', 'config.txt'))
 cj = None
 downloader = None
 opener = None
@@ -280,7 +282,7 @@ cliOptions = u"""Command Line Options:
     --purge-failed: Use to clear the failed download queue. Use when you have a download stuck (perhaps removed from the site or wrong url in RSS feed) and you no longer care about RSSDler attempting to grab it. Will be appended to the saved download list to prevent readdition to the failed queue. Should be used alone or with -c/--config. Exits after completion.
     --list-saved: Will list everything that has been registered as downloaded
     --purge-saved: Clear the list of saved downloads
-    --set-default-config: Edits rssdler.py to reset the default config to the path you specify. will have to reset after upgrading/overwriting the file. helps to not have to specify -c/--config each time you run. Advised only for single user systems/installs. Should be used alone. Exits after completion.
+    --set-default-config: [No longer available. Deprecated] rssdler.py to reset the default config to the path you specify. will have to reset after upgrading/overwriting the file. helps to not have to specify -c/--config each time you run. Advised only for single user systems/installs. Should be used alone. Exits after completion.
 """ % configFile
 nonCoreDependencies = u"""Non-standard Python libraries used:
     feedparser: [REQUIRED] http://www.feedparser.org/
@@ -365,11 +367,9 @@ def percentUnQuote( sStr, percentunQuoteDict=percentunQuoteDict ):
 
 def percentQuote(sStr, urlPart=(2,), unicode=0, percentQuoteDict=percentQuoteDict):
     u"""quote the path part of the url. urlPart is a sequence of parts of the urlunparsed entries to quote"""
-    if unicode:
-        return percentQuoteCustom( sStr, urlPart, percentQuoteDict )
+    if unicode:  return percentQuoteCustom( sStr, urlPart, percentQuoteDict )
     urlList = list( urlparse.urlparse(sStr) )
-    for i in urlPart:
-        urlList[i] = urllib.quote( urlList[i].encode('utf-8') )
+    for i in urlPart:   urlList[i] = urllib.quote( urlList[i].encode('utf-8') )
     # unicode type, probably the join with the other unicode parts handles it
     return urlparse.urlunparse( urlList )
 
@@ -551,8 +551,7 @@ def getFileSize( info, data=None ):
 # # # # #
 def searchFailed(urlTest):
     u"""see if url is in saved.failedDown list"""
-    global saved
-    for failedItem in saved.failedDown:
+    for failedItem in getSaved().failedDown:
         if urlTest == failedItem['link']: return True
     return False
 
@@ -585,7 +584,7 @@ def checkRegExGTrue(ThreadLink, itemNode):
     # [response from regExTrue, regExFalse, downloads, downloadFalse, downloadTrue]
     if ThreadLink['regExTrue']:
         logStatusMsg(u"checking regExTrue on %s" % itemNode['title'].lower(), 5)
-        if ThreadLink['regExTrueOptions']: regExSearch = re.compile(ThreadLink['regExTrue'], re.__getattribute__(ThreadLink['regExTrueOptions']) )
+        if ThreadLink['regExTrueOptions']: regExSearch = re.compile(ThreadLink['regExTrue'], getattr(re, ThreadLink['regExTrueOptions']) )
         else: regExSearch = re.compile(ThreadLink['regExTrue'])
         if regExSearch.search(itemNode['title'].lower()): return True
         else: return False
@@ -595,7 +594,7 @@ def checkRegExGFalse(ThreadLink, itemNode):
     u"""return type True or False if search doesn't match or does, respectively."""
     if ThreadLink['regExFalse']:
         logStatusMsg(u"checking regExFalse on %s" % itemNode['title'].lower(), 5)
-        if ThreadLink['regExFalseOptions']: regExSearch = re.compile(ThreadLink['regExFalse'], re.__getattribute__(ThreadLink['regExFalseOptions']) )
+        if ThreadLink['regExFalseOptions']: regExSearch = re.compile(ThreadLink['regExFalse'], getattr(re, ThreadLink['regExFalseOptions']) )
         else: regExSearch = re.compile(ThreadLink['regExFalse'])
         if regExSearch.search(itemNode['title'].lower()):   return False
         else: return True
@@ -618,11 +617,11 @@ def checkRegExDown(ThreadLink, itemNode):
     # ( local true, 
     logStatusMsg(u"checking download<x>", 5)
     for downloadDict in ThreadLink['downloads']:
-        if ThreadLink['regExTrueOptions']: LTrue = re.compile( downloadDict['localTrue'], re.__getattribute__(ThreadLink['regExTrueOptions']) )
+        if ThreadLink['regExTrueOptions']: LTrue = re.compile( downloadDict['localTrue'], getattr(re, ThreadLink['regExTrueOptions']) )
         else: LTrue = re.compile(downloadDict['localTrue'])
         if not LTrue.search(itemNode['title'].lower()): continue
         if type(downloadDict['False']) == type(''):
-            if ThreadLink['regExFalseOptions']: LFalse = re.compile(downloadDict['False'], re.__getattribute__(ThreadLink['regExFalseOptions']))
+            if ThreadLink['regExFalseOptions']: LFalse = re.compile(downloadDict['False'], getattr( re, ThreadLink['regExFalseOptions']))
             else: LFalse = re.compile(downloadDict['False'])
             if LFalse.search(itemNode['title'].lower()): continue
         elif downloadDict['False'] == False: pass
@@ -831,6 +830,9 @@ rss.write()
 filename sets the internal filename, where parsed feeds are parsed from (by default) and the stored feed data is written to (by default).
 parse will read the xml file found at self.filename and load the data into the various places
 itemsQuaDictBool: whether to store added entries as dictionary objects or XML objects. The former is easier to deal with and is how RSSDler works with them as of 0.3.2"""
+        global minidom, random
+        if not minidom: raise ImportError('minidom not imported')
+        if not random: raise ImportError('random not imported')
         self.chanMetOpt = ['title', 'description', 'link', 'language', 'copyright', 'managingEditor', 'webMaster', 'pubDate', 'lastBuildDate', 'category', 'generator', 'docs', 'cloud', 'ttl', 'image', 'rating', 'textInput', 'skipHours', 'skipDays']
         self.itemMeta = ['title', 'link', 'description', 'author', 'category', 'comments', 'enclosure', 'guid', 'pubDate', 'source']
         self.feed = minidom.Document()
@@ -847,7 +849,7 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         u"""takes self.channelMeta and  turns it into xml and adds the nodes to self.channel. Will only add those elements which are part of the rss standard (aka those elements in self.chanMetOpt. If you add to this list, you can override what is allowed to be added to the feed."""
         if not self.channelMeta.has_key('title') or not self.channelMeta.has_key('description') or not self.channelMeta.has_key('link'):
             raise ValueError, "channelMeta must specify at least 'title', 'description', and 'link' according to RSS2.0 spec. these are case sensitive"
-        [ self.channel.appendChild(self.makeTextNode(key, self.channelMeta[key])) for key in self.chanMetOpt if key in self.channelMeta ]
+        for i in ( self.channel.appendChild(self.makeTextNode(key, self.channelMeta[key])) for key in self.chanMetOpt if key in self.channelMeta ): pass
     def makeTextNode(self, nodeName, nodeText, nodeAttributes=()):
         """returns an xml text element node, with input being the name of the node, text, and optionally node attributes as a sequence
         of tuple pairs (attributeName, attributeValue)
@@ -855,7 +857,8 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         node = self.feed.createElement(nodeName)
         text = self.feed.createTextNode(unicode(nodeText))
         node.appendChild(text)
-        if nodeAttributes:  [ node.setAttribute(attribute, value) for attribute, value in nodeAttributes ]
+        if nodeAttributes:  
+          for i in ( node.setAttribute(attribute, value) for attribute, value in nodeAttributes ): pass
         return node
     def makeItemNode(self, itemAttr={}, action='insert'):
         """Generates xml ItemNodes from a Dictionary. Only allows elements in RSS specification. Overridden by adding elements to self.itemMeta. Should not need to call directly unless action='return'.
@@ -873,15 +876,18 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
             if 'link' in itemAttr: itemAttr['guid'] = itemAttr['link']
             else: itemAttr['guid'] = random.randint(0,9000000000)
         item = self.feed.createElement('item')
-        [ item.appendChild(self.makeTextNode(key, itemAttr[key])) for key in self.itemMeta if key in itemAttr ]
+        for i in ( item.appendChild(self.makeTextNode(key, itemAttr[key])) for key in self.itemMeta if key in itemAttr ): pass
         if action.lower() == 'insert':  self.items.insert(0, item)
         elif action.lower() == 'return': return item
         else: raise Exception, "Illegal value for action, must be insert, append, or return"
     def appendItemNodes(self, length=20):
         """adds the items in self.items to self.channel. starts at the front of the list."""
-        if self.itemsQuaDictBool: [ self.makeItemNode(item) for item in reversed(self.itemsQuaDict) ]
-        if length==0: [ self.channel.appendChild( item ) for item in self.items ]
-        else: [ self.channel.appendChild( item ) for item in self.items[:length] ]
+        if self.itemsQuaDictBool: 
+          for i in ( self.makeItemNode(item) for item in reversed(self.itemsQuaDict) ): pass
+        if length==0: 
+            for i in ( self.channel.appendChild( item ) for item in self.items ): pass
+        else: 
+            for i in ( self.channel.appendChild( item ) for item in self.items[:length] ): pass
     def close(self, length=20):
         u"""takes care of taking the channelMeta data and the items (dictionary or XML), and putting it all together in self.feed"""
         self.loadChanOpt()
@@ -906,7 +912,8 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
                 p['feed']['pubDate'] = p['feed']['pubdate']  = time.strftime("%a, %d %b %Y %H:%M:%S GMT", p['feed']['updated_parsed'])
             self.channelMeta = p['feed']
         if self.itemsQuaDictBool:   self.itemsQuaDict.extend(p['entries'])
-        else:  [ self.makeItemNode(itemAttr=x) for x in reversed(p['entries']) ]
+        else:  
+          for i in ( self.makeItemNode(itemAttr=x) for x in reversed(p['entries']) ): pass
     def _write(self, data, fd):
         fd.write( data.toprettyxml() )
         fd.flush()
@@ -933,7 +940,7 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
 
 class GlobalOptions(dict):
     u"""    downloadDir: [Recommended] A string option. Default is current directory. Set to a directory in which you have write permission where downloaded files will go.
-    workingDir: [Recommended] A string option. Default is current directory. Only needed with -d. Set to a directory on disk. Useful to make sure you don't run this from a partition that might get unmounted. If you use the -d switch (to run as a deamon) you must have this set or the program will die.
+    workingDir: [Recommended] A string option. Default is ${HOME}/.rssdler. Only needed with -d. Set to a directory on disk. Useful to make sure you don't run this from a partition that might get unmounted. If you use the -d switch (to run as a deamon) you must have this set or the program will die.
     minSize: [Optional] An integer option. Default None. Specify, in MB, the minimum size for a download to be. Files less than this size will not be saved to disk.
     maxSize: [Optional] An integer option. Default None. Specify, in MB, the maximum size for a download to be. Files greater than this size will not be saved to disk.
     log: [Optional] An integer option. Default 0. Will write meassages a log file (specified by logFile). See verbose for what options mean.
@@ -972,7 +979,7 @@ class GlobalOptions(dict):
         self['scanMins'] = 15
         self['lockPort'] = 8023
         self['cookieFile'] = None
-        self['workingDir'] = os.getcwd()
+        self['workingDir'] = os.path.expanduser( os.path.join('~', '.rssdler') )
         self['daemonInfo'] = u'daemon.info'
         self['rssFeed'] = False
         self['rssDescription'] = u"Some RSS Description"
@@ -1128,6 +1135,13 @@ def getConfig(reload=False, filename=None):
     if not _configInstance:
         _configInstance = Config(filename)
     return _configInstance
+
+def getSaved( filename=None, unset=False):
+    u"""Return a shared instance of the SaveProcessor class creating one if needed"""
+    global saved
+    if unset: saved = None
+    elif not saved: saved = SaveProcessor(saveFileName=filename)
+    return saved
 
 class Config(ConfigParser.SafeConfigParser, dict):
     def __init__(self, filename=None, parsecheck=1):
@@ -1552,12 +1566,13 @@ def getVersion():
 def killDaemon( pid ):
     u"""kills the daemon. do not call from within a running instance of main(). it could loop forever"""
     while True:
-        saved = SaveProcessor()
+        getSaved()
         try:
-            saved.lock()
-            saved.unlock()
+            getSaved().lock()
+            getSaved().unlock()
             break
         except Locked:
+            global saved
             del saved
             sys.stdoutUTF.write( u"Save Processor is in use, waiting for it to unlock" )
             time.sleep(2)
@@ -1625,11 +1640,11 @@ def callDaemon():
 
 def signalHandler(signal, frame):
     u"""take the signal, find a stopping point for the program (ok, the signal kills all processing, so save current state, maybe make threaded?) then exit."""
-    global saved, SaveProcessor, rss
-    if isinstance(saved, SaveProcessor):  
+    global rss
+    if isinstance(getSaved(), SaveProcessor):  
         # signal will be blocked by i/o, so we are safe in terms of the saved file will be fully read, files written, then signal passed
-        saved.save()
-        try: saved.unlock()
+        getSaved().save()
+        try: getSaved().unlock()
         except: pass #we'll unlock when we exit in two seconds
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
@@ -1657,9 +1672,9 @@ def rssparse(thread, threadName):
         return ThreadLink
     if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '':
         logStatusMsg(u"setting ttl", 5)
-        saved.minScanTime[threadName] = (time.time(), int(ppage['feed']['ttl']) )
+        getSaved().minScanTime[threadName] = (time.time(), int(ppage['feed']['ttl']) )
     elif getConfig()['threads'][threadName]['scanMins']:
-        saved.minScanTime[threadName] = (time.time(), getConfig()['threads'][threadName]['scanMins'] )
+        getSaved().minScanTime[threadName] = (time.time(), getConfig()['threads'][threadName]['scanMins'] )
     for i in range(len(ppage['entries'])):
         # deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
         ppage['entries'][i]['oldlink'] = ppage['entries'][i]['link']
@@ -1671,7 +1686,7 @@ def rssparse(thread, threadName):
                 ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
         else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
         #if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
-        if ppage['entries'][i]['link'] in saved.downloads: 
+        if ppage['entries'][i]['link'] in getSaved().downloads: 
             logStatusMsg(u"already downloaded %s" % ppage['entries'][i]['link'], 5)
             continue
         # if it failed before, no reason to believe it will work now, plus it's already queued up
@@ -1682,16 +1697,16 @@ def rssparse(thread, threadName):
         if not dirDict: continue
         if ThreadLink['noSave']: # if we matched above, but don't want to download, register as downloaded  
             logStatusMsg( u"noSave triggered for %s" % ppage['entries'][i]['link'] , 5)
-            saved.downloads.append(ppage['entries'][i]['link'] )
+            getSaved().downloads.append(ppage['entries'][i]['link'] )
             continue
         userFunctArgs = downloadFile(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict)
         if userFunctArgs == None: continue # size was inappropriate == None
         elif userFunctArgs == False: # was supposed to download, but failed
             logStatusMsg(u"adding to failedDown: %s" % ppage['entries'][i]['link'] , 5)
-            saved.failedDown.append( FailedItem(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict) )
+            getSaved().failedDown.append( FailedItem(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict) )
         elif userFunctArgs: # should have succeeded
             logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
-            saved.downloads.append( ppage['entries'][i]['link'] )
+            getSaved().downloads.append( ppage['entries'][i]['link'] )
             if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
                 callUserFunction( dirDict['Function'], *userFunctArgs )
             elif getConfig()['threads'][threadName]['postDownloadFunction']: 
@@ -1703,8 +1718,7 @@ def rssparse(thread, threadName):
 
 def checkScanTime( threadName , failed=False):
     u"""looks for a reason to not scan the thread, through minScanTime, checkTime."""
-    global saved
-    if saved.minScanTime.has_key( threadName ) and saved.minScanTime[threadName ][0]  > ( int(time.time()) - saved.minScanTime[threadName][1]*60 ):
+    if getSaved().minScanTime.has_key( threadName ) and getSaved().minScanTime[threadName ][0]  > ( int(time.time()) - getSaved().minScanTime[threadName][1]*60 ):
         logStatusMsg(u"""RSS feed "%s" has indicated that we should wait greater than the scan time you have set in your configuration. Will try again at next configured scantime""" % threadName, 4)
         return False
     if not failed and len(getConfig()['threads'][threadName]['checkTime']) != 0: # if it was from failed, don't worry about user set scan time
@@ -1723,7 +1737,7 @@ def checkSleep( totalTime ):
     u"""let's us know when we need to stop sleeping and rescan"""
     logStatusMsg(u'checking sleep', 5)
     sharedData = getSharedData()
-    steps = totalTime / 10
+    steps = int( totalTime / 10 )
     for n in xrange( 0, steps ):
         time.sleep( 10 )
         if sharedData.exitNow:
@@ -1737,17 +1751,18 @@ def run():
     if isinstance(getConfig()['global']['umask'], int): os.umask( getConfig()['global']['umask'] )
     if getConfig()['global']['urllib']: downloader  = urllib2RetrievePage
     else: downloader = mechRetrievePage
-    saved = SaveProcessor(getConfig()['global']['saveFile'])
-    try:    saved.lock()
+    getSaved(getConfig()['global']['saveFile'])
+    try:    getSaved().lock()
     except Locked:
         logStatusMsg( u"Savefile is currently in use.", 2 )
         raise Warning
-    try: saved.load()
+    try: getSaved().load()
     except (EOFError, IOError, ValueError, IndexError), m: logStatusMsg(unicode(m) + os.linesep + u"didn't load SaveProcessor. Creating new saveFile.", 1)
     logStatusMsg(u"checking working dir, maybe changing dir", 5)
     if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): os.chdir(getConfig()['global']['workingDir'])
+    sys.path.insert(0, getConfig()['global']['workingDir']) # import userFunct
     if getConfig()['global']['runOnce']:
-        if saved.lastChecked > ( int(time.time()) - (getConfig()['global']['scanMins']*60) ):
+        if getSaved().lastChecked > ( int(time.time()) - (getConfig()['global']['scanMins']*60) ):
             logStatusMsg(u"Threads have already been scanned.", 2)
             raise Warning
     if getConfig()['global']['rssFeed']:
@@ -1763,17 +1778,17 @@ def run():
             rss.channelMeta['link'] = getConfig()['global']['rssLink']
         else:       logStatusMsg(u"no rssFilename set, cannot write feed to a file")
     userFunctHandling()
-    if saved.failedDown:
+    if getSaved().failedDown:
         logStatusMsg(u"Scanning previously failed downloads", 4)
-        for i in  xrange( len( saved.failedDown) - 1, -1, -1 ):
-            if not checkScanTime( saved.failedDown[i]['threadName'], failed=1 ): continue
-            logStatusMsg(u"  Attempting to download %s" % saved.failedDown[i]['link'], 4 )
-            if downloadFile( **saved.failedDown[i] ):
+        for i in  xrange( len( getSaved().failedDown) - 1, -1, -1 ):
+            if not checkScanTime( getSaved().failedDown[i]['threadName'], failed=1 ): continue
+            logStatusMsg(u"  Attempting to download %s" % getSaved().failedDown[i]['link'], 4 )
+            if downloadFile( **getSaved().failedDown[i] ):
                 logStatusMsg(u"Success!", 4)
-                del saved.failedDown[ i ]
-                saved.save()
+                del getSaved().failedDown[ i ]
+                getSaved().save()
             else:
-                logStatusMsg(u"Failure on %s in failedDown" % saved.failedDown[i]['link'], 4)
+                logStatusMsg(u"Failure on %s in failedDown" % getSaved().failedDown[i]['link'], 4)
     logStatusMsg( u"Scanning threads", 4 )
     for key in getConfig()['threads'].keys():
         if getConfig()['threads'][key]['active'] == False:  continue    # ignore inactive threads
@@ -1787,14 +1802,15 @@ def run():
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
         rss.write()
-    saved.lastChecked = int(time.time()) -30
-    saved.save()
-    saved.unlock()
+    getSaved().lastChecked = int(time.time()) -30
+    getSaved().save()
+    getSaved().unlock()
+    getSaved(unset=True)
     logMsg( 0 , 0 , close=1)
 
 def main( ):
     global _runOnce
-    config = getConfig(filename=configFile)
+    getConfig(filename=configFile)
     sharedData = getSharedData()
     if not _runOnce:
         _runOnce = getConfig()['global']['runOnce']
@@ -1810,8 +1826,8 @@ def main( ):
         except Fatal, message:
             logStatusMsg( u"Fatal: %s" % unicode(message), 1 )
             sharedData.scanning = False
-            saved.save()
-            saved.unlock()
+            getSaved().save()
+            getSaved().unlock()
             raise SystemExit
         except Exception, m:
             logStatusMsg( u"Unknown Error: %s" % unicode(m), 1, 0) # to send this to logfile or not...?
@@ -1821,10 +1837,10 @@ def main( ):
             logStatusMsg( u"[Complete] %s" % time.asctime() , 4)
             break
         logStatusMsg( u"[Sleeping] %s" % time.asctime() , 4)
-        elapsed = time.time() - saved.lastChecked
+        elapsed = time.time() - getSaved().lastChecked
         #checkSleep has a 10 second resolution, let's sleep for 9, just to be on the safe side
         time.sleep(9)
-        if  getConfig()['global']['scanMins'] * 60 < time.time() - saved.lastChecked: checkSleep ( getConfig()['global']['scanMins'] * 60 - elapsed )
+        if  getConfig()['global']['scanMins'] * 60 < time.time() - getSaved().lastChecked: checkSleep ( getConfig()['global']['scanMins'] * 60 - elapsed )
         else: checkSleep( getConfig()['global']['scanMins'] * 60 )
     
 
@@ -1866,15 +1882,14 @@ Contact for problems, bugs, and/or feature requests:
 Author: %s
 """ % (cliOptions, nonCoreDependencies, securityIssues, configFileNotes, GlobalOptions.__doc__, ThreadLink.__doc__, copyright, __author__)
 #if we lock saved before calling kill, it will be locked and we will never get to an unlock state which is our indicator that it is ok to kill.
-if not bdecode: bdecode = mybdecode
-if __name__ == '__main__':
+def _main(arglist):
     signal.signal(signal.SIGINT, signalHandler)
     try: 
-        (argp, rest) =  getopt.gnu_getopt(sys.argv[1:], "dfrokc:h", longopts=["daemon", "full-help", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
+        (argp, rest) =  getopt.gnu_getopt(arglist[1:], "dfrokc:h", longopts=["daemon", "full-help", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
     except  getopt.GetoptError:
             sys.stderrUTF.write(helpMessage)
             sys.exit(1)
-    
+    global _action, _runOnce, configFile, REDIRECT_TO, saved
     for param, argum in argp:
         if param == "--daemon" or param == "-d":    _action = "daemon"      
         elif param == "--run" or param == "-r": _action = "run"
@@ -1897,8 +1912,7 @@ if __name__ == '__main__':
         print commentConfig
         raise SystemExit
     elif _action == "daemon":
-        #call daemon
-        config = getConfig(filename=configFile, reload=True)
+        getConfig(filename=configFile, reload=True)
         if os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
             logStatusMsg( u"daemon mode not supported on Windows. will try to continue, but this is likely to crash", 1)
         elif os.name == u'mac' or os.name == u"os2":
@@ -1906,7 +1920,6 @@ if __name__ == '__main__':
         getConfig()['global']['verbose'] = 0
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
-##          logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5) # don't do this b/c umask not set, should respect option
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
@@ -1924,50 +1937,49 @@ if __name__ == '__main__':
         sys.stdoutUTF.write(unicode(ReFormatString(inputstring=cliOptions)) + os.linesep)
         raise SystemExit
     elif _action == "kill":
-        config = getConfig(filename=configFile, reload=True)
+        getConfig(filename=configFile, reload=True)
         killData = codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8')
-        # don't bother catching an exception here, something went wrong if this doesn't work
         pid = int( killData.read() )
         killDaemon(pid)
         codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
-        sys.exit()
+        raise SystemExit
     elif _action == "list-failed":
-        config = getConfig(filename=configFile, reload=True)
+        getConfig(filename=configFile, reload=True)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
             logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5)
         while 1:
-            saved = SaveProcessor( getConfig()['global']['saveFile'] )
+            getSaved( getConfig()['global']['saveFile'] )
             try: 
-                saved.lock()
-                saved.load()
+                getSaved.lock()
+                getSaved.load()
                 break
             except (Locked, IOError, ValueError, IndexError):
                 del saved
                 time.sleep(3)
                 continue
-        for failure in  saved.failedDown:
+        for failure in  getSaved.failedDown:
             print failure['link'] 
-        saved.unlock()
-        sys.exit()
+        getSaved.unlock()
+        raise SystemExit
     elif _action == "list-saved":
         config = getConfig(filename=configFile, reload=True)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
             logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5)
         while 1:
-            saved = SaveProcessor( getConfig()['global']['saveFile'] )
+            getSaved( getConfig()['global']['saveFile'] )
             try: 
-                saved.lock()
-                saved.load()
+                getSaved.lock()
+                getSaved.load()
                 break
             except (Locked, IOError, ValueError, IndexError):
                 del saved
                 time.sleep(3)
                 continue
-        for down in  saved.downloads:
+        for down in  getSaved().downloads:
             print down 
-        saved.unlock()
+        getSaved().unlock()
         sys.exit()
     elif _action == "purge-failed":
         config = getConfig(filename=configFile, reload=True)
@@ -1979,42 +1991,41 @@ if __name__ == '__main__':
             except (AttributeError, ValueError), m:
                 logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicode(m), 2)
         while 1:
-            saved = SaveProcessor( getConfig()['global']['saveFile'] )
+            getSaved( getConfig()['global']['saveFile'] )
             try: 
-                saved.lock()
-                saved.load()
+                getSaved().lock()
+                getSaved().load()
                 break
             except (Locked, IOError, ValueError, IndexError):
                 del saved
                 time.sleep(3)
                 continue
-        while saved.failedDown:
-            saved.downloads.append( saved.failedDown.pop()['link'] )
-        saved.save()
-        saved.unlock()
+        while getSaved().failedDown:
+            getSaved().downloads.append( getSaved().failedDown.pop()['link'] )
+        getSaved().save()
+        getSaved().unlock()
         sys.exit()
     elif _action == "purge-saved":
-        config = getConfig(filename=configFile, reload=True)
+        getConfig(filename=configFile, reload=True)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
-##          logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5)
         if os.umask != None:    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
                 logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicode(m), 2)
         while 1:
-            saved = SaveProcessor( getConfig()['global']['saveFile'] )
+            getSaved( getConfig()['global']['saveFile'] )
             try: 
-                saved.lock()
-                saved.load()
+                getSaved.lock()
+                getSaved.load()
                 break
             except (Locked, IOError, ValueError, IndexError):
                 del saved
                 time.sleep(3)
                 continue
-        saved.downloads = []
-        saved.save()
-        sys.exit()
+        getSaved.downloads = []
+        getSaved.save()
+        raise SystemExit
     elif _action == "run":
         config = getConfig(filename=configFile, reload=True)
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
@@ -2027,6 +2038,8 @@ if __name__ == '__main__':
                 logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicode(m), 2)
         main()
     elif _action == 'set-default-config':
+        sys.stderrUTF.write("%s%s" % (u'--set-default-config option is now obsolete', os.linesep) )
+        raise SystemExit
         a = os.path.realpath( sys.argv[0] )
         if not os.access(a, os.F_OK):
             logStatusMsg( u"Cannot find RSSDler to edit. exiting...", 1)
@@ -2057,3 +2070,6 @@ if __name__ == '__main__':
         sys.stdoutUTF.flush()
         raise SystemExit
     
+
+if __name__ == '__main__':
+    _main(sys.argv)
