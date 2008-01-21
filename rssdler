@@ -3,5 +3,6 @@
 import sys
 
 import rssdler
+from rssdler import SaveInfo, FailedItem #pickle looks for these in __main__
 
 if __name__ == '__main__': rssdler._main(sys.argv)

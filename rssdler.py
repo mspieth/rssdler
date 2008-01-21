@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.5a2"
+__version__ = u"0.3.5a4"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -39,29 +39,21 @@ import urlparse
 try: import xml.dom.minidom as minidom
 except ImportError: minidom = None
 
-# if using a symlink, I say current directory should be in the path, 
-# but it uses the effective directory of the symlink, I promise effective
-# use of current directory, this provides it
 if not sys.path.count(''): sys.path.insert(0, '') 
 
 import feedparser
 try: import mechanize
 except ImportError: mechanize = None
 
-# if action == "daemon" import resource
-# if verbose >0 and os.name =='nt' or 'dos' or 'ce' and not daemon
-# from ctypes import windll, create_string_buffer
-# struct
-
 # # # # #
 # == Globals ==
 # # # # #
 # Reminders of potential import globals elsewhere.
-create_string_buffer = None
-resource = None
-struct = None
+create_string_buffer = None #win width
+resource = None #daemon
+struct = None #win width
 userFunctions = None
-windll = None
+windll = None #win wdith
 
 # Rest of Globals
 configFile = os.path.expanduser(os.path.join('~','.rssdler', 'config.txt'))
@@ -834,6 +826,7 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         if not random: raise ImportError('random not imported')
         self.chanMetOpt = ['title', 'description', 'link', 'language', 'copyright', 'managingEditor', 'webMaster', 'pubDate', 'lastBuildDate', 'category', 'generator', 'docs', 'cloud', 'ttl', 'image', 'rating', 'textInput', 'skipHours', 'skipDays']
         self.itemMeta = ['title', 'link', 'description', 'author', 'category', 'comments', 'enclosure', 'guid', 'pubDate', 'source']
+        object.__init__(self)
         self.feed = minidom.Document()
         self.rss = self.feed.createElement('rss')
         self.rss.setAttribute('version', '2.0')
@@ -1057,7 +1050,7 @@ version: specifies which version of the program this was made with"""
     def __setstate__(self,state):
         if 'data' in state: self.update(state['data'])
 
-class SaveProcessor:
+class SaveProcessor(object):
     def __init__(self, saveFileName=None):
         u"""saveFileName: location where we store persistence data
         lastChecked: seconds since epoch when we last checked the threads
@@ -1068,8 +1061,9 @@ class SaveProcessor:
         (ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirTuple[1]) 
         This means that the regex, at the time of parsing, identified this file as worthy of downloading, but there was some failure in the retrieval process. Size will be checked against the configuration state at the time of the redownload attempt, not the size configuration at the time of the initial download attempt (if there is a difference)
         """
-        if saveFileName:    self.saveFileName = saveFileName
-        else: self.saveFileName = getConfig()['global']['saveFile']
+        object.__init__(self)
+        if saveFileName:    self.saveFileName = os.path.join( getConfig()['global']['workingDir'], saveFileName )
+        else: self.saveFileName = os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['saveFile'])
         self.lastChecked = 0
         self.downloads = []
         self.failedDown = []
@@ -1131,8 +1125,7 @@ def getConfig(reload=False, filename=None):
     u"""Return a shared instance of the Config class (creating one if neccessary)"""
     global _configInstance
     if reload: _configInstance = None
-    if not _configInstance:
-        _configInstance = Config(filename)
+    if not _configInstance: _configInstance = Config(filename)
     return _configInstance
 
 def getSaved( filename=None, unset=False):
@@ -1382,9 +1375,10 @@ def userFunctHandling():
     return globalList
 
 
-class ReFormatString:
+class ReFormatString(object):
     u"""takes a string or filename, and formats it (somewhat) smartly so that line overflows are indented for easier reading, and doesn't get longer than terminal width (may not be fully crossplatform compatible. width defaults to 80)"""
     def __init__(self, inputstring=None, filename=None, linesep=os.linesep, lineLength=None, indent=' '*4, comment=None):
+        object.__init__(self)
         if not inputstring and not filename: raise Exception, u"must provide at least a filename or inputstring"
         elif inputstring and filename: raise Exception, u"cannot provide a filename and inputstring, only one or the other"
         if inputstring: self.inputstring = inputstring
@@ -1495,9 +1489,11 @@ class ReFormatString:
         elif os.name == u'mac': pass
         return width
         
-class Log:
+class Log(object):
     u"""how we keep track of our logged data"""
-    def __init__(self): self.fd = codecs.open( getConfig()['global']['logFile'], 'a', 'utf-8')
+    def __init__(self): 
+        object.__init__(self)
+        self.fd = codecs.open( getConfig()['global']['logFile'], 'a', 'utf-8')
     def write(self, message):       self.fd.write( unicode( message ) )
     def flush(self):        self.fd.flush()
     def close(self):        self.fd.close()
@@ -1531,10 +1527,11 @@ def logStatusMsg( msg, level, config=True ):
         logMsg( newmsg, level )
         status( newmsg, level )
 
-class SharedData:
+class SharedData(object):
     u"""Mechanism for sharing data. Do not instantiate directly,
     use getSharedData() instead."""
     def __init__( self ):
+        object.__init__(self)
         self.scanning = False   # True when scan in progress
         self.scanoutput = []    # output of last scan, tuples of (severity level (1-5) , message )
         self.exitNow = False    # should exit immediatley if this is set
@@ -1809,6 +1806,7 @@ def run():
 def main( ):
     global _runOnce
     getConfig(filename=configFile)
+    if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): os.chdir(getConfig()['global']['workingDir'])
     sharedData = getSharedData()
     if not _runOnce:
         _runOnce = getConfig()['global']['runOnce']
