@@ -2,7 +2,7 @@
 # INSTRUCTIONS (assumes debian-based distro)
 # save to /etc/init.d/rssdler (NOT rssdler.sh!!)
 # You must change user
-# if you installed with setu.py
+# if you installed with setup.py
 # and keep your config in ~/.rssdler/config.txt
 # that is all you need to change here
 # otherwise, edit  NAME, DAEMON, CONFIGFILE to suit needs
@@ -15,13 +15,13 @@
 ########
 # user to run RSSDler as
 user='user'
-# name you saved RSSDler to
-NAME='rssdler'
-#directory you put rssdler, plus $NAME is the name of it (you set it above though)
-DAEMON="$NAME"
 #where is the config file found
 CONFIGFILE="`su -c 'echo $HOME' $user`/.rssdler/config.txt"
-# how to start RSSDler
+# name you saved RSSDler to
+NAME='rssdler'
+#directory you put rssdler, plus $NAME is the name of it
+DAEMON="$NAME"
+# options to pass to RSSDler
 DAEMON_ARGS="-d -c '$CONFIGFILE'"
 #where to log errors from this script
 logfile="/var/log/rssdler.log"
