@@ -273,6 +273,7 @@ cliOptions = u"""Command Line Options:
     --purge-failed: Use to clear the failed download queue. Use when you have a download stuck (perhaps removed from the site or wrong url in RSS feed) and you no longer care about RSSDler attempting to grab it. Will be appended to the saved download list to prevent readdition to the failed queue. Should be used alone or with -c/--config. Exits after completion.
     --list-saved: Will list everything that has been registered as downloaded
     --purge-saved: Clear the list of saved downloads
+    --state/-s: If another rssdler instance is running with the config specified, will return the process ID, return code 0. Otherwise return code 1. Note for Windows: will return the pid found in daemonInfo, if is one, regardless of whether it is currently running.
     --set-default-config: [No longer available. Deprecated] rssdler.py to reset the default config to the path you specify. will have to reset after upgrading/overwriting the file. helps to not have to specify -c/--config each time you run. Advised only for single user systems/installs. Should be used alone. Exits after completion.
 """ % configFile
 nonCoreDependencies = u"""Non-standard Python libraries used:
@@ -1570,6 +1571,19 @@ def getVersion():
 # # # # #
 #Daemon
 # # # # #
+def isRunning():
+    u"""Returns pid of another rssdler, if running with current config. 0 if not
+    POSIX only."""
+    pid = 0
+    try: pid = int(codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8').read())
+    except (TypeError, ValueError, IOError), m: pass
+    if not pid: return 0
+    try: state = os.kill(pid, 0)
+    except (AttributeError, OSError), m: state = unicode(m)
+    if not state: return pid
+    else:
+        if 'No such process' in state: return 0 # process died
+        else: return pid #means we do not have the perms on the pid, 
 def killDaemon( pid ):
     u"""kills the daemon. do not call from within a running instance of main(). it could loop forever"""
     while True:
@@ -1813,6 +1827,9 @@ def main( ):
     global _runOnce
     getConfig(filename=configFile)
     if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): os.chdir(getConfig()['global']['workingDir'])
+    if isRunning() and os.name != 'nt':
+        logStatusMsg('RSSDler is already running. exiting.', 1)
+        raise SystemExit(1)
     logStatusMsg(u"writing daemonInfo", 5)
     try: codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write(unicode(os.getpid()))
     except IOError, m: 
@@ -2046,19 +2063,9 @@ def _main(arglist):
         sys.stderrUTF.write("%s%s" % (u'--set-default-config option is now obsolete', os.linesep) )
         raise SystemExit
     elif _action == 'state':
-        try: pid = int(codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8').read())
-        except (TypeError, ValueError, IOError), m: pid = 0
-        if not pid: raise SystemExit(1) #int()=0
-        try: state = os.kill(pid, 0)
-        except OSError, m: state = unicode(m)
-        if not state:
-            print "%s" % unicode(pid)
-            raise SystemExit(0)
-        else:
-            if 'No such process' in state: raise SystemExit(1)
-            else: 
-                print "%s" % unicode(pid)
-                raise SystemExit(0)
+        pid = isRunning()
+        if pid: print('%s' % unicode(pid) )
+        else: raise SystemExit(1)
     else:
         sys.stdoutUTF.write(u"use -h/--help to print the short help message.%s" % os.linesep)
         sys.stdoutUTF.flush()
