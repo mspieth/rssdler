@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.5a4"
+__version__ = u"0.3.5a5"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -1051,6 +1051,14 @@ version: specifies which version of the program this was made with"""
         if 'data' in state: self.update(state['data'])
 
 class SaveProcessor(object):
+    u"""Saves state data to disk.
+    Data saved includes downloads, failed items, previous scanTime, and ttl
+    and other sources (e.g. user) of minScanTime.
+    Developer note, pickled objects include SaveInfo and FailedItem instances
+    these are expected to be found in the __name__ namespace. Thus, if you
+    try using this outside the __main__ namespace, you will get a 'module' not
+    found error. Fix this with: from rssdler import SaveInfo, FailedItem
+    in addition to import rssdler. Only needed for transition from 034 to 035"""
     def __init__(self, saveFileName=None):
         u"""saveFileName: location where we store persistence data
         lastChecked: seconds since epoch when we last checked the threads
@@ -1573,6 +1581,8 @@ def killDaemon( pid ):
             sys.stdoutUTF.write( u"Save Processor is in use, waiting for it to unlock" )
             time.sleep(2)
     os.kill(pid,9)
+    try: codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo'])).write('')
+    except IOError, m: pass
 
 # # # # #
 #Daemon
@@ -1627,12 +1637,6 @@ def callDaemon():
     logStatusMsg(u"calling create daemon", 5)
     retCode = createDaemon()
     logStatusMsg(u"daemon should've processed", 5)
-    procParams = u"""%s\n""" % os.getpid()
-    logStatusMsg(u"writing daemonInfo", 5)
-    try: codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write(procParams)
-    except IOError, m: 
-        logStatusMsg( unicode(m) + os.linesep + u"Could not write to, or not set, daemonInfo", 1 )
-        raise SystemExit
 
 def signalHandler(signal, frame):
     u"""take the signal, find a stopping point for the program (ok, the signal kills all processing, so save current state, maybe make threaded?) then exit."""
@@ -1645,6 +1649,8 @@ def signalHandler(signal, frame):
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
         rss.write()
+    try: codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo'])).write('')
+    except IOError, m: pass
     raise SystemExit, u"exiting due to exit signal %s" % signal
 
 # # # # #
@@ -1807,6 +1813,10 @@ def main( ):
     global _runOnce
     getConfig(filename=configFile)
     if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): os.chdir(getConfig()['global']['workingDir'])
+    logStatusMsg(u"writing daemonInfo", 5)
+    try: codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write(unicode(os.getpid()))
+    except IOError, m: 
+        logStatusMsg( unicode(m) + os.linesep + u"Could not write to, or not set, daemonInfo", 1 )
     sharedData = getSharedData()
     if not _runOnce:
         _runOnce = getConfig()['global']['runOnce']
@@ -1881,7 +1891,7 @@ Author: %s
 def _main(arglist):
     signal.signal(signal.SIGINT, signalHandler)
     try: 
-        (argp, rest) =  getopt.gnu_getopt(arglist[1:], "dfrokc:h", longopts=["daemon", "full-help", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
+        (argp, rest) =  getopt.gnu_getopt(arglist[1:], "sdfrokc:h", longopts=["state", "daemon", "full-help", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
     except  getopt.GetoptError:
             sys.stderrUTF.write(helpMessage)
             sys.exit(1)
@@ -1892,6 +1902,7 @@ def _main(arglist):
         elif param == "--runonce" or param == "-o":
             _action = "run"
             _runOnce = True
+        elif param =="--state" or param == "-s": _action = 'state'
         elif param == "--kill" or param == "-k":    _action = "kill"
         elif param == "--config" or param == "-c": configFile = argum
         elif param == "--purge-failed": _action="purge-failed"
@@ -1934,10 +1945,7 @@ def _main(arglist):
         raise SystemExit
     elif _action == "kill":
         getConfig(filename=configFile, reload=True)
-        killData = codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8')
-        pid = int( killData.read() )
-        killDaemon(pid)
-        codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
+        pid = int(codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8').read())
         raise SystemExit
     elif _action == "list-failed":
         getConfig(filename=configFile, reload=True)
@@ -2036,31 +2044,20 @@ def _main(arglist):
     elif _action == 'set-default-config':
         sys.stderrUTF.write("%s%s" % (u'--set-default-config option is now obsolete', os.linesep) )
         raise SystemExit
-        a = os.path.realpath( sys.argv[0] )
-        if not os.access(a, os.F_OK):
-            logStatusMsg( u"Cannot find RSSDler to edit. exiting...", 1)
-            raise SystemExit
-        if not os.access(a, os.R_OK): 
-            logStatusMsg( u"Do not have read permission to RSSDler. exiting...", 1)
-            raise SystemExit
-        if not os.access(a, os.W_OK):
-            logStatusMsg( u"Do not have write permissions to RSSDler. exiting...", 1)
-            raise SystemExit
-        if not os.access(argum, os.F_OK):
-            logStatusMsg( u"config file does not exist! exiting...", 1)
-            raise SystemExit
-        if not os.access(argum, os.R_OK):
-            logStatusMsg( u"no read permission on the config file. exiting...", 1)
-            raise SystemExit
-        oldFile = codecs.open(a, 'r', 'utf-8').read()
-        switch = re.compile(r'^(configFile = )u""".*"""$', re.M)
-        newFile = switch.sub(r'\1u"""' + unicode(argum) + '"""', oldFile)
-        if newFile == oldFile:
-            sys.stderrUTF.write(u'Swich failed, or already set.')
-            raise SystemExit
-        codecs.open(a, 'w', 'utf-8').write(newFile)
-        print "success!"
-        raise SystemExit
+    elif _action == 'state':
+        try: pid = int(codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').read())
+        except (TypeError, ValueError, IOError), m: pid = 0
+        if not pid: raise SystemExit('Could not find any pid') #int()=0
+        try: state = os.kill(pid, 0)
+        except OSError, m: state = unicode(m)
+        if not state:
+            print "%s" % unicode(pid)
+            raise SystemExit(0)
+        else:
+            if 'no such process' in state: raise SystemExit(state)
+            else: 
+                print "%s" % unicode(pid)
+                raise SystemExit(0)
     else:
         sys.stdoutUTF.write(u"use -h/--help to print the short help message.%s" % os.linesep)
         sys.stdoutUTF.flush()

@@ -1,12 +1,14 @@
-Note that at 0.3.5 the default working directory is $HOME/.rssdler 
+Note that as of 0.3.5 the default working directory is $HOME/.rssdler 
 and the default config file is $HOME/.rssdler/config.txt
 
 To continue using rssdler under the old scheme:
-    copy rssdler.py to the usual place, and run it as normal. 
+    copy rssdler.py to your usual place
+    run it as normal
+    use -c ./path/to/config.txt if you have a non-default config location
 
 To install rssdler as a generally availble module and program in your path:
-    python setup.py install
-    'rssdler' should now be in your $PATH 
+    As administrator (sudo/root) run: python setup.py install
+    'rssdler' should now be in your $PATH (or 'rssdler.py' on Windows)
     allowing you to run it from anywhere as 'rssdler' with the desired options
 
 userFunctions.py is available for use as a collection of potential postDownload
