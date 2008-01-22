@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.5a5"
+__version__ = u"0.3.5a6"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -2045,7 +2045,7 @@ def _main(arglist):
         sys.stderrUTF.write("%s%s" % (u'--set-default-config option is now obsolete', os.linesep) )
         raise SystemExit
     elif _action == 'state':
-        try: pid = int(codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').read())
+        try: pid = int(codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8').read())
         except (TypeError, ValueError, IOError), m: pid = 0
         if not pid: raise SystemExit('Could not find any pid') #int()=0
         try: state = os.kill(pid, 0)
