@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.5a6"
+__version__ = u"0.3.5a7"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -954,7 +954,7 @@ class GlobalOptions(dict):
     saveFile: [Optional] A string option. Default savedstate.dat. Specify a file on disk to write the saved state information to. This keeps track of previously downloaded files and other 'state' information necessary to keep the program running coherently, especially between shutdown/startup
     maxLogLength: [Optional] An integer option. Default 0. The number of lines of internal state to save. rssdler keeps all messages that could possibly be printed in an internal class (_sharedData). If you leave it running, oh, for say a month or two (yes, I have seen it run that long without crashing). It can grow rather large. Setting this to a positive number will limit the length of the internal state to about the number of lines you specify. This is especially useful in case you are running on a platform with minimal memory available. However, the lower you set the number above 0, the more likely you are to get repeat error messages.
     lockPort: [Optional] An integer option. Default 8023. The port on which the savedstate.dat file will be locked for writing. Necessary to maintain the integrity of the state information.
-    daemonInfo: [Optional] A string option. Default daemon.info. Only needed with -d. Set to a file on disk. Daemon info will be written there so that -k and such will work.
+    daemonInfo: [Optional] A string option. Default daemon.info. Program pid will be written to this file.
     umask: [Optional] An integer option. Default 63. Sets umask for file creation. (unix, windows only). THIS MUST BE IN BASE10. 0027 will be read as decimal 27, not octal 0027 aka decimal 23. 63 in octal is 0077. To convert quickly, just open the python interpreter (type 'python' at the command line), type the umask you want in octal (say 0022), press enter. The interpreter will spit out a number, this is your octal representation in decimal/base10. Note, the leading zeros are necessary for the conversion.  Do not edit this if you do not know what it does. 
     rss: DEPRECATED, will no longer be processed.
     error: DEPRECATED, wil no longer be processed. (yes, already)"""
@@ -1567,6 +1567,9 @@ def getVersion():
     global __version__
     return __version__
 
+# # # # #
+#Daemon
+# # # # #
 def killDaemon( pid ):
     u"""kills the daemon. do not call from within a running instance of main(). it could loop forever"""
     while True:
@@ -1580,13 +1583,10 @@ def killDaemon( pid ):
             del saved
             sys.stdoutUTF.write( u"Save Processor is in use, waiting for it to unlock" )
             time.sleep(2)
+    try:  codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
+    except IOError, m: sys.stdoutUTF.write('could not rewrite pidfile %s' % pidfile)
     os.kill(pid,9)
-    try: codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo'])).write('')
-    except IOError, m: pass
 
-# # # # #
-#Daemon
-# # # # #
 def createDaemon():
     u"""Detach a process from the controlling terminal and run it in the
     background as a daemon.
@@ -1649,7 +1649,7 @@ def signalHandler(signal, frame):
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
         rss.write()
-    try: codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo'])).write('')
+    try: codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
     except IOError, m: pass
     raise SystemExit, u"exiting due to exit signal %s" % signal
 
@@ -1946,6 +1946,7 @@ def _main(arglist):
     elif _action == "kill":
         getConfig(filename=configFile, reload=True)
         pid = int(codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8').read())
+        killDaemon(pid)
         raise SystemExit
     elif _action == "list-failed":
         getConfig(filename=configFile, reload=True)
@@ -2047,14 +2048,14 @@ def _main(arglist):
     elif _action == 'state':
         try: pid = int(codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8').read())
         except (TypeError, ValueError, IOError), m: pid = 0
-        if not pid: raise SystemExit('Could not find any pid') #int()=0
+        if not pid: raise SystemExit(1) #int()=0
         try: state = os.kill(pid, 0)
         except OSError, m: state = unicode(m)
         if not state:
             print "%s" % unicode(pid)
             raise SystemExit(0)
         else:
-            if 'no such process' in state: raise SystemExit(state)
+            if 'No such process' in state: raise SystemExit(1)
             else: 
                 print "%s" % unicode(pid)
                 raise SystemExit(0)
