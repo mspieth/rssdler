@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.5a7"
+__version__ = u"0.3.5a8"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -309,6 +309,12 @@ class Locked( Exception ):
 # # # # #
 #String/URI Handling
 # # # # #
+def unicodeC( s ):
+    if not isinstance(s, basestring): s= unicode(s) # hopefully get the __str__ method for exception messages, etc.
+    if isinstance(s, str): s = unicode(s, 'utf-8', 'replace')
+    if not isinstance(s, unicode): raise UnicodeEncodeError(u'could not encode %s to unicode' % s)
+    return s
+    
 def xmlUnEscape( sStr, percent=1, percentunQuoteDict=percentunQuoteDict ):
     u"""xml unescape a string, by default also checking for percent encoded characters. set percent=0 to ignore percent encoding. 
     can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentunQuoteDict.
@@ -394,7 +400,7 @@ def encodeQuoteUrl( url, encoding='utf-8', unicode=0 ):
         url = percentQuote( url, unicode=unicode )
     try: url = url.encode(encoding)
     except UnicodeEncodeError, m: 
-        logStatusMsg( unicode(m) + os.linesep + url, 1 )
+        logStatusMsg( unicodeC(m) + os.linesep + url, 1 )
         return None
     return url
 
@@ -410,7 +416,7 @@ def getFilenameFromHTTP(info, url):
             filename = info['content-disposition'][ info['content-disposition'].index('filename=') + 9:] # 10 = len(filename=")
             if filename.startswith("'") and filename.endswith("'"): filename = filename.strip("'")
             elif filename.startswith('"') and filename.endswith('"'): filename = filename.strip('"')
-            if filename: return unicode( filename ) # trust filename from http header over our URL extraction technique
+            if filename: return unicodeC( filename ) # trust filename from http header over our URL extraction technique
     logStatusMsg(u"filename from url", 5)
     filename = percentUnQuote( urlparse.urlparse( url )[2].split('/')[-1] ) # Tup[2] is the path
     try: typeGuess = info.gettype()
@@ -423,7 +429,7 @@ def getFilenameFromHTTP(info, url):
         if fileExt:         # sloppy filename guess, probably will never get hit
             if not filename: 
                 logStatusMsg(u"never guessed filename, just setting it to the time", 5)
-                filename = unicode( int(time.time()) ) + fileExt
+                filename = unicodeC( int(time.time()) ) + fileExt
             else: filename += fileExt
     elif 'content_type' not  in info:
             msg = u"Proper file extension could not be determined for the downloaded file: %s you may need to add an extension to the file for it to work in some programs. It came from url %s. It may be correct, but I have no way of knowing due to insufficient information from the server." % (filename, url)
@@ -431,7 +437,7 @@ def getFilenameFromHTTP(info, url):
     if not filename: 
         logStatusMsg('Could not determine filename for torrent from %s' % url, 1)
         return None
-    return unicode( filename )
+    return unicodeC( filename)
 
 def cookieHandler():
     u"""returns 0 if no cookie configured, 1 if cookie configured, 2 if cookie already configured (even if it is for a null value)"""
@@ -450,7 +456,7 @@ def cookieHandler():
             returnValue = 1
             logStatusMsg(u"""cookies loaded""", 5)
         except (cookielib.LoadError, IOError), m:
-            logStatusMsg( unicode(m) + u' disabling cookies. To re-enable cookies, stop RSSDler, correct the problem, and restart.', 1)
+            logStatusMsg( unicodeC(m) + u' disabling cookies. To re-enable cookies, stop RSSDler, correct the problem, and restart.', 1)
             returnValue = 0
     elif not getConfig()['global']['urllib'] and not isinstance(cj, (mechanize.MozillaCookieJar, mechanize.LWPCookieJar, mechanize.MSIECookieJar) ):
         logStatusMsg(u"""attempting to load cookie type: %s """ % getConfig()['global']['cookieType'], 5)
@@ -460,7 +466,7 @@ def cookieHandler():
             returnValue = 1
             logStatusMsg(u"""cookies loaded""", 5)
         except (mechanize._clientcookie.LoadError, IOError), m:
-            logStatusMsg( unicode(m) + u' disabling cookies. To re-enable cookies, stop RSSDler, correct the problem, and restart.', 1)
+            logStatusMsg( unicodeC(m) + u' disabling cookies. To re-enable cookies, stop RSSDler, correct the problem, and restart.', 1)
             returnValue = 0
     return returnValue
 
@@ -525,7 +531,7 @@ def getFileSize( info, data=None ):
             data = data.read()
             try: tparse = bdecode(data)
             except ValueError, m:
-                logStatusMsg( unicode( m ) + u"File was supposed to be torrent data, but could not be bdecoded, indicates it is not torrent data", 1 )
+                logStatusMsg( unicodeC( m ) + u"File was supposed to be torrent data, but could not be bdecoded, indicates it is not torrent data", 1 )
                 return size
             if 'length' in tparse['info']: size = int(tparse['info']['length'])
             elif 'files' in tparse['info']:
@@ -632,7 +638,7 @@ def downloadFile(link=None, threadName=None, rssItemNode=None, downItemConfig=No
     u"""tries to download data at URL. returns None if it was not supposed to, False if it failed, and a tuple of arguments for userFunct"""
     try: data = downloader(link)
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m: 
-        logStatusMsg( unicode(m) + os.linesep + u'error grabbing url: %s' % link, 1 )
+        logStatusMsg( unicodeC(m) + os.linesep + u'error grabbing url: %s' % link, 1 )
         return False
     dataInfo = data.info()
     dataUrl = data.geturl()
@@ -678,7 +684,7 @@ def writeNewFile(filename, directory, data):
     try:
         logStatusMsg(u'opening %s' % tmpPath, 5)
         # open should handle unicode path automagically
-        fd = open( tmpPath, 'wb')
+        fd = codecs.open( tmpPath, 'wb') #'replace' ?
         if hasattr(data, 'xreadlines'):
             for piece in data.xreadlines():         fd.write(piece)
         elif hasattr(data, 'readline'):
@@ -694,7 +700,7 @@ def writeNewFile(filename, directory, data):
         # if the file already existed and noClobber was false, we might be deleting a file we have no business deleting
         # if noClobber was true, we were guaranteed a unique filename, and therefore are for sure cleaning up after ourselves
         if getConfig()['global']['noClobber'] and os.path.isfile( tmpPath ): os.unlink(tmpPath)
-        logStatusMsg( unicode(m) + u'Failed to write file %s in directory %s' % (filename, directory) , 1)
+        logStatusMsg( unicodeC(m) + u'Failed to write file %s in directory %s' % (filename, directory) , 1)
         raise IOError
     logStatusMsg(u'moving to %s' % realPath, 5)
     os.rename(tmpPath, realPath)
@@ -704,23 +710,23 @@ def findNewFile(filename, directory):
     u"""find a filename in the given directory that isn't already taken. adds '.1' before the file extension, or just .1 on the end if no file extension"""
     if os.path.isfile( os.path.join(directory, filename) ):
         logStatusMsg(u"filename already taken, looking for another: %s" % filename, 2)
-        filenameList = filename.split('.')
+        filenameList = filename.split(u'.')
         if len( filenameList ) >1: 
             try: 
-                num = '.' + unicode( int( filenameList[-2] ) +1)
+                num = u'.' + unicodeC( int( filenameList[-2] ) +1)
                 del filenameList[-2]
-                filename = '.'.join( filenameList[:-1] ) + num + '.' + filenameList[-1]
+                filename = u'.'.join( filenameList[:-1] ) + num + u'.' + filenameList[-1]
             except (ValueError, IndexError, UnicodeEncodeError): 
                 try: 
-                    num = '.' + unicode( int( filenameList[-1] ) + 1 )
+                    num = u'.' + unicodeC( int( filenameList[-1] ) + 1 )
                     del filenameList[-1]
-                    filename = '.'.join( filenameList ) + num
+                    filename = u'.'.join( filenameList ) + num
                 except (ValueError, IndexError, UnicodeEncodeError) : 
-                    num = '.' + unicode( 1 )
-                    filename = '.'.join( filenameList[:-1] ) + num + '.' + filenameList[-1]
+                    num = u'.' + unicodeC( 1 )
+                    filename = u'.'.join( filenameList[:-1] ) + num + '.' + filenameList[-1]
         else: filename += u'.1'
         return findNewFile( filename, directory )
-    else: return directory, filename
+    else: return unicodeC(directory), unicodeC(filename)
 
 # # # # #
 # Torrent
@@ -848,7 +854,7 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         of tuple pairs (attributeName, attributeValue)
         """
         node = self.feed.createElement(nodeName)
-        text = self.feed.createTextNode(unicode(nodeText))
+        text = self.feed.createTextNode(unicodeC(nodeText))
         node.appendChild(text)
         if nodeAttributes:  
           for i in ( node.setAttribute(attribute, value) for attribute, value in nodeAttributes ): pass
@@ -915,11 +921,11 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         if fed file, will write to file, but closing it is up to you"""
         if file: self._write(self.feed, file)
         elif filename:
-            outfile = codecs.open(filename, 'w', 'utf-8')
+            outfile = codecs.open(filename, 'w', 'utf-8', 'replace')
             self._write(self.feed, outfile)
             outfile.close()
         else:
-            outfile = codecs.open(self.filename, 'w', 'utf-8')
+            outfile = codecs.open(self.filename, 'w', 'utf-8', 'replace')
             self._write(self.feed, outfile)
             outfile.close()
     def addItem(self, newItem):
@@ -1181,7 +1187,7 @@ class Config(ConfigParser.SafeConfigParser, dict):
                     try: self['global'][option] = self.getboolean('global', option)
                     except ValueError: logStatusMsg(u'failed to parse option %s in global' % option, 1, config=False)
             except ConfigParser.NoSectionError, m:
-                logStatusMsg( unicode(m), 1 , False)
+                logStatusMsg( unicodeC(m), 1 , False)
                 raise SystemExit
         for option in self.stringOptionsGlobal:
             if option.lower() in self.options('global'):
@@ -1261,10 +1267,10 @@ class Config(ConfigParser.SafeConfigParser, dict):
             self['global']['scanMins'] = 15
         if self['global']['cookieType'] == 'MSIECookieJar' and self['global']['urllib']:
             logStatusMsg(u'Cannot use MSIECookieJar with urllib = True. Choose one or the other. May be caused by failed mechanize import', 1, False )
-            raise SystemExit, "Incompatible configuration, IE cookies must use mechanize. please install and configure mechanize"
+            raise SystemExit( "Incompatible configuration, IE cookies must use mechanize. please install and configure mechanize")
         if self['global']['cookieType'] not in ['MSIECookieJar' ,'LWPCookieJar' , 'MozillaCookieJar' ]:
             logStatusMsg(u'Invalid cookieType option: %s. Only MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...' % self['global']['cookieType'], 1, False)
-            raise SystemExit
+            raise SystemExit(1)
         if 'lockPort' not in self['global'] or self['global']['lockPort'] == None:
             self['global']['lockPort'] = 8023
         if 'log' in self['global'] and self['global']['log']:
@@ -1275,19 +1281,19 @@ class Config(ConfigParser.SafeConfigParser, dict):
             if not os.path.isdir( os.path.join(self['global']['workingDir'], self['global']['downloadDir']) ):
                 try: os.mkdir( os.path.join(self['global']['workingDir'], self['global']['downloadDir']) )
                 except OSError, m: 
-                    logStatusMsg( unicode(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']), 1, False )
-                    raise SystemExit
+                    logStatusMsg( unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']), 1, False )
+                    raise SystemExit(1)
         for thread in self['threads']:
             if self['threads'][thread]['directory'] and not os.path.isdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) ):
                 try: os.mkdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) )
                 except OSError, m: 
-                    logStatusMsg( unicode(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']), 1, False)
-                    raise SystemExit
+                    logStatusMsg( unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']), 1, False)
+                    raise SystemExit(1)
             for downDict in self['threads'][thread]['downloads']:
                 if downDict['Dir'] and not os.path.isdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) ):
                     try: os.mkdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) )
                     except OSError, m:
-                        logStatusMsg( unicode(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], downDict['Dir'] ), 1, False)
+                        logStatusMsg( unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], downDict['Dir'] ), 1, False)
                         raise SystemExit
     def save(self):
         fd = codecs.open(self.filename, 'w', 'utf-8')
@@ -1297,7 +1303,7 @@ class Config(ConfigParser.SafeConfigParser, dict):
         for key in keys:
             if key == 'rss': continue # rss option deprecated
             if self['global'][key] == GlobalOptions()[key]: continue # don't write defaults
-            fd.write("%s = %s%s" % (key, unicode(self['global'][key]), os.linesep))
+            fd.write("%s = %s%s" % (key, unicodeC(self['global'][key]), os.linesep))
         fd.write(os.linesep)
         threads = self['threads'].keys()
         threads.sort()
@@ -1309,28 +1315,28 @@ class Config(ConfigParser.SafeConfigParser, dict):
                 checkNum = 1
                 if threadKey.lower() == 'downloads':
                     for downNum, downDict in enumerate(self['threads'][thread][threadKey]):
-                        fd.write('download%s = %s%s' % (downNum, unicode(downDict['localTrue']), os.linesep))
+                        fd.write('download%s = %s%s' % (downNum, unicodeC(downDict['localTrue']), os.linesep))
                         # don't bother writing if it's the default value
                         if downDict['Dir'] != DownloadItemConfig()['Dir']: 
-                            fd.write('download%sDir = %s%s' % (downNum, unicode(downDict['Dir']), os.linesep))
+                            fd.write('download%sDir = %s%s' % (downNum, unicodeC(downDict['Dir']), os.linesep))
                         if downDict['False'] != DownloadItemConfig()['False']: 
-                            fd.write('download%sFalse = %s%s' % (downNum, unicode(downDict['False']), os.linesep))
+                            fd.write('download%sFalse = %s%s' % (downNum, unicodeC(downDict['False']), os.linesep))
                         if downDict['Function'] != DownloadItemConfig()['Function']:
-                            fd.write('download%sFunction = %s%s' % (downNum, unicode(downDict['Function']), os.linesep))
+                            fd.write('download%sFunction = %s%s' % (downNum, unicodeC(downDict['Function']), os.linesep))
                         if downDict['maxSize'] != DownloadItemConfig()['maxSize']: 
-                            fd.write('download%sMaxSize = %s%s' % (downNum, unicode(downDict['maxSize']), os.linesep) )
+                            fd.write('download%sMaxSize = %s%s' % (downNum, unicodeC(downDict['maxSize']), os.linesep) )
                         if downDict['minSize'] != DownloadItemConfig()['minSize']: 
-                            fd.write('download%sMinSize = %s%s' % (downNum, unicode(downDict['minSize']), os.linesep) )
+                            fd.write('download%sMinSize = %s%s' % (downNum, unicodeC(downDict['minSize']), os.linesep) )
                         if downDict['True'] != DownloadItemConfig()['True']: 
-                            fd.write('download%sTrue = %s%s' % (downNum, unicode(downDict['True']), os.linesep))
+                            fd.write('download%sTrue = %s%s' % (downNum, unicodeC(downDict['True']), os.linesep))
                 elif 'checkTime' == threadKey:
                     for checkNum, checkTup in enumerate( self['threads'][thread][threadKey] ):
                         fd.write('checkTime%sDay = %s%s' % (checkNum, self.dayList[checkTup[0]], os.linesep))
-                        fd.write('checkTime%sStart = %s%s' % (checkNum, unicode(checkTup[1]), os.linesep))
-                        fd.write('checkTime%sStop = %s%s' % (checkNum, unicode(checkTup[2]), os.linesep))
+                        fd.write('checkTime%sStart = %s%s' % (checkNum, unicodeC(checkTup[1]), os.linesep))
+                        fd.write('checkTime%sStop = %s%s' % (checkNum, unicodeC(checkTup[2]), os.linesep))
                 else:
                     if self['threads'][thread][threadKey] == ThreadLink()[threadKey]: continue
-                    fd.write('%s = %s%s' % (threadKey, unicode(self['threads'][thread][threadKey]), os.linesep))
+                    fd.write('%s = %s%s' % (threadKey, unicodeC(self['threads'][thread][threadKey]), os.linesep))
             fd.write(os.linesep)
         fd.close()
 
@@ -1503,7 +1509,7 @@ class Log(object):
     def __init__(self): 
         object.__init__(self)
         self.fd = codecs.open( getConfig()['global']['logFile'], 'a', 'utf-8')
-    def write(self, message):       self.fd.write( unicode( message ) )
+    def write(self, message):       self.fd.write( unicodeC( message ) )
     def flush(self):        self.fd.flush()
     def close(self):        self.fd.close()
 
@@ -1525,14 +1531,14 @@ def logStatusMsg( msg, level, config=True ):
     u"""write a message to the log/stdout/stderr, depending on the level. if config=False, goes straight to stderr"""
     global _action
     TimeCode = u"[%4d%02d%02d.%02d:%02d.%02d]" % time.localtime()[:6]
-    newmsg = TimeCode + '   ' + unicode( msg ) 
+    newmsg = TimeCode + '   ' + unicodeC( msg ) 
     if not config and _action != "daemon": # daemon == no stdout/err!
-        sys.stderrUTF.write(  unicode(ReFormatString( inputstring=newmsg)) )
+        sys.stderrUTF.write(  unicodeC(ReFormatString( inputstring=newmsg)) )
         return None
     sharedData = getSharedData()
     # level >=3 is vebose. we don't want to repeatedly send the same error message (the second part), but if we want verbosity, the first part is enough to print the message
-    if level >= 3 or not ( filter( lambda x: unicode( msg ) in x[1],  sharedData.scanoutput ) ) : 
-        sharedData.scanoutput.append( (level, unicode( newmsg ) + os.linesep) )
+    if level >= 3 or not ( filter( lambda x: unicodeC( msg ) in x[1],  sharedData.scanoutput ) ) : 
+        sharedData.scanoutput.append( (level, unicodeC( newmsg ) + os.linesep) )
         logMsg( newmsg, level )
         status( newmsg, level )
 
@@ -1559,7 +1565,7 @@ def status( message, level ):
     if getConfig()['global']['verbose'] and getConfig()['global']['verbose'] >= level:
         if level ==1 or level ==2: output = sys.stderrUTF
         else: output = sys.stdoutUTF
-        output.write( unicode( ReFormatString(message) ) + os.linesep )
+        output.write( unicodeC( ReFormatString(message) ) + os.linesep )
         output.flush()
     
 
@@ -1579,7 +1585,7 @@ def isRunning():
     except (TypeError, ValueError, IOError), m: pass
     if not pid: return 0
     try: state = os.kill(pid, 0)
-    except (AttributeError, OSError), m: state = unicode(m)
+    except (AttributeError, OSError), m: state = unicodeC(m)
     if not state: return pid
     else:
         if 'No such process' in state: return 0 # process died
@@ -1676,7 +1682,7 @@ def rssparse(thread, threadName):
     page = None
     try: page = downloader(ThreadLink['link'])
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, ), m:   
-        logStatusMsg( unicode(m) + os.linesep + u'error grabbing url %s' % ThreadLink['link'] , 1)
+        logStatusMsg( unicodeC(m) + os.linesep + u'error grabbing url %s' % ThreadLink['link'] , 1)
         return ThreadLink
     if not page: 
         logStatusMsg( u"failed to grab url %s" % ThreadLink['link'], 1)
@@ -1684,7 +1690,7 @@ def rssparse(thread, threadName):
     pr = page.read()
     try: ppage = feedparser.parse(pr)
     except Exception, m: # feedparser does not seem to throw exceptions properly, is a dictionary of some kind
-        logStatusMsg( unicode(m) + os.linesep + u"page grabbed was not a parseable rss feed", 1)
+        logStatusMsg( unicodeC(m) + os.linesep + u"page grabbed was not a parseable rss feed", 1)
         return ThreadLink
     if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '':
         logStatusMsg(u"setting ttl", 5)
@@ -1772,7 +1778,7 @@ def run():
         logStatusMsg( u"Savefile is currently in use.", 2 )
         raise Warning
     try: getSaved().load()
-    except (EOFError, IOError, ValueError, IndexError), m: logStatusMsg(unicode(m) + os.linesep + u"didn't load SaveProcessor. Creating new saveFile.", 1)
+    except (EOFError, IOError, ValueError, IndexError), m: logStatusMsg(unicodeC(m) + os.linesep + u"didn't load SaveProcessor. Creating new saveFile.", 1)
     logStatusMsg(u"checking working dir, maybe changing dir", 5)
     if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): os.chdir(getConfig()['global']['workingDir'])
     sys.path.insert(0, getConfig()['global']['workingDir']) # import userFunct
@@ -1831,9 +1837,9 @@ def main( ):
         logStatusMsg('RSSDler is already running. exiting.', 1)
         raise SystemExit(1)
     logStatusMsg(u"writing daemonInfo", 5)
-    try: codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write(unicode(os.getpid()))
+    try: codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write(unicodeC(os.getpid()))
     except IOError, m: 
-        logStatusMsg( unicode(m) + os.linesep + u"Could not write to, or not set, daemonInfo", 1 )
+        logStatusMsg( unicodeC(m) + os.linesep + u"Could not write to, or not set, daemonInfo", 1 )
     sharedData = getSharedData()
     if not _runOnce:
         _runOnce = getConfig()['global']['runOnce']
@@ -1845,15 +1851,15 @@ def main( ):
             run()
             logStatusMsg( u"Processing took %d seconds" % (time.time() - startTime) , 4)
         except Warning, message:
-            logStatusMsg( u"Warning: %s" % unicode(message), 1 )
+            logStatusMsg( u"Warning: %s" % unicodeC(message), 1 )
         except Fatal, message:
-            logStatusMsg( u"Fatal: %s" % unicode(message), 1 )
+            logStatusMsg( u"Fatal: %s" % unicodeC(message), 1 )
             sharedData.scanning = False
             getSaved().save()
             getSaved().unlock()
             raise SystemExit
         except Exception, m:
-            logStatusMsg( u"Unknown Error: %s" % unicode(m), 1, 0) # to send this to logfile or not...?
+            logStatusMsg( u"Unknown Error: %s" % unicodeC(m), 1, 0) # to send this to logfile or not...?
             raise SystemExit
         sharedData.scanning = False
         if _runOnce:
@@ -1947,7 +1953,7 @@ def _main(arglist):
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicode(m), 2)
+                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
         logStatusMsg(u"entering Daemon mode", 5)
         if (hasattr(os, "devnull")):        REDIRECT_TO = os.devnull
         else: REDIRECT_TO = "/dev/null"
@@ -1955,10 +1961,10 @@ def _main(arglist):
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         main()
     elif _action == 'fullhelp':
-        sys.stdoutUTF.write(unicode(ReFormatString(inputstring=helpMessage)) + os.linesep)
+        sys.stdoutUTF.write(unicodeC(ReFormatString(inputstring=helpMessage)) + os.linesep)
         raise SystemExit
     elif _action == 'help':
-        sys.stdoutUTF.write(unicode(ReFormatString(inputstring=cliOptions)) + os.linesep)
+        sys.stdoutUTF.write(unicodeC(ReFormatString(inputstring=cliOptions)) + os.linesep)
         raise SystemExit
     elif _action == "kill":
         getConfig(filename=configFile, reload=True)
@@ -2011,7 +2017,7 @@ def _main(arglist):
         if os.umask != None:    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicode(m), 2)
+                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
@@ -2034,7 +2040,7 @@ def _main(arglist):
         if os.umask != None:    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicode(m), 2)
+                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
@@ -2057,14 +2063,14 @@ def _main(arglist):
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicode(m), 2)
+                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
         main()
     elif _action == 'set-default-config':
         sys.stderrUTF.write("%s%s" % (u'--set-default-config option is now obsolete', os.linesep) )
         raise SystemExit
     elif _action == 'state':
         pid = isRunning()
-        if pid: print('%s' % unicode(pid) )
+        if pid: print('%s' % unicodeC(pid) )
         else: raise SystemExit(1)
     else:
         sys.stdoutUTF.write(u"use -h/--help to print the short help message.%s" % os.linesep)
