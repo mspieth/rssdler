@@ -1655,6 +1655,9 @@ def createDaemon():
 def callDaemon():
     u"""setup a daemon"""
     logStatusMsg(u"calling create daemon", 5)
+    if isRunning(): 
+        logStatusMsg(u"already running", 1)
+        raise SystemExit(1)
     retCode = createDaemon()
     logStatusMsg(u"daemon should've processed", 5)
 
