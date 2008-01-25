@@ -1626,8 +1626,6 @@ def createDaemon():
             logStatusMsg(u"%s [%d]" % (e.strerror, e.errno), 1)
             raise Exception
         if (pid == 0):  # The second child.
-##          logStatusMsg(u'setting umask', 5)
-##          os.umask(UMASK)
             pass
         else: # exit() or _exit()?  See below.
             logStatusMsg(u"exit the first child", 5)
@@ -2016,7 +2014,6 @@ def _main(arglist):
         getConfig(filename=configFile, reload=True)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
-##          logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5)
         if os.umask != None:    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
@@ -2062,7 +2059,6 @@ def _main(arglist):
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
-##          logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5) # umask not set, should respect that
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
@@ -2079,6 +2075,6 @@ def _main(arglist):
         sys.stdoutUTF.write(u"use -h/--help to print the short help message.%s" % os.linesep)
         sys.stdoutUTF.flush()
         raise SystemExit
-    
+
 
 if __name__ == '__main__':   _main(sys.argv)
