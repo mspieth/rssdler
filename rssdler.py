@@ -310,94 +310,78 @@ class Locked( Exception ):
 #String/URI Handling
 # # # # #
 def unicodeC( s ):
-    if not isinstance(s, basestring): s= unicode(s) # hopefully get the __str__ method for exception messages, etc.
+    if not isinstance(s, basestring): s= unicode(s) # __str__ for exceptions etc
     if isinstance(s, str): s = unicode(s, 'utf-8', 'replace')
     if not isinstance(s, unicode): raise UnicodeEncodeError(u'could not encode %s to unicode' % s)
     return s
     
-def xmlUnEscape( sStr, percent=1, percentunQuoteDict=percentunQuoteDict ):
+def xmlUnEscape( sStr, percent=0, pd=percentunQuoteDict ):
     u"""xml unescape a string, by default also checking for percent encoded characters. set percent=0 to ignore percent encoding. 
     can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentunQuoteDict.
     """
     sStr = sStr.replace("&lt;", "<")
     sStr = sStr.replace("&gt;", ">")
-    if percent: 
-        for search, replace in percentunQuoteDict.iteritems(): sStr = sStr.replace( search, replace )
+    if percent: sStr = percentUnQuote( sStr, pd )
     sStr = sStr.replace("&amp;", "&")
     return sStr
     
-def xmlEscape( sStr, percent=1, percentQuoteDict=percentQuoteDict ):
+def xmlEscape( sStr, percent=1, pd=percentQuoteDict ):
     u"""this does not function perfectly with percent=1 aka also doing percent encoding. trailing ; get converted to %3B. perhaps they should be? but not likely. 
     can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentQuoteDict.
     """
-    sStr = sStr.replace("&", "&amp;")
-    sStr = sStr.replace(">", "&gt;")
-    sStr = sStr.replace("<", "&lt;")
-    if percent:
-        for search, replace in percentQuoteDict.iteritems():            sStr = sStr.replace(search, replace)
+    for i,j in (("&","&amp;"),(">","&gt;"),("<","&lt;")): sStr=sStr.replace(i,j)
+    if percent: # sStr = unicodeC(percentQuote(sStr, pd=pd))
+        for search in pd: sStr = sStr.replace(search, pd[search])
     return sStr
 
 def percentIsQuoted(sStr, testCases=percentQuoteDict.values()):
     u"""does not include query string or page marker (#) in detection. these seem to cause the most problems.
     Specify your own test values with testCases
     """
-    b = testCases
-    for i in b:
+    for i in testCases:
         if sStr.count(i): return True
-    else: return False
+    return False
 
 def percentNeedsQuoted(sStr, testCases=percentQuoteDict.keys()):
     u"""check to see if there is a character in the path part of the url that is 'reserved'"""
-    c = testCases
-    # this is much more questionable
     for aStr in urlparse.urlparse(sStr)[:4]:
-        for i in c:
+        for i in testCases:
             if aStr.count(i): return True
-    else: return False
+    return False
 
-def percentUnQuote( sStr, percentunQuoteDict=percentunQuoteDict ):
-    u"""percent unquote a string. will also unescape xml entities. should maybe just unquote the path? for now, left to the calling function to decide"""
-    for search, replace in percentunQuoteDict.iteritems():
-        if search == '%25': continue
-        sStr = sStr.replace( search, replace )
-    sStr = sStr.replace( '%25', '%' )
+def percentUnQuote( sStr, p=percentunQuoteDict, reserved=('%25',) ):
+    u"""percent unquote a string. 
+    reserved is a sequence of strings that should be replaced last.
+      it needs have a key in p, with a value to replace it with. will be
+      replaced in order of the sequence"""
+    for search in p:
+        if search in reserved: continue
+        sStr = sStr.replace( search, p[search] )
+    for search in reserved:
+        sStr = sStr.replace( search, p[search])
     return sStr
 
-def percentQuote(sStr, urlPart=(2,), unicode=0, percentQuoteDict=percentQuoteDict):
-    u"""quote the path part of the url. urlPart is a sequence of parts of the urlunparsed entries to quote"""
-    if unicode:  return percentQuoteCustom( sStr, urlPart, percentQuoteDict )
+def percentQuote(sStr, urlPart=(2,), pd=percentQuoteDict):
+    u"""quote the path part of the url. 
+    urlPart is a sequence of parts of the urlunparsed entries to quote"""
     urlList = list( urlparse.urlparse(sStr) )
     for i in urlPart:   urlList[i] = urllib.quote( urlList[i].encode('utf-8') )
-    # unicode type, probably the join with the other unicode parts handles it
-    return urlparse.urlunparse( urlList )
+    return unicodeC(urlparse.urlunparse( urlList ))
 
-def percentQuoteCustom(sStr, urlPart=(2,), percentQuoteDict=percentQuoteDict ):
-    u"""quote the path part of he url. urlPart is a sequence of parts of the urlunparsed entries to quote. should maintain unicodedness. maybe not as robust as urllib.quote. can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentQuoteDict"""
-    urlList = list( urlparse.urlparse(sStr) )
-    for i in urlPart:
-        aStr = urlList[i]
-        aStr = aStr.replace(u'%', percentQuoteDict['%'])
-        for search, replace  in percentQuoteDict.iteritems():
-            if search == '%':continue
-            aStr = aStr.replace(search, replace)
-        urlList[i] = aStr
-    return urlparse.urlunparse( urlList )
-
-def unQuoteReQuote( url, quote=1, unicode=0 ):
+def unQuoteReQuote( url, quote=1 ):
     u"""fix urls from feedparser. they are not always properly unquoted then unescaped. will requote by default"""
     logStatusMsg(u"unQuoteReQuote %s" % url, 5)
-    if percentIsQuoted(url):        url = xmlUnEscape( url, 1 )
-    else:   url = xmlUnEscape( url, 0 ) 
-    if quote and not unicode: url = percentQuote( url )
-    elif quote and unicode: url = percentQuote( url, unicode=1 )
+    if percentIsQuoted(url): url = xmlUnEscape( url, 1 )
+    else: url = xmlUnEscape( url, 0 ) 
+    if quote: url = percentQuote( url )
     return url
 
-def encodeQuoteUrl( url, encoding='utf-8', unicode=0 ):
+def encodeQuoteUrl( url, encoding='utf-8'):
     u"""take a url, percent quote it, if necessary and encode the string to encoding, default utf-8"""
-    logStatusMsg( u"encoding url %s" % url, 5)
     if not percentIsQuoted(url) and percentNeedsQuoted(url):
         logStatusMsg( u"quoting url: %s" % url, 5)
-        url = percentQuote( url, unicode=unicode )
+        url = percentQuote( url )
+    logStatusMsg( u"encoding url %s" % url, 5)
     try: url = url.encode(encoding)
     except UnicodeEncodeError, m: 
         logStatusMsg( unicodeC(m) + os.linesep + url, 1 )
@@ -478,7 +462,7 @@ def urllib2RetrievePage( url, txheaders=((u'User-agent', _USER_AGENT),)):
     txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in txheaders  )
     urlNotEncoded = url
     time.sleep( getConfig()['global']['sleepTime'] )
-    url = encodeQuoteUrl( url , encoding='utf-8', unicode=0)
+    url = encodeQuoteUrl( url , encoding='utf-8')
     if not url: 
         logStatusMsg(u"utf encoding and quoting url failed, returning false %s" % url, 1 )
         return False
@@ -499,12 +483,11 @@ def mechRetrievePage(url, txheaders=(('User-agent', _USER_AGENT),), ):
     u"""URL is the full path to the resource we are retrieve/Posting
     txheaders: sequence of tuples of header key, value to manually add to the request object
     """
-    # this could be improved dramatically
     global cj, opener
     urlNotEncoded = url
     txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in txheaders )
     time.sleep( getConfig()['global']['sleepTime'] )
-    url = encodeQuoteUrl( url, encoding='utf-8', unicode=0 )
+    url = encodeQuoteUrl( url, encoding='utf-8' )
     if not url: 
         logStatusMsg(u"utf encoding and quoting url failed, returning false", 1 )
         return False
@@ -563,13 +546,13 @@ def checkFileSize(size, threadName, downloadDict):
     elif getConfig()['threads'][threadName]['maxSize'] != None: maxSize = getConfig()['threads'][threadName]['maxSize']
     elif getConfig()['global']['maxSize'] != None: maxSize = getConfig()['global']['maxSize']
     else: maxSize = None
+    if maxSize:
+        maxSize = maxSize * 1024 * 1024
+        if size > maxSize:  returnValue = False
     if downloadDict['minSize'] != None: minSize = downloadDict['minSize']
     elif getConfig()['threads'][threadName]['minSize'] != None: minSize = getConfig()['threads'][threadName]['minSize']
     elif getConfig()['global']['minSize'] != None: minSize = getConfig()['global']['minSize']
     else: minSize = None
-    if maxSize:
-        maxSize = maxSize * 1024 * 1024
-        if size > maxSize:  returnValue = False
     if minSize:
         minSize = minSize * 1024 * 1024
         if size <  minSize: returnValue = False
