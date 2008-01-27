@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
 
-__version__ = u"0.3.5a8"
+from __future__ import division
+
+__version__ = u"0.3.5a9"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -20,7 +22,6 @@ GNU General Public License for more details."""
 import codecs
 import ConfigParser
 import cookielib
-import copy
 import getopt
 import httplib
 import mimetypes
@@ -586,10 +587,10 @@ def checkRegEx(tName, itemNode):
     u"""goes through regEx* and download<x> options to see if any of them provide a positive match. Returns False if Not. Returns a DownloadItemConfig dictionary if so"""
     if getConfig()['threads'][tName]['downloads']:
         # save this as a type. It will return a tuple. Check against tuple[0], return the tuple
-        LDown = checkRegExDown(getConfig()['threads'][tName], itemNode)
+        LDown = checkRegExDown(tName, itemNode)
         if LDown:           return LDown
         else:           return False
-    elif checkRegExGFalse(getConfig()['threads'][tName], itemNode) and checkRegExGTrue(getConfig()['threads'][tName], itemNode):      return DownloadItemConfig()
+    elif checkRegExGFalse(tName, itemNode) and checkRegExGTrue(tName, itemNode):      return DownloadItemConfig()
     else:   return False
 
 def checkRegExDown(tName, itemNode):
@@ -608,9 +609,9 @@ def checkRegExDown(tName, itemNode):
             if LFalse.search(itemNode['title'].lower()): continue
         elif downloadDict['False'] == False: pass
         elif downloadDict['False'] == True:
-            if not checkRegExGFalse(getConfig()['threads'][tName], itemNode): continue
+            if not checkRegExGFalse(tName, itemNode): continue
         if downloadDict['True'] == True:
-            if not checkRegExGTrue(getConfig()['threads'][tName], itemNode): continue
+            if not checkRegExGTrue(tName, itemNode): continue
         elif downloadDict['True'] == False: pass
         return downloadDict
     return False
@@ -1538,8 +1539,7 @@ class SharedData(object):
 def getSharedData():
     u"""Return a shared instance of SharedData(), creating one if neccessary. Truncates if necessary."""
     global _sharedData
-    if not _sharedData:
-        _sharedData = SharedData()
+    if not _sharedData:  _sharedData = SharedData()
     if getConfig()['global']['maxLogLength'] and len(_sharedData.scanoutput) > getConfig()['global']['maxLogLength']:
         del _sharedData.scanoutput[:len(_sharedData.scanoutput) - getConfig()['global']['maxLogLength'] ]
     return _sharedData
@@ -1678,46 +1678,52 @@ def rssparse(tName):
         return None
     if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '':
         logStatusMsg(u"setting ttl", 5)
-        getSaved().minScanTime[tName] = (time.time(), int(ppage['feed']['ttl']) )
+        getSaved().minScanTime[tName] = (time.time(), int(ppage['feed']['ttl']))
     elif getConfig()['threads'][tName]['scanMins']:
         getSaved().minScanTime[tName] = (time.time(), getConfig()['threads'][tName]['scanMins'] )
-    for i in range(len(ppage['entries'])):
-        # deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
-        ppage['entries'][i]['oldlink'] = ppage['entries'][i]['link']
-        if ( 'enclosures' in ppage['entries'][i]  
-            and len(ppage['entries'][i]['enclosures']) 
-            and 'href' in ppage['entries'][i]['enclosures'][0]
-            #and not getConfig()['threads'][tName]['preferLink'] # proposed configuration option
-            ):
-                ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
-        else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
-        #if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
-        if ppage['entries'][i]['link'] in getSaved().downloads: 
-            logStatusMsg(u"already downloaded %s" % ppage['entries'][i]['link'], 5)
-            continue
-        # if it failed before, no reason to believe it will work now, plus it's already queued up
-        if searchFailed( ppage['entries'][i]['link'] ): 
-            logStatusMsg(u"link was in failedDown", 5)
-            continue
-        dirDict = checkRegEx(getConfig()['threads'][tName], ppage['entries'][i])
-        if not dirDict: continue
-        if getConfig()['threads'][tName]['noSave']: # if we matched above, but don't want to download, register as downloaded  
-            logStatusMsg( u"noSave triggered for %s" % ppage['entries'][i]['link'] , 5)
-            getSaved().downloads.append(ppage['entries'][i]['link'] )
-            continue
-        userFunctArgs = downloadFile(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict)
-        if userFunctArgs == None: continue # size was inappropriate == None
-        elif userFunctArgs == False: # was supposed to download, but failed
-            logStatusMsg(u"adding to failedDown: %s" % ppage['entries'][i]['link'] , 5)
-            getSaved().failedDown.append( FailedItem(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict) )
-        elif userFunctArgs: # should have succeeded
-            logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
-            getSaved().downloads.append( ppage['entries'][i]['link'] )
-            if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
-                callUserFunction( dirDict['Function'], *userFunctArgs )
-            elif getConfig()['threads'][tName]['postDownloadFunction']: 
-                callUserFunction( getConfig()['threads'][tName]['postDownloadFunction'], *userFunctArgs )
-        getConfig()['threads'][tName]['noSave'] = False
+    if getConfig()['threads'][tName]['noSave']:
+        for entry in ppage['entries']:
+            if ( 'enclosures' in entry
+                and len(entry['enclosures']) 
+                and 'href' in entry['enclosures'][0]
+                #and not getConfig()['threads'][tName]['preferLink'] # proposed configuration option
+                ):
+                    entry['link'] = unQuoteReQuote( entry['enclosures'][0]['href'] )
+            else: entry['link'] = unQuoteReQuote( entry['link'] )
+            getSaved().downloads.append(entry['link'])
+    else:
+        for i in range(len(ppage['entries'])):
+            # deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
+            ppage['entries'][i]['oldlink'] = ppage['entries'][i]['link']
+            if ( 'enclosures' in ppage['entries'][i]  
+                and len(ppage['entries'][i]['enclosures']) 
+                and 'href' in ppage['entries'][i]['enclosures'][0]
+                #and not getConfig()['threads'][tName]['preferLink'] # proposed configuration option
+                ):
+                    ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
+            else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
+            #if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
+            if ppage['entries'][i]['link'] in getSaved().downloads: 
+                logStatusMsg(u"already downloaded %s" % ppage['entries'][i]['link'], 5)
+                continue
+            # if it failed before, no reason to believe it will work now, plus it's already queued up
+            if searchFailed( ppage['entries'][i]['link'] ): 
+                logStatusMsg(u"link was in failedDown", 5)
+                continue
+            dirDict = checkRegEx(tName, ppage['entries'][i])
+            if not dirDict: continue
+            userFunctArgs = downloadFile(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict)
+            if userFunctArgs == None: continue # size was inappropriate == None
+            elif userFunctArgs == False: # was supposed to download, but failed
+                logStatusMsg(u"adding to failedDown: %s" % ppage['entries'][i]['link'] , 5)
+                getSaved().failedDown.append( FailedItem(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict) )
+            elif userFunctArgs: # should have succeeded
+                logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
+                getSaved().downloads.append( ppage['entries'][i]['link'] )
+                if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
+                    callUserFunction( dirDict['Function'], *userFunctArgs )
+                elif getConfig()['threads'][tName]['postDownloadFunction']: 
+                    callUserFunction( getConfig()['threads'][tName]['postDownloadFunction'], *userFunctArgs )
     if getConfig()['threads'][tName]['postScanFunction']:
         callUserFunction( getConfig()['threads'][tName]['postScanFunction'], pr, ppage, page.geturl(), tName )
 
@@ -1741,11 +1747,10 @@ def checkScanTime( threadName , failed=False):
 def checkSleep( totalTime ):
     u"""let's us know when we need to stop sleeping and rescan"""
     logStatusMsg(u'checking sleep', 5)
-    sharedData = getSharedData()
-    steps = int( totalTime / 10 )
-    for n in xrange( 0, steps ):
+    steps = totalTime // 10 
+    for n in xrange( steps ):
         time.sleep( 10 )
-        if sharedData.exitNow:
+        if getSharedData().exitNow:
             raise SystemExit
 
 def run():
@@ -1756,6 +1761,7 @@ def run():
     if isinstance(getConfig()['global']['umask'], int): os.umask( getConfig()['global']['umask'] )
     if getConfig()['global']['urllib']: downloader  = urllib2RetrievePage
     else: downloader = mechRetrievePage
+    getSaved(unset=1)
     getSaved(getConfig()['global']['saveFile'])
     try:    getSaved().lock()
     except Locked:
@@ -1800,8 +1806,6 @@ def run():
         # if they specified a checkTime value, make sure we are in the specified range
         if not checkScanTime( key, failed=False): continue
         logStatusMsg( u"finding new downloads in thread %s" % key, 4 )
-        if getConfig()['threads'][key]['noSave'] == True:
-            logStatusMsg( u"(not saving to disk)", 4)
         try: rssparse(key) 
         except IOError, ioe: raise Fatal(u"%s: %s" % (ioe.strerror, ioe.filename))
     if rss:
@@ -1810,7 +1814,6 @@ def run():
     getSaved().lastChecked = int(time.time()) -30
     getSaved().save()
     getSaved().unlock()
-    getSaved(unset=True)
     logMsg( 0 , 0 , close=1)
 
 def main( ):
@@ -1843,7 +1846,9 @@ def main( ):
             getSaved().unlock()
             raise SystemExit
         except Exception, m:
-            logStatusMsg( u"Unknown Error: %s" % unicodeC(m), 1, 0) # to send this to logfile or not...?
+            m1,m2,m3=sys.exc_info() # to send this to logfile or not...?
+            logStatusMsg( u"Unexpected Error: %s%s%s%s%s" % 
+              (unicodeC(m1),unicodeC(m2),os.linesep, u'    ',unicodeC(m3) ),1,0)
             raise SystemExit
         sharedData.scanning = False
         if _runOnce:
