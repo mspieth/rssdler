@@ -248,7 +248,8 @@ download3 = fedora
 # this will not work b/c download4 is not specified
 # download4Dir = /home/user/something
 """
-configFileNotes = u"""There are two types of sections: global and threads. There can be as many thread sections as you wish, but only one global section. global must be named "global." Threads can be named however you wish, except 'global,' and each name should be unique. With a couple of noted exceptions, there are three types of options:
+configFileNotes = u"""There are two types of sections: global and threads. 
+There can be as many thread sections as you wish, but only one global section. global must be named "global." Threads can be named however you wish, except 'global,' and each name should be unique. With a couple of noted exceptions, there are three types of options:
     
 Boolean Options: 'True' is indicated by "True", "yes", or "1". "False" is indicated by "False", "no", or "0" (without the quotes)
 Integer Options: Just an integer. 1, 2, 10, 1000, 2348. Not 1.1, 2.0, 999.3 or 'a'.
@@ -560,56 +561,56 @@ def checkFileSize(size, threadName, downloadDict):
     else: logStatusMsg(u"size outside parameters", 5)
     return returnValue
 
-def checkRegExGTrue(ThreadLink, itemNode):
+def checkRegExGTrue(tName, itemNode):
     u"""return type True or False if search matches or no, respectively."""
     # [response from regExTrue, regExFalse, downloads, downloadFalse, downloadTrue]
-    if ThreadLink['regExTrue']:
+    if getConfig()['threads'][tName]['regExTrue']:
         logStatusMsg(u"checking regExTrue on %s" % itemNode['title'].lower(), 5)
-        if ThreadLink['regExTrueOptions']: regExSearch = re.compile(ThreadLink['regExTrue'], getattr(re, ThreadLink['regExTrueOptions']) )
-        else: regExSearch = re.compile(ThreadLink['regExTrue'])
+        if getConfig()['threads'][tName]['regExTrueOptions']: regExSearch = re.compile(getConfig()['threads'][tName]['regExTrue'].lower(), getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) )
+        else: regExSearch = re.compile(getConfig()['threads'][tName]['regExTrue'].lower())
         if regExSearch.search(itemNode['title'].lower()): return True
         else: return False
     else: return True
 
-def checkRegExGFalse(ThreadLink, itemNode):
+def checkRegExGFalse(tName, itemNode):
     u"""return type True or False if search doesn't match or does, respectively."""
-    if ThreadLink['regExFalse']:
+    if getConfig()['threads'][tName]['regExFalse']:
         logStatusMsg(u"checking regExFalse on %s" % itemNode['title'].lower(), 5)
-        if ThreadLink['regExFalseOptions']: regExSearch = re.compile(ThreadLink['regExFalse'], getattr(re, ThreadLink['regExFalseOptions']) )
-        else: regExSearch = re.compile(ThreadLink['regExFalse'])
+        if getConfig()['threads'][tName]['regExFalseOptions']: regExSearch = re.compile(getConfig()['threads'][tName]['regExFalse'].lower(), getattr(re, getConfig()['threads'][tName]['regExFalseOptions']) )
+        else: regExSearch = re.compile(getConfig()['threads'][tName]['regExFalse'].lower())
         if regExSearch.search(itemNode['title'].lower()):   return False
         else: return True
     else: return True
 
-def checkRegEx(ThreadLink, itemNode):
+def checkRegEx(tName, itemNode):
     u"""goes through regEx* and download<x> options to see if any of them provide a positive match. Returns False if Not. Returns a DownloadItemConfig dictionary if so"""
-    if ThreadLink['downloads']:
+    if getConfig()['threads'][tName]['downloads']:
         # save this as a type. It will return a tuple. Check against tuple[0], return the tuple
-        LDown = checkRegExDown(ThreadLink, itemNode)
+        LDown = checkRegExDown(getConfig()['threads'][tName], itemNode)
         if LDown:           return LDown
         else:           return False
-    elif checkRegExGFalse(ThreadLink, itemNode) and checkRegExGTrue(ThreadLink, itemNode):      return DownloadItemConfig()
+    elif checkRegExGFalse(getConfig()['threads'][tName], itemNode) and checkRegExGTrue(getConfig()['threads'][tName], itemNode):      return DownloadItemConfig()
     else:   return False
 
-def checkRegExDown(ThreadLink, itemNode):
+def checkRegExDown(tName, itemNode):
     u"""returns false if nothing found in download<x> to match itemNode. returns DownloadItemConfig instance otherwise"""
     # Also, it's incredibly inefficient
     # for every x rss entries and y download items, it runs this xy times.
     # ( local true, 
     logStatusMsg(u"checking download<x>", 5)
-    for downloadDict in ThreadLink['downloads']:
-        if ThreadLink['regExTrueOptions']: LTrue = re.compile( downloadDict['localTrue'], getattr(re, ThreadLink['regExTrueOptions']) )
+    for downloadDict in getConfig()['threads'][tName]['downloads']:
+        if getConfig()['threads'][tName]['regExTrueOptions']: LTrue = re.compile( downloadDict['localTrue'], getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) )
         else: LTrue = re.compile(downloadDict['localTrue'])
         if not LTrue.search(itemNode['title'].lower()): continue
         if type(downloadDict['False']) == type(''):
-            if ThreadLink['regExFalseOptions']: LFalse = re.compile(downloadDict['False'], getattr( re, ThreadLink['regExFalseOptions']))
+            if getConfig()['threads'][tName]['regExFalseOptions']: LFalse = re.compile(downloadDict['False'], getattr( re, getConfig()['threads'][tName]['regExFalseOptions']))
             else: LFalse = re.compile(downloadDict['False'])
             if LFalse.search(itemNode['title'].lower()): continue
         elif downloadDict['False'] == False: pass
         elif downloadDict['False'] == True:
-            if not checkRegExGFalse(ThreadLink, itemNode): continue
+            if not checkRegExGFalse(getConfig()['threads'][tName], itemNode): continue
         if downloadDict['True'] == True:
-            if not checkRegExGTrue(ThreadLink, itemNode): continue
+            if not checkRegExGTrue(getConfig()['threads'][tName], itemNode): continue
         elif downloadDict['True'] == False: pass
         return downloadDict
     return False
@@ -1660,34 +1661,33 @@ def signalHandler(signal, frame):
 # # # # #
 #Running
 # # # # #
-def rssparse(thread, threadName):
+def rssparse(tName):
     u"""loops through the rss feed, searching for downloadable files"""
-    ThreadLink = copy.deepcopy(thread)
     page = None
-    try: page = downloader(ThreadLink['link'])
+    try: page = downloader(getConfig()['threads'][tName]['link'])
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, ), m:   
-        logStatusMsg( unicodeC(m) + os.linesep + u'error grabbing url %s' % ThreadLink['link'] , 1)
-        return ThreadLink
+        logStatusMsg( unicodeC(m) + os.linesep + u'error grabbing url %s' % getConfig()['threads'][tName]['link'] , 1)
+        return None
     if not page: 
-        logStatusMsg( u"failed to grab url %s" % ThreadLink['link'], 1)
-        return ThreadLink
+        logStatusMsg( u"failed to grab url %s" % getConfig()['threads'][tName]['link'], 1)
+        return None
     pr = page.read()
     try: ppage = feedparser.parse(pr)
     except Exception, m: # feedparser does not seem to throw exceptions properly, is a dictionary of some kind
         logStatusMsg( unicodeC(m) + os.linesep + u"page grabbed was not a parseable rss feed", 1)
-        return ThreadLink
+        return None
     if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '':
         logStatusMsg(u"setting ttl", 5)
-        getSaved().minScanTime[threadName] = (time.time(), int(ppage['feed']['ttl']) )
-    elif getConfig()['threads'][threadName]['scanMins']:
-        getSaved().minScanTime[threadName] = (time.time(), getConfig()['threads'][threadName]['scanMins'] )
+        getSaved().minScanTime[tName] = (time.time(), int(ppage['feed']['ttl']) )
+    elif getConfig()['threads'][tName]['scanMins']:
+        getSaved().minScanTime[tName] = (time.time(), getConfig()['threads'][tName]['scanMins'] )
     for i in range(len(ppage['entries'])):
         # deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
         ppage['entries'][i]['oldlink'] = ppage['entries'][i]['link']
         if ( 'enclosures' in ppage['entries'][i]  
             and len(ppage['entries'][i]['enclosures']) 
             and 'href' in ppage['entries'][i]['enclosures'][0]
-            #and not getConfig()['threads'][threadName]['preferLink'] # proposed configuration option
+            #and not getConfig()['threads'][tName]['preferLink'] # proposed configuration option
             ):
                 ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
         else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
@@ -1699,27 +1699,27 @@ def rssparse(thread, threadName):
         if searchFailed( ppage['entries'][i]['link'] ): 
             logStatusMsg(u"link was in failedDown", 5)
             continue
-        dirDict = checkRegEx(ThreadLink, ppage['entries'][i])
+        dirDict = checkRegEx(getConfig()['threads'][tName], ppage['entries'][i])
         if not dirDict: continue
-        if ThreadLink['noSave']: # if we matched above, but don't want to download, register as downloaded  
+        if getConfig()['threads'][tName]['noSave']: # if we matched above, but don't want to download, register as downloaded  
             logStatusMsg( u"noSave triggered for %s" % ppage['entries'][i]['link'] , 5)
             getSaved().downloads.append(ppage['entries'][i]['link'] )
             continue
-        userFunctArgs = downloadFile(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict)
+        userFunctArgs = downloadFile(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict)
         if userFunctArgs == None: continue # size was inappropriate == None
         elif userFunctArgs == False: # was supposed to download, but failed
             logStatusMsg(u"adding to failedDown: %s" % ppage['entries'][i]['link'] , 5)
-            getSaved().failedDown.append( FailedItem(ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirDict) )
+            getSaved().failedDown.append( FailedItem(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict) )
         elif userFunctArgs: # should have succeeded
             logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
             getSaved().downloads.append( ppage['entries'][i]['link'] )
             if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
                 callUserFunction( dirDict['Function'], *userFunctArgs )
-            elif getConfig()['threads'][threadName]['postDownloadFunction']: 
-                callUserFunction( getConfig()['threads'][threadName]['postDownloadFunction'], *userFunctArgs )
-        ThreadLink['noSave'] = False
-    if getConfig()['threads'][threadName]['postScanFunction']:
-        callUserFunction( getConfig()['threads'][threadName]['postScanFunction'], pr, ppage, page.geturl(), threadName )
+            elif getConfig()['threads'][tName]['postDownloadFunction']: 
+                callUserFunction( getConfig()['threads'][tName]['postDownloadFunction'], *userFunctArgs )
+        getConfig()['threads'][tName]['noSave'] = False
+    if getConfig()['threads'][tName]['postScanFunction']:
+        callUserFunction( getConfig()['threads'][tName]['postScanFunction'], pr, ppage, page.geturl(), tName )
 
 def checkScanTime( threadName , failed=False):
     u"""looks for a reason to not scan the thread, through minScanTime, checkTime."""
@@ -1802,8 +1802,8 @@ def run():
         logStatusMsg( u"finding new downloads in thread %s" % key, 4 )
         if getConfig()['threads'][key]['noSave'] == True:
             logStatusMsg( u"(not saving to disk)", 4)
-        try: rssparse(getConfig()['threads'][key], threadName=key) 
-        except IOError, ioe: raise Fatal, u"%s: %s" % (ioe.strerror, ioe.filename)
+        try: rssparse(key) 
+        except IOError, ioe: raise Fatal(u"%s: %s" % (ioe.strerror, ioe.filename))
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
         rss.write()
@@ -1858,7 +1858,8 @@ def main( ):
     
 
 
-helpMessage=u"""RSSDler is a Python based program to automatically grab the link elements of an rss feed, aka an RSS broadcatcher. It happens to work just fine for grabbing RSS feeds of torrents, so called torrent broadcatching. It may also used with podcasts and such. Though designed with an eye toward rtorrent, it should work with any torrenting program that can read torrent files written to a directory. It does not explicitly interface with rtorrent in anyway and therefore has no dependency on it. You can find the webpage here: http://code.google.com/p/rssdler/
+helpMessage=u"""RSSDler is a Python based program to automatically grab the link elements of an rss feed, aka an RSS broadcatcher. 
+It happens to work just fine for grabbing RSS feeds of torrents, so called torrent broadcatching. It may also used with podcasts and such. Though designed with an eye toward rtorrent, it should work with any torrenting program that can read torrent files written to a directory. It does not explicitly interface with rtorrent in anyway and therefore has no dependency on it. You can find the webpage here: http://code.google.com/p/rssdler/
 
 Effort has been put into keeping the program from crashing from random errors like bad links and such. However, some of the exceptions caught are too broad and keep users from knowing what is wrong with their configuration, though this problem should be significantly mitigated by the new verbosity options. Try to be careful when setting up your configuration file. If you are having problems, try to start with a very basic setup and slowly increase its complexity. You need to have a basic understanding of regular expressions to setup the regex and download<x> options, which is probably necessary to broadcatch in an efficient manner. If you do not know what and/or how to use regular expressions, google is your friend. There are literally dozens of tutorials and documentation on the subject with a range of difficulty levels from beginner to expert. If you are having problems that you believe are RSSDler's fault, post an issue at: http://code.google.com/p/rssdler/issues/list or post a message on: http://groups.google.com/group/rssdler. Please be sure to include as much information as you can.
 
