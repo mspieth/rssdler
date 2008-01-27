@@ -4,7 +4,7 @@
 
 from __future__ import division
 
-__version__ = u"0.3.5a9"
+__version__ = u"0.3.5a10"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -944,7 +944,7 @@ class GlobalOptions(dict):
     rssDescription: [Optional] A string. Default "Some RSS Description". A short description of what the feed contains.
     rssFilename: [Optional] A string. Default 'rssdownloadfeed.xml'. Where to store the feed on disk.
     saveFile: [Optional] A string option. Default savedstate.dat. Specify a file on disk to write the saved state information to. This keeps track of previously downloaded files and other 'state' information necessary to keep the program running coherently, especially between shutdown/startup
-    maxLogLength: [Optional] An integer option. Default 0. The number of lines of internal state to save. rssdler keeps all messages that could possibly be printed in an internal class (_sharedData). If you leave it running, oh, for say a month or two (yes, I have seen it run that long without crashing). It can grow rather large. Setting this to a positive number will limit the length of the internal state to about the number of lines you specify. This is especially useful in case you are running on a platform with minimal memory available. However, the lower you set the number above 0, the more likely you are to get repeat error messages.
+    maxLogLength: [Optional] An integer option. Default 100. The number of lines of internal state to save. rssdler keeps all messages that could possibly be printed in an internal class (_sharedData). If you leave it running, oh, for say a month or two (yes, I have seen it run that long without crashing). It can grow rather large. Setting this to a positive number will limit the length of the internal state to about the number of lines you specify. This is especially useful in case you are running on a platform with minimal memory available. However, the lower you set the number above 0, the more likely you are to get repeat error messages.
     lockPort: [Optional] An integer option. Default 8023. The port on which the savedstate.dat file will be locked for writing. Necessary to maintain the integrity of the state information.
     daemonInfo: [Optional] A string option. Default daemon.info. Program pid will be written to this file.
     umask: [Optional] An integer option. Default 63. Sets umask for file creation. (unix, windows only). THIS MUST BE IN BASE10. 0027 will be read as decimal 27, not octal 0027 aka decimal 23. 63 in octal is 0077. To convert quickly, just open the python interpreter (type 'python' at the command line), type the umask you want in octal (say 0022), press enter. The interpreter will spit out a number, this is your octal representation in decimal/base10. Note, the leading zeros are necessary for the conversion.  Do not edit this if you do not know what it does. 
@@ -976,7 +976,7 @@ class GlobalOptions(dict):
         self['sleepTime'] = 0
         self['noClobber'] = True
         self['umask'] = 63 #0077
-        self['maxLogLength'] = 0
+        self['maxLogLength'] = 100
 
 class ThreadLink(dict):
     u"""    link: [Required] A string option. Link to the rss feed.
@@ -1929,7 +1929,7 @@ def _main(arglist):
             
     if _action == 'comment-config':
         # do not use ReFormatString b/c we want to preserve lines for e.g. > sample.cfg
-        print commentConfig
+        print(commentConfig)
         raise SystemExit
     elif _action == "daemon":
         getConfig(filename=configFile, reload=True)
@@ -1958,8 +1958,9 @@ def _main(arglist):
         raise SystemExit
     elif _action == "kill":
         getConfig(filename=configFile, reload=True)
-        pid = int(codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8').read())
-        killDaemon(pid)
+        pid = isRunning()
+        if pid: killDaemon(pid)
+        else: print(u"* No rssdler process found, exiting without killing")
         raise SystemExit
     elif _action == "list-failed":
         getConfig(filename=configFile, reload=True)
@@ -1977,7 +1978,7 @@ def _main(arglist):
                 time.sleep(3)
                 continue
         for failure in  getSaved.failedDown:
-            print failure['link'] 
+            print( failure['link'] )
         getSaved.unlock()
         raise SystemExit
     elif _action == "list-saved":
@@ -1996,7 +1997,7 @@ def _main(arglist):
                 time.sleep(3)
                 continue
         for down in  getSaved().downloads:
-            print down 
+            print( down )
         getSaved().unlock()
         sys.exit()
     elif _action == "purge-failed":

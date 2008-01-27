@@ -83,20 +83,15 @@ cd "$WORKINGDIR"
 #. /lib/lsb/init-functions
 
 do_start()  {
-    if su -c "$DAEMON -s > /dev/null 2>&1" $user; then
+    if su -c "$DAEMON -s -c $CONFIGFILE > /dev/null 2>&1" $user; then
         echo "already running" | tee -a "$logfile" >&2
         return 1 # daemon already running
-    fi
-    #start-stop-daemon --start --verbose --pidfile $PIDFILE -c $user --exec $DAEMON -- $DAEMON_ARGS || return 2
+    fi 
     su -c "$DAEMON $DAEMON_ARGS" $user || return 2
 }
 
 do_stop()
 { # don't run as root so that PIDFILE is always writable by user
-    if ! su -c "$DAEMON -s > /dev/null 2>&1" $user  ; then
-        echo "* WARNING:  rssdler has not yet been started." | tee -a "$logfile" >&2
-        return 1 # not running, don't try killing
-    fi
     su -c "$DAEMON -k -c '$CONFIGFILE'" $user || return 2 
 }
 
