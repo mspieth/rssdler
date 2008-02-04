@@ -4,7 +4,7 @@
 
 from __future__ import division
 
-__version__ = u"0.3.5a10"
+__version__ = u"0.3.5a11"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -72,8 +72,8 @@ _sharedData = None
 _USER_AGENT = u"RSSDler %s" % __version__
 
 utfWriter = codecs.getwriter( "utf-8" )
-sys.stdoutUTF = utfWriter( sys.stdout, "replace" )
-sys.stderrUTF = utfWriter( sys.stderr, "replace" )
+sys.stdout = utfWriter( sys.stdout, "replace" )
+sys.stderr = utfWriter( sys.stderr, "replace" )
 # ~ defined helps with feedburner feeds
 percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25', 
   u'$': u'%24', u"'": u'%27', u'&': u'%26', u')': u'%29', u'(': u'%28', 
@@ -281,8 +281,7 @@ cliOptions = u"""Command Line Options:
 nonCoreDependencies = u"""Non-standard Python libraries used:
     feedparser: [REQUIRED] http://www.feedparser.org/
     mechanize: [RECOMMENDED] http://wwwsearch.sourceforge.net/mechanize/ (this can now be overridden by setting urllib = True in global options. See below for details. If import of mechanize fails, will automatically set urllib =True)
-    BitTorrent: [0.3.5 deprecates this, message remains for historical purposes][OPTIONAL]  http://www.bittorrent.com (the python reference client). Instead of BitTorrent, you can also just save the module bencode in your python path as bencode.py (perhaps most conveniently  in your working directory aka where you store all your RSSDler related files). This seems to work best for Python 2.5 as many distros do not have BitTorrent in 2.5's path: http://cheeseshop.python.org/pypi/BitTorrent-bencode/. There is also a function in the program that can take care of bdecoding if you fail to provide the library, but it is not nearly as fast.
-    For debian based distros: "sudo apt-get install python-feedparser python-mechanize bittorrent" """
+    For debian based distros: "sudo apt-get install python-feedparser python-mechanize" """
 securityIssues = u"""Security Note: 
     Prior to 0.2.4, there were several 'eval' statements in this program, which allowed running arbitrary code. Although removed, there is an attempt to import 'userFunctions' if you specify a postDownloadFunction in your configuration. Make sure only you have write permissions in the directory you run this from/what you set workingDir to so that userFunctions cannot be setup to run arbitrary code that you do not want running. Also make sure only you have write permissions to your configuration file. It would be wise to make a file userFunctions.py in your working directory to which only you have write access. I've also had reports of users running this as root. PLEASE do not do that. You shouldn't even be logging into your system as root, much less running programs meant for userland, especially when they are Internet facing."""
 
@@ -800,6 +799,8 @@ class DownloadItemConfig(dict):
         self['minSize'] = minSize
         self['maxSize'] = maxSize
         self['Function'] = Function
+    def __setstate__(self,state):
+        if 'data' in state: self.update(state['data'])
 
 class MakeRss(object):
     u"""A class to generate, and optionally parse and load, an RSS 2.0 feed. Example usage:
@@ -1074,7 +1075,7 @@ class SaveProcessor(object):
     def save(self):
         saveFile = SaveInfo()
         saveFile['lastChecked'] = self.lastChecked
-        saveFile['downloads'] = self.downloads
+        saveFile['downloads'] = list(set(self.downloads))
         saveFile['minScanTime'] = self.minScanTime
         saveFile['failedDown'] = self.failedDown
         saveFile['version'] = self.version
@@ -1518,7 +1519,7 @@ def logStatusMsg( msg, level, config=True ):
     TimeCode = u"[%4d%02d%02d.%02d:%02d.%02d]" % time.localtime()[:6]
     newmsg = TimeCode + '   ' + unicodeC( msg ) 
     if not config and _action != "daemon": # daemon == no stdout/err!
-        sys.stderrUTF.write(  unicodeC(ReFormatString( inputstring=newmsg)) )
+        sys.stderr.write(  unicodeC(ReFormatString( inputstring=newmsg)) )
         return None
     sharedData = getSharedData()
     # level >=3 is vebose. we don't want to repeatedly send the same error message (the second part), but if we want verbosity, the first part is enough to print the message
@@ -1547,8 +1548,8 @@ def getSharedData():
 def status( message, level ):
     u"""Prints status information, writing to stdout if config 'verbose' option is set. Do not call directly. use logStatusMsg"""
     if getConfig()['global']['verbose'] and getConfig()['global']['verbose'] >= level:
-        if level ==1 or level ==2: output = sys.stderrUTF
-        else: output = sys.stdoutUTF
+        if level ==1 or level ==2: output = sys.stderr
+        else: output = sys.stdout
         output.write( unicodeC( ReFormatString(message) ) + os.linesep )
         output.flush()
     
@@ -1561,11 +1562,12 @@ def getVersion():
 # # # # #
 #Daemon
 # # # # #
-def isRunning():
+def isRunning(file=None):
     u"""Returns pid of another rssdler, if running with current config. 0 if not
     POSIX only."""
     pid = 0
-    try: pid = int(codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'r', 'utf-8').read())
+    if not file: file = os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo'])
+    try: pid = int(codecs.open( file, 'r', 'utf-8').read())
     except (TypeError, ValueError, IOError), m: pass
     if not pid: return 0
     try: state = os.kill(pid, 0)
@@ -1585,10 +1587,10 @@ def killDaemon( pid ):
         except Locked:
             global saved
             del saved
-            sys.stdoutUTF.write( u"Save Processor is in use, waiting for it to unlock" )
+            sys.stdout.write( u"Save Processor is in use, waiting for it to unlock" )
             time.sleep(2)
     try:  codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
-    except IOError, m: sys.stdoutUTF.write('could not rewrite pidfile %s' % pidfile)
+    except IOError, m: sys.stdout.write('could not rewrite pidfile %s' % pidfile)
     os.kill(pid,9)
 
 def createDaemon():
@@ -1609,8 +1611,7 @@ def createDaemon():
         except OSError, e:
             logStatusMsg(u"%s [%d]" % (e.strerror, e.errno), 1)
             raise Exception
-        if (pid == 0):  # The second child.
-            pass
+        if (pid == 0):  pass # The second child.
         else: # exit() or _exit()?  See below.
             logStatusMsg(u"exit the first child", 5)
             os._exit(0) # Exit parent (the first child) of the second child.
@@ -1906,7 +1907,7 @@ def _main(arglist):
     try: 
         (argp, rest) =  getopt.gnu_getopt(arglist[1:], "sdfrokc:h", longopts=["state", "daemon", "full-help", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
     except  getopt.GetoptError:
-            sys.stderrUTF.write(helpMessage)
+            sys.stderr.write(helpMessage)
             sys.exit(1)
     global _action, _runOnce, configFile, REDIRECT_TO, saved
     for param, argum in argp:
@@ -1951,10 +1952,10 @@ def _main(arglist):
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         main()
     elif _action == 'fullhelp':
-        sys.stdoutUTF.write(unicodeC(ReFormatString(inputstring=helpMessage)) + os.linesep)
+        sys.stdout.write(unicodeC(ReFormatString(inputstring=helpMessage)) + os.linesep)
         raise SystemExit
     elif _action == 'help':
-        sys.stdoutUTF.write(unicodeC(ReFormatString(inputstring=cliOptions)) + os.linesep)
+        sys.stdout.write(unicodeC(ReFormatString(inputstring=cliOptions)) + os.linesep)
         raise SystemExit
     elif _action == "kill":
         getConfig(filename=configFile, reload=True)
@@ -1970,16 +1971,17 @@ def _main(arglist):
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
-                getSaved.lock()
-                getSaved.load()
+                getSaved().lock()
+                getSaved().load()
                 break
             except (Locked, IOError, ValueError, IndexError):
+                global saved
                 del saved
                 time.sleep(3)
                 continue
-        for failure in  getSaved.failedDown:
+        for failure in  getSaved().failedDown:
             print( failure['link'] )
-        getSaved.unlock()
+        getSaved().unlock()
         raise SystemExit
     elif _action == "list-saved":
         getConfig(filename=configFile, reload=True)
@@ -1989,8 +1991,8 @@ def _main(arglist):
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
-                getSaved.lock()
-                getSaved.load()
+                getSaved().lock()
+                getSaved().load()
                 break
             except (Locked, IOError, ValueError, IndexError):
                 del saved
@@ -2034,15 +2036,15 @@ def _main(arglist):
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
-                getSaved.lock()
-                getSaved.load()
+                getSaved().lock()
+                getSaved().load()
                 break
             except (Locked, IOError, ValueError, IndexError):
                 del saved
                 time.sleep(3)
                 continue
-        getSaved.downloads = []
-        getSaved.save()
+        getSaved().downloads = []
+        getSaved().save()
         raise SystemExit
     elif _action == "run":
         getConfig(filename=configFile, reload=True)
@@ -2055,15 +2057,15 @@ def _main(arglist):
                 logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
         main()
     elif _action == 'set-default-config':
-        sys.stderrUTF.write("%s%s" % (u'--set-default-config option is now obsolete', os.linesep) )
+        sys.stderr.write("%s%s" % (u'--set-default-config option is now obsolete', os.linesep) )
         raise SystemExit
     elif _action == 'state':
         pid = isRunning()
         if pid: print('%s' % unicodeC(pid) )
         else: raise SystemExit(1)
     else:
-        sys.stdoutUTF.write(u"use -h/--help to print the short help message.%s" % os.linesep)
-        sys.stdoutUTF.flush()
+        sys.stdout.write(u"use -h/--help to print the short help message.%s" % os.linesep)
+        sys.stdout.flush()
         raise SystemExit
 
 

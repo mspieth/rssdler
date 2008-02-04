@@ -36,28 +36,27 @@ def rmObj(directory, filename, rssItemNode, retrievedLink, downloadDict, threadN
         try: os.rename( os.path.join(directory, filename), os.path.join(directory, newfilename) )
         except Exception, m: logStatusMsg(u"could not remove .obj from filename %s" % filename, 2)
 
-def _saveFeed(page, ppage, retrievedLink, threadName, filename, length):
+def saveFeed(page, ppage, retrievedLink, threadName):
     u"""A helper postScanFunction. Do not call directly, use saveFeed. Uses MakeRss to generate an archive of rss items.
     Useful for later perusal by a human read rss reader without having to hit up the server multiple times.
     WILL generate an invalid feed that may break some readers. See issue #3 (link below).
     http://code.google.com/p/rssdler/issues/detail?id=3
     """
+    # makes use of custom options you can define for each section/thread
+    # those options are rssfile and rsslength
+    # these are NOT global options, only apply to the thread
+    # if this function is called without these specified in the config
+    # will default to threadName.xml and length = 100
+    try: filename= getConfig().get(threadName, 'rssfile') 
+    except ConfigParser.NoOptionError: filename = "%s.xml" % threadName
+    try: length = getConfig().getint(threadName, 'rsslength')
+    except ConfigParser.NoOptionError: length = 100
     rssl = MakeRss(filename=filename, parse=True, itemsQuaDictBool=True)
     rssl.channelMeta = ppage['feed']
     links = [ x['link'] for x in rssl.itemsQuaDict ] # if no link key, this will fail without proper handling
     [ rssl.addItem(x) for x in reversed(ppage['entries']) if x['link'] not in links ]
     rssl.close(length=length)
     rssl.write()
-    
-
-def saveFeed(*args):
-    u"""A postScanFunction that will save an archive of the feed to the indiciated filename, and store as many items indicated in desiredLength.
-    Feed will not be perfect, but will work in most cases relatively well. That is, a forgiving reader will parse.
-    """
-    args = list(args)
-    desiredLength = 100
-    args.extend( ('afilenameforfeed.xml', desiredLength) )
-    _saveFeed( *args )
 
 def failedProcedure( message, level, directory, filename, threadName, rssItemNode, downloadDict ):
     u"""A function to take care of failed downloads, cleans up saved, failed, rss, the directory/filename, and prints to the log. should be called from other functions here, not directly from RSSDler."""
