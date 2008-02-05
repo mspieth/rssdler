@@ -1,5 +1,6 @@
 #!/bin/sh
 # INSTRUCTIONS (assumes debian-based distro)
+# If you want something like this for OSX, check out the wiki page StartupOSX
 # save to /etc/init.d/rssdler (NOT rssdler.sh!!)
 # You must change user
 # if you installed with setup.py
@@ -48,7 +49,7 @@ if ! [ -x "$DAEMON" ]  ; then
 for i in `echo "$PATH" | tr ':' '\n'` ; do
     if [ -f $i/$DAEMON ] ; then
         exists=1
-#	DAEMON=$i/$DAEMON
+#   DAEMON=$i/$DAEMON
         break
     fi
 done

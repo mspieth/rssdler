@@ -22,6 +22,7 @@ GNU General Public License for more details."""
 import codecs
 import ConfigParser
 import cookielib
+import email
 import getopt
 import httplib
 import mimetypes
@@ -31,6 +32,7 @@ try: import random
 except ImportError: random = None
 import re
 import signal
+import sgmllib
 import socket
 import sys
 import time
@@ -392,16 +394,29 @@ def encodeQuoteUrl( url, encoding='utf-8'):
 # # # # #
 # Network Communication
 # # # # #
+class htmlUnQuote(sgmllib.SGMLParser):
+    from htmlentitydefs import entitydefs
+    def __init__(self, s=None):
+        sgmllib.SGMLParser.__init__(self)
+        self.result = ""
+        if s: self.feed(s)
+    def handle_entityref(self, name):
+        if self.entitydefs.has_key(name): x = ';'
+        else: x = ''
+        self.result = "%s&%s%s" % (self.result, name, x)
+    def handle_data(self, data):
+        if data: self.result += data
+
 def getFilenameFromHTTP(info, url):
     u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed."""
     filename = None
     logStatusMsg(u"determining filename", 5)
-    if 'content-disposition' in info and info['content-disposition'].count('filename='):
-            logStatusMsg(u"filename from content-disposition header", 5)
-            filename = info['content-disposition'][ info['content-disposition'].index('filename=') + 9:] # 10 = len(filename=")
-            if filename.startswith("'") and filename.endswith("'"): filename = filename.strip("'")
-            elif filename.startswith('"') and filename.endswith('"'): filename = filename.strip('"')
-            if filename: return unicodeC( filename ) # trust filename from http header over our URL extraction technique
+    filename = email.message_from_string(str(info)).get_filename(failobj=False)
+    if filename:
+        m = htmlUnQuote(filename)
+        if m.result: filename = m.result
+        logStatusMsg(u"filename from content-disposition header", 5)
+        return unicodeC( filename ) # trust filename from http header over our URL extraction technique
     logStatusMsg(u"filename from url", 5)
     filename = percentUnQuote( urlparse.urlparse( url )[2].split('/')[-1] ) # Tup[2] is the path
     try: typeGuess = info.gettype()
