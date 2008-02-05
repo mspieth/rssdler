@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""An RSS broadcatching script (podcasts, videocasts, torrents, or, if you really wanted (don't know why you would) web pages."""
+"""An RSS broadcatching script 
+(podcasts, videocasts, torrents, or, if you really wanted, web pages."""
 
 from __future__ import division
 
@@ -72,10 +73,6 @@ _log = None
 _runOnce = None
 _sharedData = None
 _USER_AGENT = u"RSSDler %s" % __version__
-
-utfWriter = codecs.getwriter( "utf-8" )
-sys.stdout = utfWriter( sys.stdout, "replace" )
-sys.stderr = utfWriter( sys.stderr, "replace" )
 # ~ defined helps with feedburner feeds
 percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25', 
   u'$': u'%24', u"'": u'%27', u'&': u'%26', u')': u'%29', u'(': u'%28', 
@@ -391,9 +388,6 @@ def encodeQuoteUrl( url, encoding='utf-8'):
         return None
     return url
 
-# # # # #
-# Network Communication
-# # # # #
 class htmlUnQuote(sgmllib.SGMLParser):
     from htmlentitydefs import entitydefs
     def __init__(self, s=None):
@@ -406,7 +400,9 @@ class htmlUnQuote(sgmllib.SGMLParser):
         self.result = "%s&%s%s" % (self.result, name, x)
     def handle_data(self, data):
         if data: self.result += data
-
+# # # # #
+# Network Communication
+# # # # #
 def getFilenameFromHTTP(info, url):
     u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed."""
     filename = None
@@ -1152,19 +1148,26 @@ def getSaved( filename=None, unset=False):
     return saved
 
 class Config(ConfigParser.SafeConfigParser, dict):
+    dayList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
+        'Saturday', 'Sunday', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 
+        '0', '1', '2', '3', '4', '5', '6']
+    boolOptionsGlobal = ['runOnce', 'active', 'rssFeed', 'urllib', 'noClobber']
+    boolOptionsThread = ['active', 'noSave']
+    stringOptionsGlobal = ['downloadDir', 'saveFile', 'cookieFile', 'cookieType'
+        , 'logFile', 'workingDir', 'daemonInfo', 'rssFilename', 'rssLink',
+        'rssDescription', 'rssTitle']
+    stringOptionsThread = ['link', 'directory', 'postDownloadFunction', 
+        'regExTrue', 'regExTrueOptions', 'regExFalse', 'regExFalseOptions', 
+        'postScanFunction']    
+    intOptionsGlobal = ['maxSize', 'minSize', 'lockPort', 'scanMins', 
+        'rssLength', 'sleepTime', 'verbose', 'log', 'umask', 'maxLogLength']
+    intOptionsThread = ['maxSize', 'minSize', 'scanMins']
     def __init__(self, filename=None, parsecheck=1):
         u"""
         see helpMessage
         """
         ConfigParser.SafeConfigParser.__init__(self)
         dict.__init__(self)
-        self.dayList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', '0', '1', '2', '3', '4', '5', '6']
-        self.boolOptionsGlobal = ['runOnce', 'active', 'rssFeed', 'urllib', 'noClobber']
-        self.boolOptionsThread = ['active', 'noSave']
-        self.stringOptionsGlobal = ['downloadDir', 'saveFile', 'cookieFile', 'cookieType', 'logFile', 'workingDir', 'daemonInfo', 'rssFilename', 'rssLink', 'rssDescription', 'rssTitle']
-        self.stringOptionsThread = ['link', 'directory', 'postDownloadFunction', 'regExTrue', 'regExTrueOptions', 'regExFalse', 'regExFalseOptions', 'postScanFunction']    
-        self.intOptionsGlobal = ['maxSize', 'minSize', 'lockPort', 'scanMins', 'rssLength', 'sleepTime', 'verbose', 'log', 'umask', 'maxLogLength']
-        self.intOptionsThread = ['maxSize', 'minSize', 'scanMins']
         if filename: self.filename = filename
         else:
             global configFile
@@ -1534,7 +1537,7 @@ def logStatusMsg( msg, level, config=True ):
     TimeCode = u"[%4d%02d%02d.%02d:%02d.%02d]" % time.localtime()[:6]
     newmsg = TimeCode + '   ' + unicodeC( msg ) 
     if not config and _action != "daemon": # daemon == no stdout/err!
-        sys.stderr.write(  unicodeC(ReFormatString( inputstring=newmsg)) )
+        print >> sys.stderr,  unicodeC(ReFormatString( inputstring=newmsg)) 
         return None
     sharedData = getSharedData()
     # level >=3 is vebose. we don't want to repeatedly send the same error message (the second part), but if we want verbosity, the first part is enough to print the message
@@ -1563,10 +1566,8 @@ def getSharedData():
 def status( message, level ):
     u"""Prints status information, writing to stdout if config 'verbose' option is set. Do not call directly. use logStatusMsg"""
     if getConfig()['global']['verbose'] and getConfig()['global']['verbose'] >= level:
-        if level ==1 or level ==2: output = sys.stderr
-        else: output = sys.stdout
-        output.write( unicodeC( ReFormatString(message) ) + os.linesep )
-        output.flush()
+        if level ==1 or level ==2: print >> sys.stderr, unicodeC( ReFormatString(message) ) 
+        else: print( unicodeC( ReFormatString(message) ) )
     
 
 def getVersion():
@@ -1602,10 +1603,10 @@ def killDaemon( pid ):
         except Locked:
             global saved
             del saved
-            sys.stdout.write( u"Save Processor is in use, waiting for it to unlock" )
+            print( u"Save Processor is in use, waiting for it to unlock" )
             time.sleep(2)
     try:  codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
-    except IOError, m: sys.stdout.write('could not rewrite pidfile %s' % pidfile)
+    except IOError, m: print('could not rewrite pidfile %s' % pidfile)
     os.kill(pid,9)
 
 def createDaemon():
@@ -1922,7 +1923,7 @@ def _main(arglist):
     try: 
         (argp, rest) =  getopt.gnu_getopt(arglist[1:], "sdfrokc:h", longopts=["state", "daemon", "full-help", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
     except  getopt.GetoptError:
-            sys.stderr.write(helpMessage)
+            print >> sys.stderr, helpMessage
             sys.exit(1)
     global _action, _runOnce, configFile, REDIRECT_TO, saved
     for param, argum in argp:
@@ -1967,10 +1968,10 @@ def _main(arglist):
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         main()
     elif _action == 'fullhelp':
-        sys.stdout.write(unicodeC(ReFormatString(inputstring=helpMessage)) + os.linesep)
+        print(unicodeC(ReFormatString(inputstring=helpMessage)) )
         raise SystemExit
     elif _action == 'help':
-        sys.stdout.write(unicodeC(ReFormatString(inputstring=cliOptions)) + os.linesep)
+        print(unicodeC(ReFormatString(inputstring=cliOptions)) )
         raise SystemExit
     elif _action == "kill":
         getConfig(filename=configFile, reload=True)
@@ -2072,15 +2073,14 @@ def _main(arglist):
                 logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
         main()
     elif _action == 'set-default-config':
-        sys.stderr.write("%s%s" % (u'--set-default-config option is now obsolete', os.linesep) )
+        print >> sys.stderr , u'--set-default-config option is now obsolete' 
         raise SystemExit
     elif _action == 'state':
         pid = isRunning()
         if pid: print('%s' % unicodeC(pid) )
         else: raise SystemExit(1)
     else:
-        sys.stdout.write(u"use -h/--help to print the short help message.%s" % os.linesep)
-        sys.stdout.flush()
+        print(u"use -h/--help to print the short help message")
         raise SystemExit
 
 
