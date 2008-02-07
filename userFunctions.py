@@ -16,7 +16,9 @@ def ifTorrent(directory, filename, rssItemNode, retrievedLink, downloadDict, thr
 
 def currentOnly(directory, filename, rssItemNode, retrievedLink, downloadDict, threadName):
     u"""A postDownloadFunction: checks to make sure that the item was added recently. Useful for feeds that get messed up on occasion."""
-    if time.time() - time.mktime( rssItemNode['updated_parsed'] ) > 86400:
+    try: maxage = getConfig().getint(threadName, 'maxage')
+    except (ValueError, ConfigParser.NoOptionError): maxage = 86400
+    if time.time() - time.mktime( rssItemNode['updated_parsed'] ) > maxage:
         try: os.unlink( os.path.join(directory, filename) )
         except OSError: logStatusMsg(u"could not remove file from disk: %s" % filename, 1 ) 
         global rss

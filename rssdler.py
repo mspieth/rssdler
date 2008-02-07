@@ -288,18 +288,6 @@ securityIssues = u"""Security Note:
 # # # # #
 #Exceptions
 # # # # #
-class Fatal( Exception ): 
-    def __init__(self, value=u"An error occurred and RSSDler does not know how to react" ):
-        self.value = value
-    def __str__(self):
-        return repr( self.value)
-    
-class Warning( Exception ):
-    def __init__(self, value=u"""An error occurred, but no action needs to be taken by the user at this time.""" ):
-        self.value = value
-    def __str__(self):
-        return repr( self.value)
-    
 class Locked( Exception ):
     def __init__(self, value=u"""An attempt was made to lock() the savefile while it was already locked.""" ):
         self.value = value
@@ -407,7 +395,7 @@ def getFilenameFromHTTP(info, url):
     u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed."""
     filename = None
     logStatusMsg(u"determining filename", 5)
-    filename = email.message_from_string(str(info)).get_filename(failobj=False)
+    filename = email.message_from_string(unicodeC(info).encode('utf-8')).get_filename(failobj=False)
     if filename:
         m = htmlUnQuote(filename)
         if m.result: filename = m.result
@@ -433,6 +421,7 @@ def getFilenameFromHTTP(info, url):
     if not filename: 
         logStatusMsg('Could not determine filename for torrent from %s' % url, 1)
         return None
+    if filename.endswith('.obj'): filename = filename[:-4]
     return unicodeC( filename)
 
 def cookieHandler():
@@ -1764,9 +1753,9 @@ def checkScanTime( threadName , failed=False):
 def checkSleep( totalTime ):
     u"""let's us know when we need to stop sleeping and rescan"""
     logStatusMsg(u'checking sleep', 5)
-    steps = totalTime // 10 
+    steps = totalTime // 30 
     for n in xrange( steps ):
-        time.sleep( 10 )
+        time.sleep( 30 )
         if getSharedData().exitNow:
             raise SystemExit
 
@@ -1783,16 +1772,14 @@ def run():
     try:    getSaved().lock()
     except Locked:
         logStatusMsg( u"Savefile is currently in use.", 2 )
-        raise Warning
+        raise Locked
     try: getSaved().load()
     except (EOFError, IOError, ValueError, IndexError), m: logStatusMsg(unicodeC(m) + os.linesep + u"didn't load SaveProcessor. Creating new saveFile.", 1)
     logStatusMsg(u"checking working dir, maybe changing dir", 5)
     if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): os.chdir(getConfig()['global']['workingDir'])
     sys.path.insert(0, getConfig()['global']['workingDir']) # import userFunct
-    if getConfig()['global']['runOnce']:
-        if getSaved().lastChecked > ( int(time.time()) - (getConfig()['global']['scanMins']*60) ):
-            logStatusMsg(u"Threads have already been scanned.", 2)
-            raise Warning
+    if getConfig()['global']['runOnce'] and getSaved().lastChecked > ( int(time.time()) - (getConfig()['global']['scanMins']*60) ):
+        raise  SystemExit(u"Threads have already been scanned.")
     if getConfig()['global']['rssFeed']:
         logStatusMsg(u'trying to generate rss feed', 5)
         if getConfig()['global']['rssFilename']:
@@ -1823,8 +1810,7 @@ def run():
         # if they specified a checkTime value, make sure we are in the specified range
         if not checkScanTime( key, failed=False): continue
         logStatusMsg( u"finding new downloads in thread %s" % key, 4 )
-        try: rssparse(key) 
-        except IOError, ioe: raise Fatal(u"%s: %s" % (ioe.strerror, ioe.filename))
+        rssparse(key) 
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
         rss.write()
@@ -1854,19 +1840,13 @@ def main( ):
             startTime = time.time()
             run()
             logStatusMsg( u"Processing took %d seconds" % (time.time() - startTime) , 4)
-        except Warning, message:
-            logStatusMsg( u"Warning: %s" % unicodeC(message), 1 )
-        except Fatal, message:
-            logStatusMsg( u"Fatal: %s" % unicodeC(message), 1 )
-            sharedData.scanning = False
-            getSaved().save()
-            getSaved().unlock()
-            raise SystemExit
         except Exception, m:
             m1,m2,m3=sys.exc_info() # to send this to logfile or not...?
             logStatusMsg( u"Unexpected Error: %s%s%s%s%s" % 
               (unicodeC(m1),unicodeC(m2),os.linesep, u'    ',unicodeC(m3) ),1,0)
-            raise SystemExit
+            getSaved().save()
+            getSaved().unlock()
+            raise
         sharedData.scanning = False
         if _runOnce:
             logStatusMsg( u"[Complete] %s" % time.asctime() , 4)
