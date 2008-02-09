@@ -1384,11 +1384,16 @@ def userFunctHandling():
 
 
 class ReFormatString(object):
-    u"""takes a string or filename, and formats it (somewhat) smartly so that line overflows are indented for easier reading, and doesn't get longer than terminal width (may not be fully crossplatform compatible. width defaults to 80)"""
+    u"""takes a string or filename, and formats it (somewhat) smartly 
+    so that line overflows are indented for easier reading, and doesn't get
+   longer than terminal width 
+   (may not be fully crossplatform compatible. width defaults to 80)"""
     def __init__(self, inputstring=None, filename=None, linesep=os.linesep, lineLength=None, indent=' '*4, comment=None):
         object.__init__(self)
-        if not inputstring and not filename: raise Exception, u"must provide at least a filename or inputstring"
-        elif inputstring and filename: raise Exception, u"cannot provide a filename and inputstring, only one or the other"
+        if not inputstring and not filename: 
+            raise Exception, u"must provide at least a filename or inputstring"
+        elif inputstring and filename: 
+            raise Exception, u"cannot provide a filename AND inputstring"
         if inputstring: self.inputstring = inputstring
         elif filename:
             fd = codecs.open(filename, 'r', 'utf-8')
@@ -1412,7 +1417,7 @@ class ReFormatString(object):
     def __str__(self):
         return self.outString
     def delString(self, string, start, stop=None):
-        u"""feed me a string and an index number, with an optional stop number, and i will return with those."""
+        u"""delete a string slice, does not take slice objects though"""
         if stop == None: stop = start +1
         retStr = string[:start]
         retStr += string[stop:]
@@ -1433,7 +1438,6 @@ class ReFormatString(object):
             if indentLine.startswith(indent):
                 indentNum += 1
                 indentLine = self.delString( indentLine, 0, len(indent) )
-            # string still exists, no tabs, no newlines (we got rid of those with the splitlines), and not enough spaces to form a full indent, so assume one exists and add it, then break out of the loop
             else:
                 indentNum += 1
                 break
@@ -1470,31 +1474,30 @@ class ReFormatString(object):
         return returnList
     def _getLineWidth(self):
         width = 80
-        # 'posix', 'nt', 'dos', 'os2', 'mac', or 'ce'
         if os.name == u'posix' or os.name == u'mac' or os.name == u'os2':
-            try: width_in, width_tmp, width_err = os.popen3('stty size')
-            except ValueError: return width
-            if not width_err.read():
-                width_tmp = width_tmp.read()
-                width_in.close()
-                width_tmp = width_tmp.splitlines()
-                width_tmp = width_tmp[0].split()
-                if len(width_tmp) == 2:
-                    try: width= int(width_tmp[1])
-                    except ValueError: pass
+          try: width=int(re.search(':co#(\d+)', os.environ['TERMCAP']).group(1))
+          except (ValueError, IndexError, KeyError):
+            try:
+                a,b,c = os.popen3('stty size')
+                width = int(b.read().split()[1])
+            except (ValueError, IndexError): pass
+          return width
         elif os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
-            try: from ctypes import windll, create_string_buffer
-            except ImportError, m: return width
-            # from http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/440694
+            global windll, create_string_buffer, struct
+            try: windll, create_string_buffer, struct   
+            except ImportError:
+                try: 
+                    from ctypes import windll, create_string_buffer
+                    import struct
+                except ImportError, m: return width
+            #from http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/440694
             h = windll.kernel32.GetStdHandle(-12)
             csbi = create_string_buffer(22)
             res = windll.kernel32.GetConsoleScreenBufferInfo(h, csbi)
             if res:
-                try: import struct
-                except ImportError: return width
-                (bufx, bufy, curx, cury, wattr, left, top, right, bottom, maxx, maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
+                (bufx, bufy, curx, cury, wattr, left, top, right, bottom, maxx, 
+                  maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
                 width = right - left + 1
-        elif os.name == u'mac': pass
         return width
         
 class Log(object):
