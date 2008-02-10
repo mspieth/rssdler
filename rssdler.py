@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.3.5a11"
+__version__ = u"0.4.0a1"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
@@ -26,6 +26,7 @@ import cookielib
 import email
 import getopt
 import httplib
+import logging
 import mimetypes
 import os
 import pickle
@@ -71,7 +72,7 @@ _action = None
 _configInstance = None
 _log = None
 _runOnce = None
-_sharedData = None
+#_sharedData = None
 _USER_AGENT = u"RSSDler %s" % __version__
 # ~ defined helps with feedburner feeds
 percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25', 
@@ -1162,12 +1163,9 @@ class Config(ConfigParser.SafeConfigParser, dict):
             global configFile
             self.filename = configFile
         if not os.path.isfile( self.filename ): 
-            logStatusMsg( u"Configuration File could not be found, exiting...", 1, config=False)
-            raise SystemExit
+            raise SystemExit(u"Configuration File could not be found, exiting")
         a = self.read(self.filename)
-        if not a:
-            logStatusMsg(u'a config file was not parsed. exiting...', 1)
-            raise SystemExit
+        if not a: SystemExit(u'a config file was not parsed. exiting...')
         self['global'] = GlobalOptions()
         self['threads'] = {}
         if parsecheck:
@@ -1178,17 +1176,17 @@ class Config(ConfigParser.SafeConfigParser, dict):
             try: 
                 if option.lower() in self.options('global'): 
                     try: self['global'][option] = self.getboolean('global', option)
-                    except ValueError: logStatusMsg(u'failed to parse option %s in global' % option, 1, config=False)
+                    except ValueError: 
+                        print >> sys.stderr, u'failed to parse option %s in global' % option
             except ConfigParser.NoSectionError, m:
-                logStatusMsg( unicodeC(m), 1 , False)
-                raise SystemExit
+                raise SystemExit(unicodeC(m))
         for option in self.stringOptionsGlobal:
             if option.lower() in self.options('global'):
                 self['global'][option] = self._ifnone( self.get('global', option) )
         for option in self.intOptionsGlobal:
             if option.lower() in self.options('global'):
                 try: self['global'][option] = self.getint('global', option)
-                except ValueError: logStatusMsg(u'failed to parse option %s in global' % option, 1, config=False)
+                except ValueError: print >> sys.stderr, u'failed to parse option %s in global' % option
         threads = self.sections()
         del threads[threads.index('global')]
         for thread in threads:
@@ -1196,14 +1194,14 @@ class Config(ConfigParser.SafeConfigParser, dict):
             for option in self.boolOptionsThread:
                 if option.lower() in self.options(thread):
                     try: self['threads'][thread][option] = self.getboolean(thread, option)
-                    except ValueError: logStatusMsg(u'failed to parse option %s in thread %s' % (option, thread), 1, config=False)
+                    except ValueError: print >> sys.stderr, u'failed to parse option %s in thread %s' % (option, thread)
             for option in self.stringOptionsThread:
                 if option.lower() in self.options(thread):
                     self['threads'][thread][option] = self._ifnone( self.get(thread, option) )
             for option in self.intOptionsThread:
                 if option.lower() in self.options(thread):
                     try: self['threads'][thread][option] = self.getint(thread, option)
-                    except ValueError: logStatusMsg(u'failed to parse option %s in thread %s' % (option, thread), 1, config=False)
+                    except ValueError: print >> sys.stderr, u'failed to parse option %s in thread %s' % (option, thread)
             #populate thread.downloads
             downList = [ x for x in self.options(thread) if x.lower().startswith('download') ]
             checkList = [ x for x in self.options(thread) if x.lower().startswith('checktime') ]
@@ -1247,23 +1245,20 @@ class Config(ConfigParser.SafeConfigParser, dict):
     def check(self):
         global mechanize
         if not self['global']['urllib'] and not mechanize:
-            logStatusMsg( 'Using urllib2 instead of mechanize. setting urllib = True', 1, False)
+            print >> sys.stderr, 'Using urllib2 instead of mechanize. setting urllib = True'
             self['global']['urllib'] = True
         if 'saveFile' not  in self['global'] or self['global']['saveFile'] == None:
             self['global']['saveFile'] = u'savedstate.dat'
         if 'downloadDir' not in self['global'] or self['global']['downloadDir'] == None:
-            logStatusMsg(u"Must specify downloadDir in [global] config", 1, False )
-            raise SystemExit, "Invalid configuration, no download directory"
+            raise SystemExit(u"Must specify downloadDir in [global] config\nInvalid configuration, no download directory")
         if 'runOnce' not in self['global'] or self['global']['runOnce'] == None:
             self['global']['runOnce'] = False
         if 'scanMins' not in self['global'] or self['global']['scanMins'] == None:
             self['global']['scanMins'] = 15
         if self['global']['cookieType'] == 'MSIECookieJar' and self['global']['urllib']:
-            logStatusMsg(u'Cannot use MSIECookieJar with urllib = True. Choose one or the other. May be caused by failed mechanize import', 1, False )
-            raise SystemExit( "Incompatible configuration, IE cookies must use mechanize. please install and configure mechanize")
+            raise SystemExit( u"Cannot use MSIECookieJar with urllib = True. Choose one or the other. May be caused by failed mechanize import. Incompatible configuration, IE cookies must use mechanize. please install and configure mechanize")
         if self['global']['cookieType'] not in ['MSIECookieJar' ,'LWPCookieJar' , 'MozillaCookieJar' ]:
-            logStatusMsg(u'Invalid cookieType option: %s. Only MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...' % self['global']['cookieType'], 1, False)
-            raise SystemExit(1)
+            raise SystemExit(u'Invalid cookieType option: %s. Only MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...' % self['global']['cookieType'])
         if 'lockPort' not in self['global'] or self['global']['lockPort'] == None:
             self['global']['lockPort'] = 8023
         if 'log' in self['global'] and self['global']['log']:
@@ -1274,20 +1269,17 @@ class Config(ConfigParser.SafeConfigParser, dict):
             if not os.path.isdir( os.path.join(self['global']['workingDir'], self['global']['downloadDir']) ):
                 try: os.mkdir( os.path.join(self['global']['workingDir'], self['global']['downloadDir']) )
                 except OSError, m: 
-                    logStatusMsg( unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']), 1, False )
-                    raise SystemExit(1)
+                    raise SystemExit(unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']))
         for thread in self['threads']:
             if self['threads'][thread]['directory'] and not os.path.isdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) ):
                 try: os.mkdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) )
                 except OSError, m: 
-                    logStatusMsg( unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']), 1, False)
-                    raise SystemExit(1)
+                    raise SystemExit(unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']))
             for downDict in self['threads'][thread]['downloads']:
                 if downDict['Dir'] and not os.path.isdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) ):
                     try: os.mkdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) )
                     except OSError, m:
-                        logStatusMsg( unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], downDict['Dir'] ), 1, False)
-                        raise SystemExit
+                        raise SystemExit(unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], downDict['Dir'] ))
     def save(self):
         fd = codecs.open(self.filename, 'w', 'utf-8')
         fd.write("%s%s" %('[global]', os.linesep))
@@ -1500,73 +1492,63 @@ class ReFormatString(object):
                 width = right - left + 1
         return width
         
-class Log(object):
-    u"""how we keep track of our logged data"""
-    def __init__(self): 
-        object.__init__(self)
-        self.fd = codecs.open( getConfig()['global']['logFile'], 'a', 'utf-8')
-    def write(self, message):       self.fd.write( unicodeC( message ) )
-    def flush(self):        self.fd.flush()
-    def close(self):        self.fd.close()
-
-def logMsg( msg, level, close=False,  ):
-    u"""Do not call directly except to close """
-    global _log
-    if not _log:
-        if close: return None
-        _log = Log()
-    if msg and getConfig()['global']['log'] >= level: # if log == 0 ; no, but level != 0, so just check >= b/c 0 < 1,2...
-        _log.write(  msg + os.linesep  )
-        _log.flush()
-    if close: 
-        _log.flush()
-        _log.close()
-        _log = None
-
-def logStatusMsg( msg, level, config=True ):
-    u"""write a message to the log/stdout/stderr, depending on the level. if config=False, goes straight to stderr"""
-    global _action
-    TimeCode = u"[%4d%02d%02d.%02d:%02d.%02d]" % time.localtime()[:6]
-    newmsg = TimeCode + '   ' + unicodeC( msg ) 
-    if not config and _action != "daemon": # daemon == no stdout/err!
-        print >> sys.stderr,  unicodeC(ReFormatString( inputstring=newmsg)) 
-        return None
-    sharedData = getSharedData()
-    # level >=3 is vebose. we don't want to repeatedly send the same error message (the second part), but if we want verbosity, the first part is enough to print the message
-    if level >= 3 or not ( filter( lambda x: unicodeC( msg ) in x[1],  sharedData.scanoutput ) ) : 
-        sharedData.scanoutput.append( (level, unicodeC( newmsg ) + os.linesep) )
-        logMsg( newmsg, level )
-        status( newmsg, level )
-
-class SharedData(object):
-    u"""Mechanism for sharing data. Do not instantiate directly,
-    use getSharedData() instead."""
-    def __init__( self ):
-        object.__init__(self)
-        self.scanning = False   # True when scan in progress
-        self.scanoutput = []    # output of last scan, tuples of (severity level (1-5) , message )
-        self.exitNow = False    # should exit immediatley if this is set
-
-def getSharedData():
-    u"""Return a shared instance of SharedData(), creating one if neccessary. Truncates if necessary."""
-    global _sharedData
-    if not _sharedData:  _sharedData = SharedData()
-    if getConfig()['global']['maxLogLength'] and len(_sharedData.scanoutput) > getConfig()['global']['maxLogLength']:
-        del _sharedData.scanoutput[:len(_sharedData.scanoutput) - getConfig()['global']['maxLogLength'] ]
-    return _sharedData
-
-def status( message, level ):
-    u"""Prints status information, writing to stdout if config 'verbose' option is set. Do not call directly. use logStatusMsg"""
-    if getConfig()['global']['verbose'] and getConfig()['global']['verbose'] >= level:
-        if level ==1 or level ==2: print >> sys.stderr, unicodeC( ReFormatString(message) ) 
-        else: print( unicodeC( ReFormatString(message) ) )
-    
-
 def getVersion():
     u"""returns the version of the program"""
     global __version__
     return __version__
 
+def noprint(*args, **kwds): 
+    pass
+
+class fkout(object):
+    write=flush=close=noprint
+
+class Logging(object):
+    debug = error = warning = info = debug = noprint
+
+class LevelFilter(logging.Filter):
+    def __init__(self, levels):
+        self.level = levels
+    def filter(self, record):
+        return self.level[0] <=  record.levelno <= self.level[1]
+
+def make_handler2(h, f, l, *o):
+    handler = h(*o)
+    fmtr = logging.Formatter(f)
+    handler.setFormatter(fmtr)
+    handler.addFilter(LevelFilter(l))
+    return handler
+
+def setLogging(reset=False):
+    global _action, logging
+    if _action == 'daemon': sys.stderr = sys.stdout = fkout()
+    if not (getConfig()['global']['log'] or getConfig()['global']['verbose']):
+        logging = Logging()
+        return
+    z = {0:0, 1:50, 2:40, 3:30, 4:20, 5:10}
+    v = z[getConfig()['global']['verbose']]
+    l = z[getConfig()['global']['log']]
+    if isinstance(logging, Logging): import logging
+    elif reset: reload(logging)
+    logging.basicConfig(level=10, datefmt='%Y%m%d.%H:%M', stream=fkout())
+    if v:
+        logging.getLogger('').addHandler(make_handler2(logging.StreamHandler,
+            '%(levelname)s %(message)s', [max(30,v),50], sys.stderr))
+        logging.getLogger('').addHandler(make_handler2(logging.StreamHandler,
+            '%(levelname)s %(message)s', [max(v,10),20], sys.stdout))
+    if l:
+        logging.getLogger('').addHandler(make_handler2(logging.FileHandler,
+            '%(asctime)s %(levelname)-8s %(message)s', [max(l,10),50], 
+            getConfig()['global']['logFile'],'a'))
+
+def logStatusMsg( msg, level, config=True ):
+    u"""write a message to the log/stdout/stderr, depending on the level. if config=False, goes straight to stderr"""
+    l =  {1:logging.critical, 2:logging.error, 3:logging.warn,
+        4:logging.info, 5:logging.debug}
+    if not config: # daemon == no stdout/err!
+        print >> sys.stderr,  unicodeC(ReFormatString( inputstring=newmsg)) 
+    elif level: l[level](msg) #ReFormatString ?
+    
 # # # # #
 #Daemon
 # # # # #
@@ -1605,52 +1587,34 @@ def createDaemon():
     u"""Detach a process from the controlling terminal and run it in the
     background as a daemon.
     """
-    logStatusMsg(u"forking process", 5)
     try:        pid = os.fork()
     except OSError, e:
         logStatusMsg(u"s [%d]" % (e.strerror, e.errno), 1)
         raise OSError
-    logStatusMsg(u"seems to have forked", 5)
     if pid == 0:    # The first child.
-        logStatusMsg(u"setsid", 5)
         os.setsid()
-        logStatusMsg(u"forking second child", 5)
-        try:            pid = os.fork() # Fork a second child.
-        except OSError, e:
-            logStatusMsg(u"%s [%d]" % (e.strerror, e.errno), 1)
-            raise Exception
+        try: pid = os.fork() # Fork a second child.
+        except OSError, e: raise OSError(u"%s [%d]" % (e.strerror, e.errno))
         if (pid == 0):  pass # The second child.
-        else: # exit() or _exit()?  See below.
-            logStatusMsg(u"exit the first child", 5)
-            os._exit(0) # Exit parent (the first child) of the second child.
-    else:
-        logStatusMsg(u"pid wasn't 0", 5)
-        os._exit(0) 
-    logStatusMsg(u"setup resource information", 5)
+        else: os._exit(0) # Exit parent (the first child) of the second child
+    else: os._exit(0) 
     global resource
     import resource     # Resource usage information.
-    logStatusMsg(u"maxfd settings....", 5)
     maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
     if maxfd == resource.RLIM_INFINITY:     maxfd = MAXFD
-    logStatusMsg(u"closing maxfd stuff", 5) 
-    logMsg(0, 0, 1) # closing the fd's crashes when the logfile is open, so close it
     for fd in range(0, maxfd):
         try:    os.close(fd)
         except OSError: pass    # ERROR, fd wasn't open to begin with (ignored)
-    logStatusMsg(u"redoing stdin, stdout, stderr", 5)
-    os.open(REDIRECT_TO, os.O_RDWR) # standard input (0)
-    os.dup2(0, 1)           # standard output (1)
-    os.dup2(0, 2)           # standard error (2)
+##    os.open(REDIRECT_TO, os.O_RDWR) # standard input (0)
+##    os.dup2(0, 1)           # standard output (1)
+##    os.dup2(0, 2)           # standard error (2)
     return 0
 
 def callDaemon():
     u"""setup a daemon"""
-    logStatusMsg(u"calling create daemon", 5)
     if isRunning(): 
-        logStatusMsg(u"already running", 1)
-        raise SystemExit(1)
+        raise SystemExit(u"already running")
     retCode = createDaemon()
-    logStatusMsg(u"daemon should've processed", 5)
 
 def signalHandler(signal, frame):
     u"""take the signal, find a stopping point for the program (ok, the signal kills all processing, so save current state, maybe make threaded?) then exit."""
@@ -1756,17 +1720,13 @@ def checkScanTime( threadName , failed=False):
 def checkSleep( totalTime ):
     u"""let's us know when we need to stop sleeping and rescan"""
     logStatusMsg(u'checking sleep', 5)
-    steps = totalTime // 30 
-    for n in xrange( steps ):
-        time.sleep( 30 )
-        if getSharedData().exitNow:
-            raise SystemExit
+    time.sleep(totalTime)
 
 def run():
     u"""Provides main functionality -- scans threads."""
     global saved, rss, downloader, _action
     getConfig(filename=configFile, reload=True)
-    if _action == 'daemon': getConfig()['global']['verbose'] = 0
+    setLogging(True)
     if isinstance(getConfig()['global']['umask'], int): os.umask( getConfig()['global']['umask'] )
     if getConfig()['global']['urllib']: downloader  = urllib2RetrievePage
     else: downloader = mechRetrievePage
@@ -1820,7 +1780,6 @@ def run():
     getSaved().lastChecked = int(time.time()) -30
     getSaved().save()
     getSaved().unlock()
-    logMsg( 0 , 0 , close=1)
 
 def main( ):
     global _runOnce
@@ -1833,24 +1792,21 @@ def main( ):
     try: codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write(unicodeC(os.getpid()))
     except IOError, m: 
         logStatusMsg( unicodeC(m) + os.linesep + u"Could not write to, or not set, daemonInfo", 1 )
-    sharedData = getSharedData()
     if not _runOnce:
         _runOnce = getConfig()['global']['runOnce']
     while True:
         try:
-            sharedData.scanning = True
             logStatusMsg( u"[Waking up] %s" % time.asctime() , 4)
             startTime = time.time()
             run()
             logStatusMsg( u"Processing took %d seconds" % (time.time() - startTime) , 4)
         except Exception, m:
             m1,m2,m3=sys.exc_info() # to send this to logfile or not...?
-            logStatusMsg( u"Unexpected Error: %s%s%s%s%s" % 
-              (unicodeC(m1),unicodeC(m2),os.linesep, u'    ',unicodeC(m3) ),1,0)
+            print >> sys.stderr, u"Unexpected Error: %s%s%s%s%s" %(unicodeC(m1),
+                unicodeC(m2),os.linesep, u'    ',unicodeC(m3)) 
             getSaved().save()
             getSaved().unlock()
             raise
-        sharedData.scanning = False
         if _runOnce:
             logStatusMsg( u"[Complete] %s" % time.asctime() , 4)
             break
@@ -1934,20 +1890,19 @@ def _main(arglist):
     elif _action == "daemon":
         getConfig(filename=configFile, reload=True)
         if os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
-            logStatusMsg( u"daemon mode not supported on Windows. will try to continue, but this is likely to crash", 1)
+            print >> sys.stderr,  u"daemon mode not supported on Windows. will try to continue, but this is likely to crash"
         elif os.name == u'mac' or os.name == u"os2":
-            logStatusMsg( u"daemon mode may have issues on your platform. will try to continue, but may crash. feel free to submit a ticket with relevant output on this issue", 1)
-        getConfig()['global']['verbose'] = 0
+            print >> sys.stderr,  u"daemon mode may have issues on your platform. will try to continue, but may crash. feel free to submit a ticket with relevant output on this issue"
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
-        logStatusMsg(u"entering Daemon mode", 5)
+                print >> sys.stderr, u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m)
         if (hasattr(os, "devnull")):        REDIRECT_TO = os.devnull
         else: REDIRECT_TO = "/dev/null"
         callDaemon()
+        setLogging()
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         main()
     elif _action == 'fullhelp':
