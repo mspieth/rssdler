@@ -5,9 +5,10 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0a1"
+__version__ = u"0.4.0a3"
 
-__author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or "lostnihilist" on #libtorrent@irc.worldforge.org"""
+__author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
+"lostnihilist" on #libtorrent@irc.worldforge.org"""
 __copyright__ = u"""RSSDler - RSS Broadcatcher
 Copyright (C) 2007, 2008, lostnihilist
 
@@ -250,47 +251,63 @@ download3 = fedora
 # download4Dir = /home/user/something
 """
 configFileNotes = u"""There are two types of sections: global and threads. 
-There can be as many thread sections as you wish, but only one global section. global must be named "global." Threads can be named however you wish, except 'global,' and each name should be unique. With a couple of noted exceptions, there are three types of options:
+There can be as many thread sections as you wish, but only one global section.
+global must be named "global." Threads can be named however you wish, 
+except 'global,' and each name should be unique. 
+With a couple of noted exceptions, there are three types of options:
     
-Boolean Options: 'True' is indicated by "True", "yes", or "1". "False" is indicated by "False", "no", or "0" (without the quotes)
-Integer Options: Just an integer. 1, 2, 10, 1000, 2348. Not 1.1, 2.0, 999.3 or 'a'.
-String Options: any string, should make sense in terms of the option being provided (e.g. a valid file/directory on disk; url to rss feed)
+Boolean Options: 'True' is indicated by "True", "yes", or "1". 
+    "False" is indicated by "False", "no", or "0" (without the quotes)
+Integer Options: Just an integer. 1, 2, 10, 2348. Not 1.1, 2.0, 999.3 or 'a'.
+String Options: any string, should make sense in terms of the option 
+    being provided (e.g. a valid file/directory on disk; url to rss feed)
 
 Required indicates RSSDler will not work if the option is not set. 
 Recommended indicates that the default is probably not what you want. 
-Optional indicates that circumstances such as use pattern, type of feed, etc. determine if/how it should be set.
+Optional is not necessarily not recommended, just each case determines use 
 
-Run with --comment-config to see what a configuration file would look like, comments and all."""
+Run with --comment-config to see what a configuration file would look like.
+    e.g. rssdler --comment-config > .config.txt.sample
+"""
 cliOptions = u"""Command Line Options:
-    --config/-c can be used with all the options except --comment-config, --help, and --set-default-config. Otherwise, do not mix and match options
-    --comment-config: Prints a commented config file to stdout. (hint: rssdler.py --comment-config > myConfigToEdit.txt)
+    --config/-c can be used with all the options except --comment-config, --help
+    --comment-config: Prints a commented config file to stdout
     --help/-h: print the short help message (command line options)
     --full-help/-f: print the complete help message (quite long)
     --run/-r: run according to the configuration file
-    --runonce/-o: run only once then exit, otherwise according to the configuration file.
-    --daemon/-d: run in the background, according to the configuration file (except sets verbose = 0, a note if you invoke Config.save in postDownloadFunction ) (Unix-like only)
-    --kill/-k: kill the daemonized instance (Unix like only)
+    --runonce/-o: run only once then exit
+    --daemon/-d: run in the background (Unix-like only)
+    --kill/-k: kill the currently running instance (may not work on Windows)
     --config/-c: specify a config file (default %s).
     --list-failed: Will list the urls of all the failed downloads
-    --purge-failed: Use to clear the failed download queue. Use when you have a download stuck (perhaps removed from the site or wrong url in RSS feed) and you no longer care about RSSDler attempting to grab it. Will be appended to the saved download list to prevent readdition to the failed queue. Should be used alone or with -c/--config. Exits after completion.
-    --list-saved: Will list everything that has been registered as downloaded
-    --purge-saved: Clear the list of saved downloads
-    --state/-s: If another rssdler instance is running with the config specified, will return the process ID, return code 0. Otherwise return code 1. Note for Windows: will return the pid found in daemonInfo, if is one, regardless of whether it is currently running.
-    --set-default-config: [No longer available. Deprecated] rssdler.py to reset the default config to the path you specify. will have to reset after upgrading/overwriting the file. helps to not have to specify -c/--config each time you run. Advised only for single user systems/installs. Should be used alone. Exits after completion.
+    --purge-failed: Use to clear the failed download queue. 
+        Use when you have a download stuck (perhaps removed from the site or 
+        wrong url in RSS feed) and you no longer care about RSSDler attempting 
+        to grab it. Will be appended to the saved download list to prevent 
+        readdition to the failed queue.
+        Should be used alone or with -c/--config. Exits after completion.
+    --list-saved: Will list everything that has been registered as downloaded.
+    --purge-saved: Clear the list of saved downloads, not stored anywhere.
+    --state/-s: Will return the process ID if another instance is running with.
+        Otherwise exits with return code 1
+        Note for Windows: will return the pid found in daemonInfo,
+        regardless of whether it is currently running.
+    --set-default-config: [No longer available. Deprecated]
 """ % configFile
 nonCoreDependencies = u"""Non-standard Python libraries used:
     feedparser: [REQUIRED] http://www.feedparser.org/
-    mechanize: [RECOMMENDED] http://wwwsearch.sourceforge.net/mechanize/ (this can now be overridden by setting urllib = True in global options. See below for details. If import of mechanize fails, will automatically set urllib =True)
-    For debian based distros: "sudo apt-get install python-feedparser python-mechanize" """
+    mechanize: [RECOMMENDED] http://wwwsearch.sourceforge.net/mechanize/
+    For debian based distros: 
+    "sudo apt-get install python-feedparser python-mechanize"
+"""
 securityIssues = u"""Security Note: 
-    Prior to 0.2.4, there were several 'eval' statements in this program, which allowed running arbitrary code. Although removed, there is an attempt to import 'userFunctions' if you specify a postDownloadFunction in your configuration. Make sure only you have write permissions in the directory you run this from/what you set workingDir to so that userFunctions cannot be setup to run arbitrary code that you do not want running. Also make sure only you have write permissions to your configuration file. It would be wise to make a file userFunctions.py in your working directory to which only you have write access. I've also had reports of users running this as root. PLEASE do not do that. You shouldn't even be logging into your system as root, much less running programs meant for userland, especially when they are Internet facing."""
-
-
+    I keep getting notes about people running as root. DO NOT DO THAT!
+    """
 # # # # #
 #Exceptions
 # # # # #
 class Locked( Exception ):
-    def __init__(self, value=u"""An attempt was made to lock() the savefile while it was already locked.""" ):
+    def __init__(self, value=u"""An lock() on savefile failed.""" ):
         self.value = value
     def __str__(self):
         return repr( self.value)
@@ -301,12 +318,15 @@ class Locked( Exception ):
 def unicodeC( s ):
     if not isinstance(s, basestring): s= unicode(s) # __str__ for exceptions etc
     if isinstance(s, str): s = unicode(s, 'utf-8', 'replace')
-    if not isinstance(s, unicode): raise UnicodeEncodeError(u'could not encode %s to unicode' % s)
+    if not isinstance(s, unicode): 
+        raise UnicodeEncodeError(u'could not encode %s to unicode' % s)
     return s
     
 def xmlUnEscape( sStr, percent=0, pd=percentunQuoteDict ):
-    u"""xml unescape a string, by default also checking for percent encoded characters. set percent=0 to ignore percent encoding. 
-    can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentunQuoteDict.
+    u"""xml unescape a string, by default also checking for percent encoded 
+    characters. set percent=0 to ignore percent encoding. 
+    can specify your own percent quote dict 
+    (key, value) pairs are of (search, replace) ordering with percentunQuoteDict
     """
     sStr = sStr.replace("&lt;", "<")
     sStr = sStr.replace("&gt;", ">")
@@ -315,8 +335,11 @@ def xmlUnEscape( sStr, percent=0, pd=percentunQuoteDict ):
     return sStr
     
 def xmlEscape( sStr, percent=1, pd=percentQuoteDict ):
-    u"""this does not function perfectly with percent=1 aka also doing percent encoding. trailing ; get converted to %3B. perhaps they should be? but not likely. 
-    can specify your own percent quote dict (key, value) pairs are of (search, replace) ordering with percentQuoteDict.
+    u"""this does not function perfectly with percent=1 
+    aka also doing percent encoding. trailing ; get converted to %3B. 
+    perhaps they should be? but not likely. 
+    can specify your own percent quote dict (key, value) 
+    pairs are of (search, replace) ordering with percentQuoteDict.
     """
     for i,j in (("&","&amp;"),(">","&gt;"),("<","&lt;")): sStr=sStr.replace(i,j)
     if percent: # sStr = unicodeC(percentQuote(sStr, pd=pd))
@@ -324,7 +347,8 @@ def xmlEscape( sStr, percent=1, pd=percentQuoteDict ):
     return sStr
 
 def percentIsQuoted(sStr, testCases=percentQuoteDict.values()):
-    u"""does not include query string or page marker (#) in detection. these seem to cause the most problems.
+    u"""does not include query string or page marker (#) in detection. 
+    these seem to cause the most problems.
     Specify your own test values with testCases
     """
     for i in testCases:
@@ -332,7 +356,8 @@ def percentIsQuoted(sStr, testCases=percentQuoteDict.values()):
     return False
 
 def percentNeedsQuoted(sStr, testCases=percentQuoteDict.keys()):
-    u"""check to see if there is a character in the path part of the url that is 'reserved'"""
+    u"""if there is a character in the path part of the url that is 'reserved'
+    """
     for aStr in urlparse.urlparse(sStr)[:4]:
         for i in testCases:
             if aStr.count(i): return True
@@ -358,7 +383,8 @@ def percentQuote(sStr, urlPart=(2,), pd=percentQuoteDict):
     return unicodeC(urlparse.urlunparse( urlList ))
 
 def unQuoteReQuote( url, quote=1 ):
-    u"""fix urls from feedparser. they are not always properly unquoted then unescaped. will requote by default"""
+    u"""fix urls from feedparser. they are not always properly unquoted 
+    then unescaped. will requote by default"""
     logStatusMsg(u"unQuoteReQuote %s" % url, 5)
     if percentIsQuoted(url): url = xmlUnEscape( url, 1 )
     else: url = xmlUnEscape( url, 0 ) 
@@ -366,7 +392,8 @@ def unQuoteReQuote( url, quote=1 ):
     return url
 
 def encodeQuoteUrl( url, encoding='utf-8'):
-    u"""take a url, percent quote it, if necessary and encode the string to encoding, default utf-8"""
+    u"""take a url, percent quote it, if necessary and encode the string 
+    to encoding, default utf-8"""
     if not percentIsQuoted(url) and percentNeedsQuoted(url):
         logStatusMsg( u"quoting url: %s" % url, 5)
         url = percentQuote( url )
@@ -393,7 +420,8 @@ class htmlUnQuote(sgmllib.SGMLParser):
 # Network Communication
 # # # # #
 def getFilenameFromHTTP(info, url):
-    u"""info is an http header from the download, url is the url to the downloaded file (responseObject.geturl() ). or not. the response object is not unicode, and we like unicode. So the original, unicode url may be passed."""
+    u"""info is an http header from the download,
+    url is the url to the downloaded file (responseObject.geturl() )."""
     filename = None
     logStatusMsg(u"determining filename", 5)
     filename = email.message_from_string(unicodeC(info).encode('utf-8')).get_filename(failobj=False)
@@ -401,32 +429,37 @@ def getFilenameFromHTTP(info, url):
         m = htmlUnQuote(filename)
         if m.result: filename = m.result
         logStatusMsg(u"filename from content-disposition header", 5)
-        return unicodeC( filename ) # trust filename from http header over our URL extraction technique
+        return unicodeC( filename )
     logStatusMsg(u"filename from url", 5)
-    filename = percentUnQuote( urlparse.urlparse( url )[2].split('/')[-1] ) # Tup[2] is the path
+    filename = percentUnQuote( urlparse.urlparse( url )[2].split('/')[-1] )
     try: typeGuess = info.gettype()
     except AttributeError: typeGuess = None
     typeGuess1 = mimetypes.guess_type(filename)[0]
-    if typeGuess and typeGuess1 and typeGuess == typeGuess1: pass # we're good
+    if typeGuess and typeGuess1 and typeGuess == typeGuess1: pass
     elif typeGuess: # trust server content-type over filename
         logStatusMsg(u"getting extension from content-type header", 5)
         fileExt = mimetypes.guess_extension(typeGuess)
         if fileExt:         # sloppy filename guess, probably will never get hit
             if not filename: 
-                logStatusMsg(u"never guessed filename, just setting it to the time", 5)
+                logStatusMsg(u"""never guessed filename, just setting it to the\
+ time""", 5)
                 filename = unicodeC( int(time.time()) ) + fileExt
             else: filename += fileExt
     elif 'content_type' not  in info:
-            msg = u"Proper file extension could not be determined for the downloaded file: %s you may need to add an extension to the file for it to work in some programs. It came from url %s. It may be correct, but I have no way of knowing due to insufficient information from the server." % (filename, url)
+            msg = u"""Proper file extension could not be determined for the \
+downloaded file: %s you may need to add an extension to the file for it to work\
+ in some programs. It came from url %s. It may be correct, but I have no way of\
+  knowing due to insufficient information from the server.""" % (filename, url)
             logStatusMsg( msg, 1 )
     if not filename: 
-        logStatusMsg('Could not determine filename for torrent from %s' % url, 1)
+        logStatusMsg('Could not determine filename for torrent from %s' % url,1)
         return None
     if filename.endswith('.obj'): filename = filename[:-4]
     return unicodeC( filename)
 
 def cookieHandler():
-    u"""returns 0 if no cookie configured, 1 if cookie configured, 2 if cookie already configured (even if it is for a null value)"""
+    u"""returns 0 if no cookie configured, 1 if cookie configured, 
+    2 if cookie already configured (even if it is for a null value)"""
     global cj
     returnValue = 2
     logStatusMsg(u"""testing cookieFile settings""", 5)
@@ -434,89 +467,105 @@ def cookieHandler():
     elif cj == None and not getConfig()['global']['cookieFile']: 
         logStatusMsg(u"""no cookies set""", 5)
         returnValue = 0
-    elif getConfig()['global']['urllib'] and not isinstance(cj, (cookielib.MozillaCookieJar, cookielib.LWPCookieJar) ):
-        logStatusMsg(u"""attempting to load cookie type: %s """ % getConfig()['global']['cookieType'], 5)
+    elif ( getConfig()['global']['urllib'] and not 
+        isinstance(cj, (cookielib.MozillaCookieJar, cookielib.LWPCookieJar) ) ):
+        logStatusMsg(u"""attempting to load cookie type: %s\
+""" % getConfig()['global']['cookieType'], 5)
         cj = cookielib.__getattribute__( getConfig()['global']['cookieType'] )()
         try: 
             cj.load(getConfig()['global']['cookieFile'])
             returnValue = 1
             logStatusMsg(u"""cookies loaded""", 5)
         except (cookielib.LoadError, IOError), m:
-            logStatusMsg( unicodeC(m) + u' disabling cookies. To re-enable cookies, stop RSSDler, correct the problem, and restart.', 1)
+            logStatusMsg( unicodeC(m) + u""" disabling cookies. To re-enable \
+cookies, stop RSSDler, correct the problem, and restart.""", 1)
             returnValue = 0
-    elif not getConfig()['global']['urllib'] and not isinstance(cj, (mechanize.MozillaCookieJar, mechanize.LWPCookieJar, mechanize.MSIECookieJar) ):
-        logStatusMsg(u"""attempting to load cookie type: %s """ % getConfig()['global']['cookieType'], 5)
+    elif (not getConfig()['global']['urllib'] and not 
+        isinstance(cj, (mechanize.MozillaCookieJar, mechanize.LWPCookieJar, 
+        mechanize.MSIECookieJar) )):
+        logStatusMsg(u"""attempting to load cookie type: %s\
+""" % getConfig()['global']['cookieType'], 5)
         cj = mechanize.__getattribute__( getConfig()['global']['cookieType'] )()
         try: 
             cj.load(getConfig()['global']['cookieFile'])
             returnValue = 1
             logStatusMsg(u"""cookies loaded""", 5)
         except (mechanize._clientcookie.LoadError, IOError), m:
-            logStatusMsg( unicodeC(m) + u' disabling cookies. To re-enable cookies, stop RSSDler, correct the problem, and restart.', 1)
+            logStatusMsg( unicodeC(m) + u""" disabling cookies. To re-enable \
+cookies, stop RSSDler, correct the problem, and restart.""", 1)
             returnValue = 0
     return returnValue
 
 def urllib2RetrievePage( url, txheaders=((u'User-agent', _USER_AGENT),)):
     u"""URL is the full path to the resource we are retrieve/Posting
-    txheaders is a sequence of (field,value) pairs of any extra headers you would like to add
+    txheaders is a sequence of (field,value) pairs of any extra headers
     """
     global cj, opener
-    txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in txheaders  )
+    txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in 
+        txheaders  )
     urlNotEncoded = url
     time.sleep( getConfig()['global']['sleepTime'] )
     url = encodeQuoteUrl( url , encoding='utf-8')
     if not url: 
-        logStatusMsg(u"utf encoding and quoting url failed, returning false %s" % url, 1 )
+        logStatusMsg(u"""utf encoding, quoting url failed, returning false %s\
+""" % url, 1 )
         return False
     cjR = cookieHandler()
     if cjR == 1:
-        logStatusMsg(u"building and installing urllib opener with cookiefile", 5)
+        logStatusMsg(u"building and installing urllib opener with cookies",5)
         opener = urllib2.build_opener (urllib2.HTTPCookieProcessor(cj) )
         urllib2.install_opener(opener)
     elif cjR == 0:
-        logStatusMsg(u"building and installing urllib opener without cookiefile", 5)
+        logStatusMsg(u"building and installing urllib opener without cookies",5)
         opener = urllib2.build_opener( )
         urllib2.install_opener(opener)
         cj = 1
     logStatusMsg(u"grabbing page at url %s" % urlNotEncoded, 5)
-    return urllib2.urlopen( urllib2.Request(url, headers=dict(txheadersEncoded)) )
+    return urllib2.urlopen(urllib2.Request(url, headers=dict(txheadersEncoded)))
 
 def mechRetrievePage(url, txheaders=(('User-agent', _USER_AGENT),), ):
     u"""URL is the full path to the resource we are retrieve/Posting
-    txheaders: sequence of tuples of header key, value to manually add to the request object
+    txheaders: sequence of tuples of header key, value
     """
     global cj, opener
     urlNotEncoded = url
-    txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in txheaders )
+    txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in 
+        txheaders )
     time.sleep( getConfig()['global']['sleepTime'] )
     url = encodeQuoteUrl( url, encoding='utf-8' )
     if not url: 
-        logStatusMsg(u"utf encoding and quoting url failed, returning false", 1 )
+        logStatusMsg(u"utf encoding and quoting url failed, returning false", 1)
         return False
     cjR =  cookieHandler()
     if cjR == 1:
-        logStatusMsg(u"building and installing mechanize opener with cookiefile", 5)
-        opener = mechanize.build_opener(mechanize.HTTPCookieProcessor(cj), mechanize.HTTPRefreshProcessor(), mechanize.HTTPRedirectHandler(), mechanize.HTTPEquivProcessor())
+        logStatusMsg(u"building and installing mechanize opener with cookies",5)
+        opener = mechanize.build_opener(mechanize.HTTPCookieProcessor(cj), 
+            mechanize.HTTPRefreshProcessor(), mechanize.HTTPRedirectHandler(), 
+            mechanize.HTTPEquivProcessor())
         mechanize.install_opener(opener)
     elif cjR == 0:
-        logStatusMsg(u"building and installing mechanize opener without cookiefile", 5)
-        opener = mechanize.build_opener(mechanize.HTTPRefreshProcessor(), mechanize.HTTPRedirectHandler(), mechanize.HTTPEquivProcessor())
+        logStatusMsg(u"building and installing mech opener without cookies",5)
+        opener = mechanize.build_opener(mechanize.HTTPRefreshProcessor(), 
+            mechanize.HTTPRedirectHandler(), mechanize.HTTPEquivProcessor())
         mechanize.install_opener(opener)
         cj = 1
     logStatusMsg(u"grabbing page at url %s" % urlNotEncoded, 5)
-    return mechanize.urlopen( mechanize.Request( url, headers=dict( txheadersEncoded ) ) )
+    return mechanize.urlopen(mechanize.Request(url,
+        headers=dict(txheadersEncoded)))
 
 def getFileSize( info, data=None ):
-    u"""give me the HTTP headers (info) and, if you expect it to be a torrent file, the actual file, i'll return the filesize, of type None if not determined"""
+    u"""give me the HTTP headers (info) and, 
+    if you expect it to be a torrent file, the actual file, 
+    i'll return the filesize, of type None if not determined"""
     logStatusMsg(u"determining size of file", 5)
     size = None
     if 'torrent' in info.gettype():
-        # don't pretend we know the size when we don't, data separated so that we don't go to else when it is of type 'torrent'
         if data:
             data = data.read()
             try: tparse = bdecode(data)
             except ValueError, m:
-                logStatusMsg( unicodeC( m ) + u"File was supposed to be torrent data, but could not be bdecoded, indicates it is not torrent data", 1 )
+                logStatusMsg( unicodeC( m ) + u"""File was supposed to be \
+torrent data, but could not be bdecoded, indicates it is not torrent data""", 1)
                 return size
             if 'length' in tparse['info']: size = int(tparse['info']['length'])
             elif 'files' in tparse['info']:
@@ -525,7 +574,7 @@ def getFileSize( info, data=None ):
     else:
         try: 
             if 'content-length' in info: size = int(info['content-length'])
-        except ValueError:  pass # don't know it, out of options, just return None
+        except ValueError:  pass # 
     logStatusMsg(u"filesize seems to be %s" % size, 5)
     return size, data
 
@@ -539,21 +588,25 @@ def searchFailed(urlTest):
     return False
 
 def checkFileSize(size, threadName, downloadDict):
-    u"""returns True if size is within size constraints specified by config file. False if not.
-    takes the size (determined by getFileSize?) in bytes, threadName (to look in config), and downloadDict (parsed download<x> options).
+    u"""returns True if size is within size constraints specified by config file
+    takes the size in bytes, threadName and downloadDict (parsed download<x>).
     """
     returnValue = True
     logStatusMsg(u"checking file size", 5)
     if downloadDict['maxSize'] != None: maxSize = downloadDict['maxSize']
-    elif getConfig()['threads'][threadName]['maxSize'] != None: maxSize = getConfig()['threads'][threadName]['maxSize']
-    elif getConfig()['global']['maxSize'] != None: maxSize = getConfig()['global']['maxSize']
+    elif getConfig()['threads'][threadName]['maxSize'] != None: 
+        maxSize = getConfig()['threads'][threadName]['maxSize']
+    elif getConfig()['global']['maxSize'] != None: 
+        maxSize = getConfig()['global']['maxSize']
     else: maxSize = None
     if maxSize:
         maxSize = maxSize * 1024 * 1024
         if size > maxSize:  returnValue = False
     if downloadDict['minSize'] != None: minSize = downloadDict['minSize']
-    elif getConfig()['threads'][threadName]['minSize'] != None: minSize = getConfig()['threads'][threadName]['minSize']
-    elif getConfig()['global']['minSize'] != None: minSize = getConfig()['global']['minSize']
+    elif getConfig()['threads'][threadName]['minSize'] != None: 
+        minSize = getConfig()['threads'][threadName]['minSize']
+    elif getConfig()['global']['minSize'] != None: 
+        minSize = getConfig()['global']['minSize']
     else: minSize = None
     if minSize:
         minSize = minSize * 1024 * 1024
@@ -564,47 +617,63 @@ def checkFileSize(size, threadName, downloadDict):
 
 def checkRegExGTrue(tName, itemNode):
     u"""return type True or False if search matches or no, respectively."""
-    # [response from regExTrue, regExFalse, downloads, downloadFalse, downloadTrue]
     if getConfig()['threads'][tName]['regExTrue']:
         logStatusMsg(u"checking regExTrue on %s" % itemNode['title'].lower(), 5)
-        if getConfig()['threads'][tName]['regExTrueOptions']: regExSearch = re.compile(getConfig()['threads'][tName]['regExTrue'].lower(), getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) )
-        else: regExSearch = re.compile(getConfig()['threads'][tName]['regExTrue'].lower())
+        if getConfig()['threads'][tName]['regExTrueOptions']: 
+            regExSearch = re.compile(
+                getConfig()['threads'][tName]['regExTrue'].lower(),
+                getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) )
+        else: 
+            regExSearch = re.compile(
+                getConfig()['threads'][tName]['regExTrue'].lower())
         if regExSearch.search(itemNode['title'].lower()): return True
         else: return False
     else: return True
 
 def checkRegExGFalse(tName, itemNode):
-    u"""return type True or False if search doesn't match or does, respectively."""
+    u"""return type True or False if search doesn't match or does, respectively.
+    """
     if getConfig()['threads'][tName]['regExFalse']:
-        logStatusMsg(u"checking regExFalse on %s" % itemNode['title'].lower(), 5)
-        if getConfig()['threads'][tName]['regExFalseOptions']: regExSearch = re.compile(getConfig()['threads'][tName]['regExFalse'].lower(), getattr(re, getConfig()['threads'][tName]['regExFalseOptions']) )
-        else: regExSearch = re.compile(getConfig()['threads'][tName]['regExFalse'].lower())
+        logStatusMsg(u"checking regExFalse on %s" % itemNode['title'].lower(),5)
+        if getConfig()['threads'][tName]['regExFalseOptions']: 
+            regExSearch = re.compile(
+                getConfig()['threads'][tName]['regExFalse'].lower(), 
+                getattr(re, getConfig()['threads'][tName]['regExFalseOptions']))
+        else: 
+            regExSearch = re.compile(
+                getConfig()['threads'][tName]['regExFalse'].lower())
         if regExSearch.search(itemNode['title'].lower()):   return False
         else: return True
     else: return True
 
 def checkRegEx(tName, itemNode):
-    u"""goes through regEx* and download<x> options to see if any of them provide a positive match. Returns False if Not. Returns a DownloadItemConfig dictionary if so"""
+    u"""goes through regEx* and download<x> options to see if any of them 
+    provide a positive match. Returns False if Not. 
+    Returns a DownloadItemConfig dictionary if so"""
     if getConfig()['threads'][tName]['downloads']:
-        # save this as a type. It will return a tuple. Check against tuple[0], return the tuple
         LDown = checkRegExDown(tName, itemNode)
         if LDown:           return LDown
         else:           return False
-    elif checkRegExGFalse(tName, itemNode) and checkRegExGTrue(tName, itemNode):      return DownloadItemConfig()
+    elif checkRegExGFalse(tName, itemNode) and checkRegExGTrue(tName, itemNode):
+        return DownloadItemConfig()
     else:   return False
 
 def checkRegExDown(tName, itemNode):
-    u"""returns false if nothing found in download<x> to match itemNode. returns DownloadItemConfig instance otherwise"""
+    u"""returns false if nothing found in download<x> to match itemNode.
+    returns DownloadItemConfig instance otherwise"""
     # Also, it's incredibly inefficient
     # for every x rss entries and y download items, it runs this xy times.
-    # ( local true, 
     logStatusMsg(u"checking download<x>", 5)
     for downloadDict in getConfig()['threads'][tName]['downloads']:
-        if getConfig()['threads'][tName]['regExTrueOptions']: LTrue = re.compile( downloadDict['localTrue'], getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) )
+        if getConfig()['threads'][tName]['regExTrueOptions']: 
+            LTrue = re.compile( downloadDict['localTrue'], 
+                getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) )
         else: LTrue = re.compile(downloadDict['localTrue'])
         if not LTrue.search(itemNode['title'].lower()): continue
         if type(downloadDict['False']) == type(''):
-            if getConfig()['threads'][tName]['regExFalseOptions']: LFalse = re.compile(downloadDict['False'], getattr( re, getConfig()['threads'][tName]['regExFalseOptions']))
+            if getConfig()['threads'][tName]['regExFalseOptions']: 
+                LFalse = re.compile(downloadDict['False'],
+                getattr(re, getConfig()['threads'][tName]['regExFalseOptions']))
             else: LFalse = re.compile(downloadDict['False'])
             if LFalse.search(itemNode['title'].lower()): continue
         elif downloadDict['False'] == False: pass
@@ -619,51 +688,50 @@ def checkRegExDown(tName, itemNode):
 # # # # #
 # Download
 # # # # #
-def downloadFile(link=None, threadName=None, rssItemNode=None, downItemConfig=None):
-    u"""tries to download data at URL. returns None if it was not supposed to, False if it failed, and a tuple of arguments for userFunct"""
+def downloadFile(link=None, threadName=None, rssItemNode=None, 
+    downItemConfig=None):
+    u"""tries to download data at URL. returns None if it was not supposed to, 
+    False if it failed, and a tuple of arguments for userFunct"""
     try: data = downloader(link)
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m: 
-        logStatusMsg( unicodeC(m) + os.linesep + u'error grabbing url: %s' % link, 1 )
+        logStatusMsg(unicodeC(m)+os.linesep+u'error grabbing url: %s' % link, 1)
         return False
-    dataInfo = data.info()
-    dataUrl = data.geturl()
-    # could try to grab filename from ppage item title attribute, but this seems safer for file extension assurance
-    # could use url from attempted grab, but it won't be properly encoded. when python network stuff works properly with unicode
-    # use dataUrl here?
-    filename = getFilenameFromHTTP(dataInfo, link)
+    filename = getFilenameFromHTTP(data.info(), link)
     if not filename: return False
-    size, data2 = getFileSize(dataInfo, data)
-    # check size against configuration options
+    size, data2 = getFileSize(data.info(), data)
     if size and not checkFileSize(size, threadName, downItemConfig): 
-        # size is outside range, don't need the data, but want to report that we succeeded in getting data
-        del data, data2, dataInfo, dataUrl
+        del data, data2
         return None
     if downItemConfig['Dir']: directory = downItemConfig['Dir']
-    elif getConfig()['threads'][threadName]['directory']: directory = getConfig()['threads'][threadName]['directory']
+    elif getConfig()['threads'][threadName]['directory']: 
+        directory = getConfig()['threads'][threadName]['directory']
     else: directory = getConfig()['global']['downloadDir']
     try: filename = writeNewFile( filename, directory, data2 )
     except IOError: 
         logStatusMsg( u"write to disk failed", 1 )
         return False
-    logStatusMsg( u"\tFilename: %s%s\tDirectory: %s%s\tFrom Thread: %s%s" % ( filename, os.linesep, directory, os.linesep, threadName, os.linesep ), 3 )
+    logStatusMsg( u"\tFilename: %s%s\tDirectory: %s%s\tFrom Thread: %s%s" % ( 
+        filename, os.linesep, directory, os.linesep, threadName, os.linesep ),3)
     if rss:
         logStatusMsg( u"generating rss item", 5)
-        if 'description' in rssItemNode: description = rssItemNode['description']
+        if 'description' in rssItemNode: description =rssItemNode['description']
         else: description = None
         if 'title' in rssItemNode: title = rssItemNode['title']
         else: title = None
         pubdate = time.strftime(u"%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
-        itemLoad = {'title':title , 'description':description , 'pubDate':pubdate }
+        itemLoad = {'title':title ,'description':description ,'pubDate':pubdate}
         rss.addItem( itemLoad )
-    userFunctArgs = directory, filename, rssItemNode, dataUrl, downItemConfig, threadName 
+    userFunctArgs = (directory, filename, rssItemNode, data.geturl(), 
+        downItemConfig, threadName )
     return userFunctArgs
 
 def writeNewFile(filename, directory, data):
-    u"""write a file to disk at location. won't clobber, depending on config. writes to .__filename.tmp first, then moves to filename"""
-    # would be nice to scan filename for illegal characters, only that is file system dependent and rather sketchy
+    u"""write a file to disk at location. won't clobber, depending on config. 
+        writes to .__filename.tmp first, then moves to filename"""
     if getConfig()['global']['noClobber']: 
         directory, filename = findNewFile( filename, directory)
-        tmpPath = os.path.join( *findNewFile( u'.__' + filename + u'.tmp', directory) )
+        tmpPath = os.path.join( *findNewFile( u'.__' + filename + u'.tmp', 
+            directory) )
     else: tmpPath = os.path.join(directory, u'.__' +  filename + u'.tmp')
     realPath = os.path.join(directory, filename)
     try:
@@ -682,25 +750,29 @@ def writeNewFile(filename, directory, data):
         fd.flush()
         fd.close()
     except IOError, m: 
-        # if the file already existed and noClobber was false, we might be deleting a file we have no business deleting
-        # if noClobber was true, we were guaranteed a unique filename, and therefore are for sure cleaning up after ourselves
-        if getConfig()['global']['noClobber'] and os.path.isfile( tmpPath ): os.unlink(tmpPath)
-        logStatusMsg( unicodeC(m) + u'Failed to write file %s in directory %s' % (filename, directory) , 1)
+        if getConfig()['global']['noClobber'] and os.path.isfile( tmpPath ): 
+            os.unlink(tmpPath)
+        logStatusMsg(unicodeC(m) +u'Failed to write file %s in directory %s' % (
+            filename, directory) , 1)
         raise IOError
     logStatusMsg(u'moving to %s' % realPath, 5)
     os.rename(tmpPath, realPath)
     return filename
 
 def findNewFile(filename, directory):
-    u"""find a filename in the given directory that isn't already taken. adds '.1' before the file extension, or just .1 on the end if no file extension"""
+    u"""find a filename in the given directory that isn't already taken. 
+    adds '.1' before the file extension, 
+    or just .1 on the end if no file extension"""
     if os.path.isfile( os.path.join(directory, filename) ):
-        logStatusMsg(u"filename already taken, looking for another: %s" % filename, 2)
+        logStatusMsg(u"""filename already taken, looking for another: %s\
+""" % filename, 2)
         filenameList = filename.split(u'.')
         if len( filenameList ) >1: 
             try: 
                 num = u'.' + unicodeC( int( filenameList[-2] ) +1)
                 del filenameList[-2]
-                filename = u'.'.join( filenameList[:-1] ) + num + u'.' + filenameList[-1]
+                filename = (u'.'.join( filenameList[:-1] ) + num + u'.' +
+                    filenameList[-1])
             except (ValueError, IndexError, UnicodeEncodeError): 
                 try: 
                     num = u'.' + unicodeC( int( filenameList[-1] ) + 1 )
@@ -708,7 +780,8 @@ def findNewFile(filename, directory):
                     filename = u'.'.join( filenameList ) + num
                 except (ValueError, IndexError, UnicodeEncodeError) : 
                     num = u'.' + unicodeC( 1 )
-                    filename = u'.'.join( filenameList[:-1] ) + num + '.' + filenameList[-1]
+                    filename = ( u'.'.join( filenameList[:-1] ) + num + '.' + 
+                        filenameList[-1] )
         else: filename += u'.1'
         return findNewFile( filename, directory )
     else: return unicodeC(directory), unicodeC(filename)
@@ -776,9 +849,12 @@ def bdecode(x):
 #Persistence
 # # # # #
 class FailedItem(dict):
-    u"""represents an item that we tried to download, but failed, either due to IOError, HTTPError, or some such"""
-    def __init__(self, link=None, threadName=None, rssItemNode=None, downItemConfig=None):
-        u"""upgrade note: [0] = link, [1] = threadName, [2] = itemNode, [3] = downloadLDir #oldnote"""
+    u"""represents an item that we tried to download, but failed, 
+    either due to IOError, HTTPError, or some such"""
+    def __init__(self, link=None, threadName=None, rssItemNode=None, 
+        downItemConfig=None):
+        u"""upgrade note: [0] = link, [1] = threadName, [2] = itemNode, [3] = 
+        downloadLDir #oldnote"""
         dict.__init__(self)
         self['link'] = link
         self['threadName'] = threadName
@@ -788,9 +864,12 @@ class FailedItem(dict):
         if 'data' in state: self.update(state['data'])
         
 class DownloadItemConfig(dict):
-    u"""downloadDict: a dictionary representing the download<x> options. keys are: 'localTrue' (corresponding to download<x>) ; 'False' ; 'True' ; 'Dir' ; 'minSize' ; and 'maxSize' corresponding to their analogues in download<x>.
-    Unicode Safe"""
-    def __init__(self, regextrue=None, dFalse=True, dTrue=True, dir=None, minSize=None, maxSize=None, Function=None):
+    u"""downloadDict: a dictionary representing the download<x> options. 
+    keys are: 'localTrue' (corresponding to download<x>) ; 'False' ; 'True' ; 
+    'Dir' ; 'minSize' ; and 'maxSize' 
+    corresponding to their analogues in download<x>."""
+    def __init__(self, regextrue=None, dFalse=True, dTrue=True, dir=None, 
+        minSize=None, maxSize=None, Function=None):
         u"was [0] = localTrue, [1] = False, [2] = True, [3] = dir"
         dict.__init__(self)
         self['localTrue'] = regextrue
@@ -925,31 +1004,76 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         else: self.items.pop(x)
 
 class GlobalOptions(dict):
-    u"""    downloadDir: [Recommended] A string option. Default is current directory. Set to a directory in which you have write permission where downloaded files will go.
-    workingDir: [Recommended] A string option. Default is ${HOME}/.rssdler. Only needed with -d. Set to a directory on disk. Useful to make sure you don't run this from a partition that might get unmounted. If you use the -d switch (to run as a deamon) you must have this set or the program will die.
-    minSize: [Optional] An integer option. Default None. Specify, in MB, the minimum size for a download to be. Files less than this size will not be saved to disk.
-    maxSize: [Optional] An integer option. Default None. Specify, in MB, the maximum size for a download to be. Files greater than this size will not be saved to disk.
-    log: [Optional] An integer option. Default 0. Will write meassages a log file (specified by logFile). See verbose for what options mean.
-    logFile: [Optional] A string option. Default downloads.log. Specify a file on disk to write the log to.
-    verbose: [Optional] An integer option, defaulting to 3. Lower numbers mean less output. 5 is absurdly verbose, 1 is major errors only. Set to 0 to disable all output.  Errors go to stderr, others go to stdout.
-    cookieFile: [Optional] A string option. Default 'None'. The file on disk, in Netscape Format (requires headers) that has cookie information for whatever site(s) you have set that require it.
-    cookieType: [Optional] A string option. Default 'MozillaCookieJar.' Possible values (case sensitive): 'MozillaCookieJar', 'LWPCookieJar', 'MSIECookieJar'. only mechanize supports MSIECookieJar. Program will exit with error if you try to use urllib=True and MSIECookieJar.
-    scanMins: [Optional] An integer option. Default 15. Values are in minutes. The number of minutes between scans. If a feed uses the <ttl> tag, it will be respected. That is, if you have scanMins set to 10 and the site sets <ttl>900</ttl> (900 seconds; 15 mins); then the feed will be scanned every other time. More formally, the effective scan time for each thread is, for X = global scanMins, Y = ttl Mins: min{nX | nX >= Y ; n \u2208 \u2115 }
-    sleepTime: [Optional] An integer option. Default 0. Values are in seconds. Amount of time to pause between fetches of urls. Some servers do not like when they are hit too quickly, causing weird errors (e.g. inexplicable logouts). Setting this to 1 or 2 can sometimes help prevent such errors.
-    runOnce: [Optional] A boolean option, default False. Set to True to force RSSDler to exit after it has scanned the configured feeds.
-    urllib: [Optional]. Boolean Option. Default False. Setting this to true removes the dependency on mechanize for those platforms where mechanize may not be available or may work improperly. You lose several pieces of functionality, however. 1) Referers will no longer work. On most sites, this will not be a problem, but some sites require referers and will deny requests if the referer is not passed back to the site. 2) Some sites have various 'refresh' mechanisms that may redirect you around before actually giving you the file to download. Mechanize has the ability to follow these sites.
-    noClobber: [Optional]. Boolean. Default True. Setting this to False means that files downloaded with the same name/directory as a previous file, the previous file will get overwritten. When True, a number (starting with 1, if that's taken, then 2..) will be added at the end of the name before the extension. If no extension, appended to the end of the file.
-    rssFeed: [Optional] Boolean Option. Default False. Setting this option allows you to create your own rss feed of the objects you have downloaded. It's a basic feed, likely to not include links to the original files. The related rss items (all are required if this is set to True):
-    rssLength: [Optional]  Integer. Default 20. An integer. How many entries should the RSS feed store before it starts dropping old items. 0 means that the feed will never be truncated.
-    rssTitle: [Optional] A string. Default "some RSS Title".  The title the rss feed will carry.
-    rssLink: [Optional]   string: Default 'somelink.com/%%s' %% self['rssFilename']. Where the rss feed can be located. Typically an http link.
-    rssDescription: [Optional] A string. Default "Some RSS Description". A short description of what the feed contains.
-    rssFilename: [Optional] A string. Default 'rssdownloadfeed.xml'. Where to store the feed on disk.
-    saveFile: [Optional] A string option. Default savedstate.dat. Specify a file on disk to write the saved state information to. This keeps track of previously downloaded files and other 'state' information necessary to keep the program running coherently, especially between shutdown/startup
-    maxLogLength: [Optional] An integer option. Default 100. The number of lines of internal state to save. rssdler keeps all messages that could possibly be printed in an internal class (_sharedData). If you leave it running, oh, for say a month or two (yes, I have seen it run that long without crashing). It can grow rather large. Setting this to a positive number will limit the length of the internal state to about the number of lines you specify. This is especially useful in case you are running on a platform with minimal memory available. However, the lower you set the number above 0, the more likely you are to get repeat error messages.
-    lockPort: [Optional] An integer option. Default 8023. The port on which the savedstate.dat file will be locked for writing. Necessary to maintain the integrity of the state information.
-    daemonInfo: [Optional] A string option. Default daemon.info. Program pid will be written to this file.
-    umask: [Optional] An integer option. Default 63. Sets umask for file creation. (unix, windows only). THIS MUST BE IN BASE10. 0027 will be read as decimal 27, not octal 0027 aka decimal 23. 63 in octal is 0077. To convert quickly, just open the python interpreter (type 'python' at the command line), type the umask you want in octal (say 0022), press enter. The interpreter will spit out a number, this is your octal representation in decimal/base10. Note, the leading zeros are necessary for the conversion.  Do not edit this if you do not know what it does. 
+    u"""    downloadDir: [Recommended] A string option. Default is workingDir. 
+        Set to a directory where downloaded files will go.
+    workingDir: [Optional] A string option. Default is ${HOME}/.rssdler.
+        Directory rssdler switches to, relative paths are relative to this
+    minSize: [Optional] An integer option. Default None. Specify, in MB.
+        the minimum size for a download to be. 
+        Files less than this size will not be saved to disk.
+    maxSize: [Optional] An integer option. Default None. Specify, in MB.
+        the maximum size for a download to be. 
+        Files greater than this size will not be saved to disk.
+    log: [Optional] An integer option. Default 0. Write meassages a log file 
+        (specified by logFile). See verbose for what options mean.
+    logFile: [Optional] A string option. Default downloads.log. Where to log to.
+    verbose: [Optional] An integer option, Default 3. Lower decreases output. 
+        5 is absurdly verbose, 1 is major errors only. 
+        Set to 0 to disable. Errors go to stderr, others go to stdout.
+    cookieFile: [Optional] A string option. Default 'None'. The file on disk, 
+        in Netscape Format (requires headers)(unless otherwise specified) 
+        that has cookie data for whatever site(s) you have set that require it.
+    cookieType: [Optional] A string option. Default 'MozillaCookieJar.' 
+        Possible values (case sensitive): 'MozillaCookieJar', 'LWPCookieJar', 
+        'MSIECookieJar'. only mechanize supports MSIECookieJar.
+        Program will exit with error if you try to use urllib and MSIECookieJar.
+    scanMins: [Optional] An integer option. Default 15. Values are in minutes. 
+        The number of minutes between scans.
+        If a feed uses the <ttl> tag, it will be respected. 
+        If you have scanMins set to 10 and the site sets <ttl>900</ttl> 
+        (900 seconds; 15 mins); then the feed will be scanned every other time.
+        More formally, the effective scan time for each thread is:
+        for X = global scanMins, Y = ttl: min{nX | nX >= Y ; n \u2208 \u2115}
+    sleepTime: [Optional] An integer option. Default 1. Values are in seconds. 
+        Amount of time to pause between fetches of urls. 
+        Some servers do not like when they are hit too quickly, 
+        causing weird errors (e.g. inexplicable logouts).
+    runOnce: [Optional] A boolean option, default False. 
+        Set to True to force RSSDler to exit after it has scanned
+    urllib: [Optional]. Boolean Option. Default False. Do not use mechanize.
+        You lose several pieces of functionality. 
+        1) Referers will no longer work. On most sites, this will not be a 
+            problem, but some sites require referers and will deny requests 
+            if the referer is not passed back to the site. 
+        2) Some sites have various 'refresh' mechanisms that may redirect you 
+            around before actually giving you the file to download. 
+            Mechanize has the ability to follow these sites.
+    noClobber: [Optional] Boolean. Default True. Overwrite file, or use new name
+    rssFeed: [Optional] Boolean Option. Default False. Setting this option 
+        allows you to create your own rss feed of the objects you have 
+        downloaded. It's a basic feed, likely to not include links to the 
+        original files. The related rss items (all are required if this is set 
+        to True):
+    rssLength: [Optional]  Integer. Default 20. An integer. How many entries 
+        should the RSS feed store before it starts dropping old items. 0 means 
+        that the feed will never be truncated.
+    rssTitle: [Optional] A string. Default "some RSS Title".  Title of rssFeed.
+    rssLink: [Optional]   string: Default 'nothing.com'. <link> on generated rss
+    rssDescription: [Optional] A string. Default "Some RSS Description".
+    rssFilename: [Optional] A string. Default 'rssdownloadfeed.xml'. 
+        Where to save generated rss
+    saveFile: [Optional] A string option. Default savedstate.dat. History data.
+    lockPort: [Optional] An integer option. Default 8023. Port to lock saveFile
+    daemonInfo: [Optional] A string option. Default daemon.info. PID written here
+    umask: [Optional] An integer option. Default 63. Sets umask for file 
+        creation. (unix only). THIS MUST BE IN BASE10. 
+        0027 will be read as decimal 27, not octal 0027 aka decimal 23.
+        63 in octal is 0077. To convert quickly, 
+        just open the python interpreter (type 'python' at the command line), 
+        type the umask you want in octal (say 0022), press enter. 
+        The interpreter will spit out a number, this is your octal 
+        representation in decimal/base10. Note, the leading zeros are necessary 
+        for the conversion.  Do not edit this if you do not know what it does. 
     rss: DEPRECATED, will no longer be processed.
     error: DEPRECATED, wil no longer be processed. (yes, already)"""
     def __init__(self):
@@ -971,46 +1095,112 @@ class GlobalOptions(dict):
         self['rssDescription'] = u"Some RSS Description"
         self['rssFilename'] = u'rssdownloadfeed.xml'
         self['rssLength'] = 20
-        self['rssLink'] = u'somelink.com/%s' % self['rssFilename']
+        self['rssLink'] = u'nothing.com'
         self['rssTitle'] = u"some RSS Title"
         self['urllib'] = False
         self['cookieType'] = 'MozillaCookieJar'
-        self['sleepTime'] = 0
+        self['sleepTime'] = 1
         self['noClobber'] = True
         self['umask'] = 63 #0077
-        self['maxLogLength'] = 100
 
 class ThreadLink(dict):
     u"""    link: [Required] A string option. Link to the rss feed.
-    active:  [Optional] A boolean option. Default is True, set to False to disable checking of that feed.
-    maxSize: [Optional] An integer option, in MB. default is None. A thread based maxSize like in global. If set to None, will default to global's maxSize. Other values override global, including 0 to indicate no maxSize.
-    minSize: [Optional] An integer opton, in MB. default is None. A thread based minSize, like in global. If set to None, will default to global's minSize. Other values override global, including 0 to indicate no minSize.
-    noSave: [Optional] A boolean option. Default to False. If true, will remember download objects for the save processor on run, but does not download. If set to True, Must be set to False manually.
-    directory: [Optional] A string option. Default to None. If set, overrides global's downloadDir, directory to download download objects to.
-    checkTime<x>Day: [Optional] A string option. Either the standard 3 letter abbreviation of the day of the week, or the full name. One of Three options that will specify a scan time. the <x> is an integer. Will only scan the rss feed during the day specified. Can Further curtail scan time with Start and Stop (see next).
-    checkTime<x>Start: [Optional] An integer option. Default: 0. The hour (0-23) at which to start scanning on correlated day. MUST specify checkTime<x>Day.
-    checkTime<x>Stop: [Optional] An integer option. Default 23. The hour (0-23) at which to stop scanning on correlated day. MUST specify checkTime<x>Day.
-    regExTrue: [Optional] A string (regex) option. Default None. If specified, will only download if a regex search of the download name (title key in entry dictionary of feedparser instance) returns True. This will be converted to a python regex object. Use all lower case, as the name is converted to all lower case.
-    regExTrueOptions: [Optional] A string option. Default None. Options (like re.IGNORECASE) to go along with regExTrue when compiling the regex object. IGNORECASE is unnecessary however.
-    regExFalse: [Optional] A string (regex) option. Default None. If specified, will only download if a regex search of the download name returns False. This will be converted to a python regex object. Use all lower case, as the name is converted to all lower case.
-    regExFalseOptions: [Optional] A string option. Default None. Options (like re.IGNORECASE) to go along with regExFalse when compiling the regex object
-    postDownloadFunction: [Optional] A string option. Default None. The name of a function, stored in userFunctions.py found in the current working directory. Any changes to this requires a restart of RSSDler. Calls the named function in userFunctions after a successful download with arguments: directory, filename, rssItemNode, retrievedLink, downloadDict, threadName. Exception handling is up to the function, no exceptions are caught. Check docstrings (or source) of userFunctHandling and callUserFunction to see reserved words/access to RSSDler functions/classes/methods.
-    postScanFunction: [Optional] A string option. Default None. The name of a function, stored in userFunctions.py. Any changes to this requires a restart of RSSDler. Calls the named function after a scan of a feed with arguments, page, ppage, retrievedLink, and threadName. Exception Handling is up to the function, no exceptions are caught. Check docstrings of userFunctHandling and callUserFunctions for more information.
-    The following options are ignored if not set (obviously). But once set, they change the behavior of regExTrue (RET) and regExFalse (REF). Without specifying these options, if something matches RET and doesn't match REF, it is downloaded, i.e. RET and REF constitute sufficient conditions to download a file. Once these are specified, RET and REF become necessary (well, when download<x>(True|False) are set to True, or a string for False) but not sufficient conditions for any given download. If you set RET/REF to None, they are of course ignored and fulfill their 'necessity.' You can specify these options as many times as you like, by just changing <x> to another number. 
-    download<x>: [Optional] No default. This apparently  where <x> is an integer, this is a 'positive' hit regex. This is required for download<x>true and download<x>false.
-    download<x>False: [Optional] Default = True. However, this is not strictly a boolean option. True means you want to keep regExFalse against download<x>. If not, set to False, and there will be no 'negative' regex that will be checked against. You can also set this to a string (i.e. a regex) that will be a negative regex ONLY for the corresponding download<x>. Most strings are legal, however the following False/True/Yes/No/0/1 are reserved words when used alone and are interpreted, in a case insensitive manner as Boolean arguments. Requires a corresponding download<x> argument.
-    download<x>True. [Optional] A Boolean option. default True. True checks against regExTrue. False ignores regExTrue. Requires a corresponding download<x> argument.
-    download<x>Dir. [Optional] A String option. Default None. If specified, the first of the download<x> tuples to match up with the download name, downloads the file to the directory specified here. Full path is recommended.
-    download<x>Function. [Optional] A String option. Default None. just like postDownloadFunction, but will override it if specified.
-    download<x>MinSize. [Optional]. An Integer option. Default None. Analogous to minSize.
-    download<x>MaxSize. [Optional]. An integer option. Default None. Analogous to maxSize.
-    scanMins [Optional]. An integer option. Default 0. Sets the MINIMUM interval at which to scan the thread. If global is set to, say, 5, and thread is set to 3, the thread will still only be scanned every 5 minutes. Alternatively, if you have the thread set to 7 and global to 5, the actual interval will be 10. More formally, the effective scan time for each thread is, for X = global scanMins, Y = thread scanMins, Z = ttl Mins: min{nX | nX >= Y ; nX >= Z ; n \u2208 \u2115 }
+    active:  [Optional] A boolean option. Default True. Whether Feed is scanned.
+    maxSize: [Optional] An integer option, in MB. default is None. 
+        A thread based maxSize like in global. If set to None, will default to 
+        global's maxSize. 
+        Other values override global, including 0 to indicate no maxSize.
+    minSize: [Optional] An integer opton, in MB. default is None. 
+        A thread based minSize, like in global. If set to None, will default to 
+        global's minSize. 
+        Other values override global, including 0 to indicate no minSize.
+    noSave: [Optional] Boolean. Default: False. True: Never download seen files
+    directory: [Optional] A string option. Default to None. If set, 
+        overrides global's downloadDir, directory to download download objects.
+    checkTime<x>Day: [Optional] A string option. Scan only on specified day
+        Either the standard 3 letter abbreviation of the day of the week, 
+        or the full name. One of Three options that will specify a scan time. 
+        the <x> is an integer.
+    checkTime<x>Start: [Optional] An integer option. Default: 0. 
+        The hour (0-23) at which to start scanning on correlated day. 
+        MUST specify checkTime<x>Day.
+    checkTime<x>Stop: [Optional] An integer option. Default 23. 
+        The hour (0-23) at which to stop scanning on correlated day. 
+        MUST specify checkTime<x>Day.
+    regExTrue: [Optional] A string option. Default None. Case insensitive
+        If specified, will only download if a regex search of the download name
+    regExTrueOptions: [Optional] STRING. Default None. Python re.OPTIONS
+    regExFalse: [Optional] A string (regex) option. Default None. 
+        If specified, will only download if pattern not in name
+    regExFalseOptions: [Optional] A string option. Default None. re.OPTIONS
+    postDownloadFunction: [Optional] A string option. Default None. 
+        The name of a function, stored in userFunctions.py found in the current 
+        working directory. Any changes to this requires a restart of RSSDler. 
+        Calls the named function in userFunctions after a successful download 
+        with arguments: directory, filename, rssItemNode, retrievedLink, 
+        downloadDict, threadName. Exception handling is up to the function, 
+        no exceptions are caught. Check docstrings (or source) of 
+        userFunctHandling and callUserFunction to see reserved words/access to 
+        RSSDler functions/classes/methods.
+    postScanFunction: [Optional] A string option. Default None. 
+        The name of a function, stored in userFunctions.py. Any changes to this 
+        requires a restart of RSSDler. Calls the named function after a scan of 
+        a feed with arguments, page, ppage, retrievedLink, and threadName. 
+        Exception Handling is up to the function, no exceptions are caught. 
+        Check docstrings of userFunctHandling and callUserFunctions for more 
+        information.
+    The following options are ignored if not set (obviously). But once set, 
+        they change the behavior of regExTrue (RET) and regExFalse (REF). 
+        Without specifying these options, if something matches RET and doesn't 
+        match REF, it is downloaded, i.e. RET and REF constitute sufficient 
+        conditions to download a file. Once these are specified, RET and REF 
+        become necessary (well, when download<x>(True|False) are set to True, 
+        or a string for False) but not sufficient conditions for any given 
+        download. If you set RET/REF to None, they are of course ignored and 
+        fulfill their 'necessity.' You can specify these options as many times 
+        as you like, by just changing <x> to another number. 
+    download<x>: [Optional] No default. Where <x> is an integer,
+        This is a 'positive' hit regex. This is required for download<x>true and
+        download<x>false.
+    download<x>False: [Optional] Default = True. 
+        However, this is not strictly a boolean option. True means you want to 
+        keep regExFalse against download<x>. If not, set to False, and there 
+        will be no 'negative' regex that will be checked against. You can also 
+        set this to a string (i.e. a regex) that will be a negative regex ONLY 
+        for the corresponding download<x>. Most strings are legal, however the 
+        following False/True/Yes/No/0/1 are reserved words when used alone and 
+        are interpreted, in a case insensitive manner as Boolean arguments. 
+        Requires a corresponding download<x> argument.
+    download<x>True. [Optional] A Boolean option. default True. True checks 
+        against regExTrue. False ignores regExTrue. Requires a corresponding 
+        download<x> argument.
+    download<x>Dir. [Optional] A String option. Default None. If specified, the 
+        first of the download<x> tuples to match up with the download name, 
+            downloads the file to the directory specified here. Full path is 
+            recommended.
+    download<x>Function. [Optional] A String option. Default None. just like 
+        postDownloadFunction, but will override it if specified.
+    download<x>MinSize. [Optional]. An Integer option. Default None. 
+        Analogous to minSize.
+    download<x>MaxSize. [Optional]. An integer option. Default None. 
+        Analogous to maxSize.
+    scanMins [Optional]. An integer option. Default 0. Sets the MINIMUM 
+        interval at which to scan the thread. If global is set to, say, 5, and 
+        thread is set to 3, the thread will still only be scanned every 5 
+        minutes. Alternatively, if you have the thread set to 7 and global to 5,
+        the actual interval will be 10. More formally, the effective scan time 
+        for each thread is:
+        for X = global scanMins, Y = thread scanMins, Z = ttl Mins: 
+        min{nX | nX >= Y ; nX >= Z ; n \u2208 \u2115 }
     checkTime: DEPRECATED. Will no longer be processed.
     Programmers Note: 
         download<x>* stored in a DownloadItemConfig() Dict in .downloads. 
         checkTime* stored as tuple of (DoW, startHour, endHour)
     """ 
-    def __init__(self, name=None, link=None, active=True, maxSize=None, minSize=None, noSave=False, directory=None, regExTrue=None, regExTrueOptions=None, regExFalse=None, regExFalseOptions=None, postDownloadFunction=None, scanMins=0):
+    def __init__(self, name=None, link=None, active=True, maxSize=None, 
+        minSize=None, noSave=False, directory=None, regExTrue=None, 
+        regExTrueOptions=None, regExFalse=None, regExFalseOptions=None, 
+        postDownloadFunction=None, scanMins=0):
         dict.__init__(self)
         self['link'] = link
         self['active'] = active
@@ -1031,7 +1221,8 @@ class ThreadLink(dict):
 class SaveInfo(dict):
     u"""lastChecked: when we last checked the rss feeds
 downloads: list of urls to downloads that we have grabbed
-minScanTime: if feed has <ttl>, we register that fact here in a dictionary with threadName as key, and scanTime information as values
+minScanTime: if feed has <ttl>, we register that fact here in a dictionary with 
+threadName as key, and scanTime information as values
 failedDown: list of FailedItem instances to be re-attempted to download
 version: specifies which version of the program this was made with"""
     def __init__(self, lastChecked=0, downloads=[]):
@@ -1057,15 +1248,28 @@ class SaveProcessor(object):
         u"""saveFileName: location where we store persistence data
         lastChecked: seconds since epoch when we last checked the threads
         downloads: a list of download links, so that we do not repeat ourselves
-        minScanTime: a dictionary, keyed by rss link aka thread name, with values of tuples (x,y) where x=last scan time for that thread,
-            y=min scan time in minutes, only set if ttl is set in rss feed, otherwise respect checkTime and lastChecked
-        failedDown: a list of tuples (item link, threadname, rssItemNode, localized directory to download to (None if to use global) ). 
-        (ppage['entries'][i]['link'], threadName, ppage['entries'][i], dirTuple[1]) 
-        This means that the regex, at the time of parsing, identified this file as worthy of downloading, but there was some failure in the retrieval process. Size will be checked against the configuration state at the time of the redownload attempt, not the size configuration at the time of the initial download attempt (if there is a difference)
+        minScanTime: a dictionary, keyed by rss link aka thread name, with 
+            values of tuples (x,y) where x=last scan time for that thread,
+            y=min scan time in minutes, only set if ttl is set in rss feed, 
+            otherwise respect checkTime and lastChecked
+        failedDown: a list of tuples (item link, threadname, rssItemNode, 
+            localized directory to download to (None if to use global) ). 
+        (ppage['entries'][i]['link'], threadName, ppage['entries'][i], 
+            dirTuple[1]) 
+        This means that the regex, at the time of parsing, identified this file 
+            as worthy of downloading, but there was some failure in the 
+            retrieval process. Size will be checked against the configuration 
+            state at the time of the redownload attempt, not the size 
+            configuration at the time of the initial download attempt (if there 
+            is a difference)
         """
         object.__init__(self)
-        if saveFileName:    self.saveFileName = os.path.join( getConfig()['global']['workingDir'], saveFileName )
-        else: self.saveFileName = os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['saveFile'])
+        if saveFileName:
+            self.saveFileName = os.path.join( 
+                getConfig()['global']['workingDir'], saveFileName )
+        else: 
+            self.saveFileName = os.path.join(getConfig()['global']['workingDir']
+                , getConfig()['global']['saveFile'])
         self.lastChecked = 0
         self.downloads = []
         self.failedDown = []
@@ -1083,7 +1287,8 @@ class SaveProcessor(object):
         f = open(self.saveFileName, 'wb')
         pickle.dump(saveFile, f, -1)
     def load(self):
-        u"""take care of conversion from older versions here, then call save to store updates, then continue with loading."""
+        u"""take care of conversion from older versions here, 
+        then call save to store updates, then continue with loading."""
         f = open(self.saveFileName, 'rb')
         saveFile = pickle.load(f)
         if 'version' not in saveFile: self.version = u'0.2.4'
@@ -1095,7 +1300,8 @@ class SaveProcessor(object):
           not isinstance(saveFile['failedDown'][0], FailedItem)):
                 for link, threadName, itemNode, LDir  in saveFile['failedDown']:
                     failureDownDict = DownloadItemConfig(None, None, None, LDir)
-                    self.failedDown.append( FailedItem( link, threadName, itemNode, failureDownDict ) )
+                    self.failedDown.append( FailedItem( link, threadName, 
+                        itemNode, failureDownDict ) )
                 self.version = getVersion()
                 self.save()
         else: self.failedDown = saveFile['failedDown']
@@ -1103,16 +1309,16 @@ class SaveProcessor(object):
         # upgrade process should be complete, set to current version
         self.version = getVersion()
     def lock( self ):
-        u"""Portable locking mechanism. Binds to 'lockPort' as defined in config on
-        127.0.0.1.
-        Raises btrsslib.Locked if a lock already exists.
+        u"""Portable locking mechanism. Binds to 'lockPort' as defined in config
+        on 127.0.0.1.
+        Raises Locked if a lock already exists.
         """
         if self.lockSock:
             raise Locked
         try:
             self.lockSock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
-            self.lockSock.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR, 1 )
-            self.lockSock.bind( ('127.0.0.1', getConfig()['global']['lockPort']) )
+            self.lockSock.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.lockSock.bind(('127.0.0.1', getConfig()['global']['lockPort']))
             self.lockedState = True
         except socket.error:
             raise Locked
@@ -1124,14 +1330,14 @@ class SaveProcessor(object):
         except socket.error: pass
 
 def getConfig(reload=False, filename=None):
-    u"""Return a shared instance of the Config class (creating one if neccessary)"""
+    u"""Return an instance of the Config class (creating one if neccessary)"""
     global _configInstance
     if reload: _configInstance = None
     if not _configInstance: _configInstance = Config(filename)
     return _configInstance
 
 def getSaved( filename=None, unset=False):
-    u"""Return a shared instance of the SaveProcessor class creating one if needed"""
+    u"""Return an instance of the SaveProcessor class creating one if needed"""
     global saved
     if unset: saved = None
     elif not saved: saved = SaveProcessor(saveFileName=filename)
@@ -1175,111 +1381,162 @@ class Config(ConfigParser.SafeConfigParser, dict):
         for option in self.boolOptionsGlobal:
             try: 
                 if option.lower() in self.options('global'): 
-                    try: self['global'][option] = self.getboolean('global', option)
+                    try: self['global'][option]=self.getboolean('global',option)
                     except ValueError: 
-                        print >> sys.stderr, u'failed to parse option %s in global' % option
+                        print >> sys.stderr, u"""failed to parse option %s in \
+global""" % option
             except ConfigParser.NoSectionError, m:
                 raise SystemExit(unicodeC(m))
         for option in self.stringOptionsGlobal:
             if option.lower() in self.options('global'):
-                self['global'][option] = self._ifnone( self.get('global', option) )
+                self['global'][option] = self._ifnone(self.get('global',option))
         for option in self.intOptionsGlobal:
             if option.lower() in self.options('global'):
                 try: self['global'][option] = self.getint('global', option)
-                except ValueError: print >> sys.stderr, u'failed to parse option %s in global' % option
+                except ValueError: print >> sys.stderr, u"""failed to parse \
+option %s in global""" % option
         threads = self.sections()
         del threads[threads.index('global')]
         for thread in threads:
             self['threads'][thread] = ThreadLink()
             for option in self.boolOptionsThread:
                 if option.lower() in self.options(thread):
-                    try: self['threads'][thread][option] = self.getboolean(thread, option)
-                    except ValueError: print >> sys.stderr, u'failed to parse option %s in thread %s' % (option, thread)
+                    try: self['threads'][thread][option]=self.getboolean(thread,
+                        option)
+                    except ValueError: print >> sys.stderr, u"""failed to parse\
+ option %s in thread %s""" % (option, thread)
             for option in self.stringOptionsThread:
                 if option.lower() in self.options(thread):
-                    self['threads'][thread][option] = self._ifnone( self.get(thread, option) )
+                    self['threads'][thread][option]=self._ifnone(self.get(thread
+                        , option) )
             for option in self.intOptionsThread:
                 if option.lower() in self.options(thread):
-                    try: self['threads'][thread][option] = self.getint(thread, option)
-                    except ValueError: print >> sys.stderr, u'failed to parse option %s in thread %s' % (option, thread)
+                    try: self['threads'][thread][option] = self.getint(thread, 
+                        option)
+                    except ValueError: print >> sys.stderr, u"""failed to parse\
+ option %s in thread %s""" % (option, thread)
             #populate thread.downloads
-            downList = [ x for x in self.options(thread) if x.lower().startswith('download') ]
-            checkList = [ x for x in self.options(thread) if x.lower().startswith('checktime') ]
+            downList = [ x for x in self.options(thread) if 
+                x.lower().startswith('download') ]
+            checkList = [ x for x in self.options(thread) if
+                x.lower().startswith('checktime') ]
             downList.sort()
             for i in downList:
                 if i.lower().endswith('false'): 
-                    try: self['threads'][thread]['downloads'][-1]['False'] = self.getboolean(thread, i) # either boolean
-                    except ValueError: self['threads'][thread]['downloads'][-1]['False'] = self._ifnone( self.get(thread, i) ) # or a string
+                    try: self['threads'][thread]['downloads'][-1]['False'] = (
+                        self.getboolean(thread, i) )
+                    except ValueError: 
+                        self['threads'][thread]['downloads'][-1]['False'] = (
+                            self._ifnone( self.get(thread, i) ) )
                 elif i.lower().endswith('true'): 
-                    try: self['threads'][thread]['downloads'][-1]['True'] = self.getboolean(thread, i)
+                    try: self['threads'][thread]['downloads'][-1]['True'] = (
+                        self.getboolean(thread, i))
                     except ValueError: pass # let default holder
                 elif i.lower().endswith('dir'):
-                    self['threads'][thread]['downloads'][-1]['Dir'] = self._ifnone( self.get(thread, i) )
+                    self['threads'][thread]['downloads'][-1]['Dir'] = (
+                        self._ifnone( self.get(thread, i) ))
                 elif i.lower().endswith('maxsize'):
-                    try: self['threads'][thread]['downloads'][-1]['maxSize'] = self.getint(thread, i)
+                    try: self['threads'][thread]['downloads'][-1]['maxSize'] = (
+                        self.getint(thread, i))
                     except ValueError: pass
                 elif i.lower().endswith('minsize'):
-                    try: self['threads'][thread]['downloads'][-1]['minSize'] = self.getint(thread, i)
+                    try: self['threads'][thread]['downloads'][-1]['minSize'] = (
+                        self.getint(thread, i))
                     except ValueError: pass
                 elif i.lower().endswith('function'):
-                    self['threads'][thread]['downloads'][-1]['Function'] = self._ifnone( self.get(thread, i) )
-                else: self['threads'][thread]['downloads'].append( DownloadItemConfig( self.get(thread, i) ) ) # regex'd, would fail with None
+                    self['threads'][thread]['downloads'][-1]['Function'] = (
+                        self._ifnone( self.get(thread, i) ))
+                else: self['threads'][thread]['downloads'].append( 
+                    DownloadItemConfig( self.get(thread, i) ) )
             checkList.sort()
             for j in checkList:
                 optionCheck = self.get(thread, j)
                 if j.endswith('day'):
                     if self.dayList.count(optionCheck.capitalize()): 
-                        self['threads'][thread]['checkTime'].append( [self.dayList.index(optionCheck.capitalize()) % 7 , 0, 23] )
-                    else: raise Exception, u"Could not identify valid day of the week for %s" % optionCheck
+                        self['threads'][thread]['checkTime'].append(
+                            [self.dayList.index(optionCheck.capitalize()) % 7,
+                            0,23] )
+                    else: raise Exception, u"""Could not identify valid day of \
+the week for %s""" % optionCheck
                 elif j.endswith('start'): 
-                    self['threads'][thread]['checkTime'][-1][1] = int(optionCheck)
-                    if self['threads'][thread]['checkTime'][-1][1] > 23: self['threads'][thread]['checkTime'][-1][1] = 23
-                    elif self['threads'][thread]['checkTime'][-1][1] < 0: self['threads'][thread]['checkTime'][-1][1] = 0
+                    self['threads'][thread]['checkTime'][-1][1]=int(optionCheck)
+                    if self['threads'][thread]['checkTime'][-1][1] > 23: 
+                        self['threads'][thread]['checkTime'][-1][1] = 23
+                    elif self['threads'][thread]['checkTime'][-1][1] < 0: 
+                        self['threads'][thread]['checkTime'][-1][1] = 0
                 elif j.endswith('stop'): 
-                    self['threads'][thread]['checkTime'][-1][2] = int(optionCheck)
-                    if self['threads'][thread]['checkTime'][-1][2] > 23: self['threads'][thread]['checkTime'][-1][2] = 23
-                    elif self['threads'][thread]['checkTime'][-1][2] < 0: self['threads'][thread]['checkTime'][-1][2] = 0
+                    self['threads'][thread]['checkTime'][-1][2]=int(optionCheck)
+                    if self['threads'][thread]['checkTime'][-1][2] > 23: 
+                        self['threads'][thread]['checkTime'][-1][2] = 23
+                    elif self['threads'][thread]['checkTime'][-1][2] < 0: 
+                        self['threads'][thread]['checkTime'][-1][2] = 0
     def _ifnone(self, option):
         if option == '' or option.lower() == 'none': return None
         else: return option
     def check(self):
         global mechanize
         if not self['global']['urllib'] and not mechanize:
-            print >> sys.stderr, 'Using urllib2 instead of mechanize. setting urllib = True'
+            print >> sys.stderr, """Using urllib2 instead of mechanize. setting\
+ urllib = True"""
             self['global']['urllib'] = True
-        if 'saveFile' not  in self['global'] or self['global']['saveFile'] == None:
+        if self['global']['saveFile'] == None:
             self['global']['saveFile'] = u'savedstate.dat'
-        if 'downloadDir' not in self['global'] or self['global']['downloadDir'] == None:
-            raise SystemExit(u"Must specify downloadDir in [global] config\nInvalid configuration, no download directory")
+        if self['global']['downloadDir'] == None:
+            raise SystemExit(u"""Must specify downloadDir in [global] config
+Invalid configuration, no download directory""")
         if 'runOnce' not in self['global'] or self['global']['runOnce'] == None:
             self['global']['runOnce'] = False
-        if 'scanMins' not in self['global'] or self['global']['scanMins'] == None:
+        if self['global']['scanMins'] == None:
             self['global']['scanMins'] = 15
-        if self['global']['cookieType'] == 'MSIECookieJar' and self['global']['urllib']:
-            raise SystemExit( u"Cannot use MSIECookieJar with urllib = True. Choose one or the other. May be caused by failed mechanize import. Incompatible configuration, IE cookies must use mechanize. please install and configure mechanize")
-        if self['global']['cookieType'] not in ['MSIECookieJar' ,'LWPCookieJar' , 'MozillaCookieJar' ]:
-            raise SystemExit(u'Invalid cookieType option: %s. Only MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...' % self['global']['cookieType'])
-        if 'lockPort' not in self['global'] or self['global']['lockPort'] == None:
+        if (self['global']['cookieType'] == 'MSIECookieJar' and 
+            self['global']['urllib']):
+            raise SystemExit( u"""Cannot use MSIECookieJar with urllib = True. \
+Choose one or the other. May be caused by failed mechanize import. Incompatible\
+ configuration, IE cookies must use mechanize. please install and configure\
+ mechanize""")
+        if self['global']['cookieType'] not in ['MSIECookieJar' ,
+            'LWPCookieJar' , 'MozillaCookieJar' ]:
+            raise SystemExit(u"""Invalid cookieType option: %s. Only \
+MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...
+""" % self['global']['cookieType'])
+        if self['global']['lockPort'] == None:
             self['global']['lockPort'] = 8023
-        if 'log' in self['global'] and self['global']['log']:
-            if 'logFile' not in self['global'] or self['global']['logFile'] == None:
+        if ( 'log' in self['global'] and self['global']['log'] and 
+            self['global']['logFile'] == None ):
                 self['global']['logFile'] = u'downloads.log'
         # check all directories to make sure they exist. Ask for creation?
         if self['global']['downloadDir']:
-            if not os.path.isdir( os.path.join(self['global']['workingDir'], self['global']['downloadDir']) ):
-                try: os.mkdir( os.path.join(self['global']['workingDir'], self['global']['downloadDir']) )
+            if not os.path.isdir( os.path.join(self['global']['workingDir'], 
+                self['global']['downloadDir']) ):
+                try: os.mkdir( os.path.join(self['global']['workingDir'], 
+                    self['global']['downloadDir']) )
                 except OSError, m: 
-                    raise SystemExit(unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']))
+                    raise SystemExit(unicodeC(m) + os.linesep + u"""Could not \
+find path %s and could not make a directory there. Please make sure this path \
+is correct and try creating the folder with proper permissions for me
+""" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']))
         for thread in self['threads']:
-            if self['threads'][thread]['directory'] and not os.path.isdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) ):
-                try: os.mkdir( os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']) )
+            if self['threads'][thread]['directory'] and not os.path.isdir( 
+                os.path.join(self['global']['workingDir'], 
+                self['threads'][thread]['directory']) ):
+                try: os.mkdir( os.path.join(self['global']['workingDir'], 
+                    self['threads'][thread]['directory']) )
                 except OSError, m: 
-                    raise SystemExit(unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], self['threads'][thread]['directory']))
+                    raise SystemExit(unicodeC(m) + os.linesep + u"""Could not \
+find path %s and could not make a directory there. Please make sure this path \
+is correct and try creating the folder with proper permissions for me\
+""" % os.path.join(self['global']['workingDir'], 
+        self['threads'][thread]['directory']))
             for downDict in self['threads'][thread]['downloads']:
-                if downDict['Dir'] and not os.path.isdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) ):
-                    try: os.mkdir( os.path.join(self['global']['workingDir'], downDict['Dir'] ) )
+                if downDict['Dir'] and not os.path.isdir( 
+                    os.path.join(self['global']['workingDir'],downDict['Dir'])):
+                    try: os.mkdir( os.path.join(self['global']['workingDir'], 
+                        downDict['Dir'] ) )
                     except OSError, m:
-                        raise SystemExit(unicodeC(m) + os.linesep + u"Could not find path %s and could not make a directory there. Please make sure this path is correct and try creating the folder with proper permissions for me" % os.path.join(self['global']['workingDir'], downDict['Dir'] ))
+                        raise SystemExit(unicodeC(m) + os.linesep + u"""Could \
+not find path %s and could not make a directory there. Please make sure this \
+path is correct and try creating the folder with proper permissions for me\
+""" % os.path.join(self['global']['workingDir'], downDict['Dir'] ))
     def save(self):
         fd = codecs.open(self.filename, 'w', 'utf-8')
         fd.write("%s%s" %('[global]', os.linesep))
@@ -1287,8 +1544,9 @@ class Config(ConfigParser.SafeConfigParser, dict):
         keys.sort()
         for key in keys:
             if key == 'rss': continue # rss option deprecated
-            if self['global'][key] == GlobalOptions()[key]: continue # don't write defaults
-            fd.write("%s = %s%s" % (key, unicodeC(self['global'][key]), os.linesep))
+            if self['global'][key] == GlobalOptions()[key]: continue #
+            fd.write("%s = %s%s" % (key, unicodeC(self['global'][key]), 
+                os.linesep))
         fd.write(os.linesep)
         threads = self['threads'].keys()
         threads.sort()
@@ -1329,15 +1587,26 @@ class Config(ConfigParser.SafeConfigParser, dict):
 # User/InterProcess Communication
 # # # # #
 def callUserFunction( functionName, *args ):
-    u"""calls the named function in userFunctions with arguments (these are positional, not keyword, arguments): 
-    if postDownloadFunction: directory, filename, rssItemNode, retrievedLink, downloadDict, threadName
+    u"""calls the named function in userFunctions with arguments 
+    (these are positional, not keyword, arguments): 
+    if postDownloadFunction: directory, filename, rssItemNode, retrievedLink, 
+        downloadDict, threadName
     if postScanFunction: page, ppage, retrievedLink, and threadName 
     directory: name of the directory the file was saved to
     filename: name of the file the downloaded data was saved to
-    rssItemNode: the feedparser entry for the item we are downloading. This will have been altered such that the original ['link'] element is now at ['oldlink'] and the ['link'] element has been made to be friendly with urllib2RetrievePage and mechRetrievePage
-    retrievedLink: the resultant url from the retrieval. May be different from ['link'] and ['oldlink'] in a number of ways (percent quoting and character encoding, in particular, plus any changes to the url from server redirection, etc.)
-    downloadDict: a dictionary representing the download<x> options. keys are: 'localTrue' (corresponding to download<x>) ; 'False' ; 'True' ; 'Dir' ; 'minSize' ; and 'maxSize' corresponding to their analogues in download<x>.
-    threadName: the name of the config entry. to be accessed like getConfig()['threads'][threadName]
+    rssItemNode: the feedparser entry for the item we are downloading. 
+        This will have been altered such that the original ['link'] element is 
+        now at ['oldlink'] and the ['link'] element has been made to be friendly
+        with urllib2RetrievePage and mechRetrievePage
+    retrievedLink: the resultant url from the retrieval. May be different from 
+        ['link'] and ['oldlink'] in a number of ways (percent quoting and 
+        character encoding, in particular, plus any changes to the url from 
+        server redirection, etc.)
+    downloadDict: a dictionary representing the download<x> options. keys are: 
+        'localTrue' (corresponding to download<x>) ; 'False' ; 'True' ; 'Dir' ; 
+        'minSize' ; and 'maxSize' corresponding to their names in download<x>.
+    threadName: the name of the config entry. to be accessed like 
+        getConfig()['threads'][threadName]
     
     page: the raw feed fetched from the server
     ppage: the feedparser parsed feed
@@ -1357,8 +1626,10 @@ def userFunctHandling():
     Reserved words: 'Config', 'ConfigParser', 'DownloadItemConfig', 'FailedItem', 'Fatal', 'GlobalOptions', 'Locked', 'Log', 'MAXFD', 'MakeRss', 'ReFormatString', 'SaveInfo', 'SaveProcessor', 'SharedData', 'ThreadLink', 'Warning', '_USER_AGENT', '__author__', '__copyright__', '__file__', '__version__', '_action', '_bdecode', '_configInstance', '_log', '_runOnce', '_sharedData', 'bdecode', 'callDaemon', 'checkFileSize', 'checkRegEx', 'checkRegExDown', 'checkRegExGFalse', 'checkRegExGTrue', 'checkScanTime', 'checkSleep', 'cj', 'cliOptions', 'codecs', 'commentConfig', 'config', 'configFile', 'configFileNotes', 'cookieHandler', 'cookielib', 'copy', 'createDaemon', 'create_string_buffer', 'deque', 'downloadFile', 'downloader', 'encodeQuoteUrl', 'feedparser', 'findNewFile', 'getConfig', 'getFileSize', 'getFilenameFromHTTP', 'getSharedData', 'getVersion', 'getopt', 'helpMessage', 'httplib', 'killDaemon', 'logMsg', 'logStatusMsg', 'main', 'mechRetrievePage', 'mechanize', 'mimetypes', 'minidom', 'mybdecode', 'mydeque', 'nonCoreDependencies', 'opener', 'os', 'percentIsQuoted', 'percentNeedsQuoted', 'percentQuote', 'percentQuoteCustom', 'percentQuoteDict', 'percentUnQuote', 'percentunQuoteDict', 'pickle', 'random', 're', 'resource', 'rss', 'rssparse', 'run', 'saved', 'searchFailed', 'securityIssues', 'signal', 'signalHandler', 'socket', 'status', 'struct', 'sys', 'time', 'unQuoteReQuote', 'urllib', 'urllib2', 'urllib2RetrievePage', 'urlparse', 'utfWriter', 'windll', 'writeNewFile', 'xmlEscape', 'xmlUnEscape'
     check docstrings/source for use notes on these reserved words."""
     global userFunctions
-    # to generate if userFunctions part, add ", " to end of global list, then feed to sed: 
-    # echo globalList | sed -r 's/([a-zA-Z0-9_]*), /userFunctions.\1 = \1\n/g' | xclip, paste below
+    # to generate if userFunctions part, add ", " to end of global list, 
+    # then feed to sed: 
+    # echo globalList | sed -r 's/([a-zA-Z0-9_]*), /userFunctions.\1 = \1\n/g' \
+    # | xclip, paste below
     if not userFunctions:
         for threadKey in getConfig()['threads'].keys():
             if getConfig()['threads'][threadKey]['postDownloadFunction'] or getConfig()['threads'][threadKey]['postScanFunction']:
@@ -1375,123 +1646,6 @@ def userFunctHandling():
     return globalList
 
 
-class ReFormatString(object):
-    u"""takes a string or filename, and formats it (somewhat) smartly 
-    so that line overflows are indented for easier reading, and doesn't get
-   longer than terminal width 
-   (may not be fully crossplatform compatible. width defaults to 80)"""
-    def __init__(self, inputstring=None, filename=None, linesep=os.linesep, lineLength=None, indent=' '*4, comment=None):
-        object.__init__(self)
-        if not inputstring and not filename: 
-            raise Exception, u"must provide at least a filename or inputstring"
-        elif inputstring and filename: 
-            raise Exception, u"cannot provide a filename AND inputstring"
-        if inputstring: self.inputstring = inputstring
-        elif filename:
-            fd = codecs.open(filename, 'r', 'utf-8')
-            self.inputstring= fd.read()
-            fd.close()
-            del fd
-        else: self.inputstring = None
-        self.linesep = linesep
-        self.lineLength = self._getLineWidth()
-        self.indent= indent
-        self.comment = None
-        lines = self.inputstring.splitlines()
-        outList = []
-        for line in lines:
-            lineText = line.lstrip()
-            indentLine = self.getIndent( line )
-            indentNum = self.getNumIndent( indentLine, indent=self.indent )
-            newLines = self.produceLinesWithOutIndents( lineText, indentNum, len(self.indent), lineLength=self.lineLength )
-            outList.extend( self.addIndentToLines(newLines, self.indent, indentNum ) )
-        self.outString = self.linesep.join(outList)
-    def __str__(self):
-        return self.outString
-    def delString(self, string, start, stop=None):
-        u"""delete a string slice, does not take slice objects though"""
-        if stop == None: stop = start +1
-        retStr = string[:start]
-        retStr += string[stop:]
-        return retStr
-    def getIndent(self, aStr ):
-        indentLine = ''
-        for i in xrange( len(aStr) ):
-            if aStr[i].isspace():   indentLine += aStr[i]
-            else: break
-        return indentLine
-    def getNumIndent(self, indentLine, indent=' '*4 ):
-        indentNum = 0
-        if not indentLine: return indentNum
-        indentNum = indentLine.count('\t')
-        for i in xrange(indentLine.count('\t')):
-            indentLine = self.delString(indentLine, indentLine.index('\t') )
-        while indentLine:
-            if indentLine.startswith(indent):
-                indentNum += 1
-                indentLine = self.delString( indentLine, 0, len(indent) )
-            else:
-                indentNum += 1
-                break
-        return indentNum
-    def produceLinesWithOutIndents(self, lineText, indentNum, indentLength, lineLength=80 ):
-        TextAllowed = lineLength - ( indentNum*indentLength )
-        if len(lineText) <= TextAllowed:    return [ lineText ]
-        newLines = []
-        firstRunBreak = True
-        while lineText:
-            if len(lineText) <= TextAllowed: 
-                newLines.append( lineText )
-                break
-            for pos in xrange(TextAllowed-1, -1, -1):
-                if lineText[pos] in [' ', '\t',]:
-                    lineBreakNum = pos
-                    break
-            else: lineBreakNum = TextAllowed
-            newLines.append( lineText[:lineBreakNum] )
-            lineText = lineText[lineBreakNum+1:]
-            if firstRunBreak: 
-                TextAllowed -= indentLength
-                firstRunBreak = False
-        return newLines
-    def addIndentToLines(self, lineList, indent, indentNum):
-        returnList = []
-        firstRunBuild = True
-        for addLine in lineList:
-            if firstRunBuild:
-                returnList.append( indent*indentNum + addLine )
-                firstRunBuild = False
-                continue
-            returnList.append( indent*(indentNum + 1 ) + addLine )
-        return returnList
-    def _getLineWidth(self):
-        width = 80
-        if os.name == u'posix' or os.name == u'mac' or os.name == u'os2':
-          try: width=int(re.search(':co#(\d+)', os.environ['TERMCAP']).group(1))
-          except (ValueError, IndexError, KeyError):
-            try:
-                a,b,c = os.popen3('stty size')
-                width = int(b.read().split()[1])
-            except (ValueError, IndexError): pass
-          return width
-        elif os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
-            global windll, create_string_buffer, struct
-            try: windll, create_string_buffer, struct   
-            except ImportError:
-                try: 
-                    from ctypes import windll, create_string_buffer
-                    import struct
-                except ImportError, m: return width
-            #from http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/440694
-            h = windll.kernel32.GetStdHandle(-12)
-            csbi = create_string_buffer(22)
-            res = windll.kernel32.GetConsoleScreenBufferInfo(h, csbi)
-            if res:
-                (bufx, bufy, curx, cury, wattr, left, top, right, bottom, maxx, 
-                  maxy) = struct.unpack("hhhhHhhhhhh", csbi.raw)
-                width = right - left + 1
-        return width
-        
 def getVersion():
     u"""returns the version of the program"""
     global __version__
@@ -1500,49 +1654,45 @@ def getVersion():
 def noprint(*args, **kwds): 
     pass
 
-class fkout(object):
-    write=flush=close=noprint
-
-class Logging(object):
-    debug = error = warning = info = debug = noprint
+class Fkout(object):
+    debug=error=warning=info=debug=write=flush=close=noprint
 
 class LevelFilter(logging.Filter):
-    def __init__(self, levels):
-        self.level = levels
-    def filter(self, record):
+    def __init__(self, levels): self.level = levels
+    def filter(self, record): 
         return self.level[0] <=  record.levelno <= self.level[1]
 
 def make_handler2(h, f, l, *o):
     handler = h(*o)
-    fmtr = logging.Formatter(f)
-    handler.setFormatter(fmtr)
+    handler.setFormatter(logging.Formatter(f))
     handler.addFilter(LevelFilter(l))
     return handler
 
 def setLogging(reset=False):
     global _action, logging
-    if _action == 'daemon': sys.stderr = sys.stdout = fkout()
-    if not (getConfig()['global']['log'] or getConfig()['global']['verbose']):
-        logging = Logging()
-        return
+    if _action == 'daemon': sys.stderr = sys.stdout = Fkout()
     z = {0:0, 1:50, 2:40, 3:30, 4:20, 5:10}
     v = z[getConfig()['global']['verbose']]
     l = z[getConfig()['global']['log']]
-    if isinstance(logging, Logging): import logging
+    if not (v or l): 
+        logging = Fkout()
+        return
+    if isinstance(logging, Fkout): import logging
     elif reset: reload(logging)
-    logging.basicConfig(level=10, datefmt='%Y%m%d.%H:%M', stream=fkout())
+    logging.basicConfig(level=10, datefmt='%Y%m%d.%H:%M', stream=Fkout())
     if v:
         logging.getLogger('').addHandler(make_handler2(logging.StreamHandler,
-            '%(levelname)s %(message)s', [max(30,v),50], sys.stderr))
+            '%(levelname)s %(message)s', [max(40,v),50], sys.stderr))
         logging.getLogger('').addHandler(make_handler2(logging.StreamHandler,
-            '%(levelname)s %(message)s', [max(v,10),20], sys.stdout))
+            '%(levelname)s %(message)s', [max(v,10),30], sys.stdout))
     if l:
         logging.getLogger('').addHandler(make_handler2(logging.FileHandler,
             '%(asctime)s %(levelname)-8s %(message)s', [max(l,10),50], 
             getConfig()['global']['logFile'],'a'))
 
 def logStatusMsg( msg, level, config=True ):
-    u"""write a message to the log/stdout/stderr, depending on the level. if config=False, goes straight to stderr"""
+    u"""write a message to the log/stdout/stderr, depending on the level. 
+    if config=False, goes straight to stderr"""
     l =  {1:logging.critical, 2:logging.error, 3:logging.warn,
         4:logging.info, 5:logging.debug}
     if not config: # daemon == no stdout/err!
@@ -1556,7 +1706,9 @@ def isRunning(file=None):
     u"""Returns pid of another rssdler, if running with current config. 0 if not
     POSIX only."""
     pid = 0
-    if not file: file = os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo'])
+    if not file: 
+        file = os.path.join(getConfig()['global']['workingDir'], 
+            getConfig()['global']['daemonInfo'])
     try: pid = int(codecs.open( file, 'r', 'utf-8').read())
     except (TypeError, ValueError, IOError), m: pass
     if not pid: return 0
@@ -1567,7 +1719,8 @@ def isRunning(file=None):
         if 'No such process' in state: return 0 # process died
         else: return pid #means we do not have the perms on the pid, 
 def killDaemon( pid ):
-    u"""kills the daemon. do not call from within a running instance of main(). it could loop forever"""
+    u"""kills the daemon. do not call from within a running instance of main().
+    it could loop forever"""
     while True:
         getSaved()
         try:
@@ -1579,7 +1732,8 @@ def killDaemon( pid ):
             del saved
             print( u"Save Processor is in use, waiting for it to unlock" )
             time.sleep(2)
-    try:  codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
+    try:  codecs.open(os.path.join(getConfig()['global']['workingDir'], 
+        getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
     except IOError, m: print('could not rewrite pidfile %s' % pidfile)
     os.kill(pid,9)
 
@@ -1617,17 +1771,20 @@ def callDaemon():
     retCode = createDaemon()
 
 def signalHandler(signal, frame):
-    u"""take the signal, find a stopping point for the program (ok, the signal kills all processing, so save current state, maybe make threaded?) then exit."""
+    u"""take the signal, find a stopping point for the program 
+    (ok, the signal kills all processing, so save current state) then exit."""
     global rss
     if isinstance(getSaved(), SaveProcessor):  
-        # signal will be blocked by i/o, so we are safe in terms of the saved file will be fully read, files written, then signal passed
+        # signal will be blocked by i/o, so we are safe in terms of the saved 
+        # file will be fully read, files written, then signal passed
         getSaved().save()
         try: getSaved().unlock()
         except: pass #we'll unlock when we exit in two seconds
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
         rss.write()
-    try: codecs.open(os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
+    try: codecs.open(os.path.join(getConfig()['global']['workingDir'],
+        getConfig()['global']['daemonInfo']), 'w', 'utf-8').write('')
     except IOError, m: pass
     raise SystemExit, u"exiting due to exit signal %s" % signal
 
@@ -1703,7 +1860,9 @@ def rssparse(tName):
 def checkScanTime( threadName , failed=False):
     u"""looks for a reason to not scan the thread, through minScanTime, checkTime."""
     if threadName in getSaved().minScanTime and getSaved().minScanTime[threadName ][0]  > ( int(time.time()) - getSaved().minScanTime[threadName][1]*60 ):
-        logStatusMsg(u"""RSS feed "%s" has indicated that we should wait greater than the scan time you have set in your configuration. Will try again at next configured scantime""" % threadName, 4)
+        logStatusMsg(u"""RSS feed "%s" has indicated that we should wait \
+greater than the scan time you have set in your configuration. Will try again \
+at next configured scantime""" % threadName, 4)
         return False
     if not failed and len(getConfig()['threads'][threadName]['checkTime']) != 0: # if it was from failed, don't worry about user set scan time
         timeTuple = time.localtime().tm_wday, time.localtime().tm_hour
@@ -1727,7 +1886,8 @@ def run():
     global saved, rss, downloader, _action
     getConfig(filename=configFile, reload=True)
     setLogging(True)
-    if isinstance(getConfig()['global']['umask'], int): os.umask( getConfig()['global']['umask'] )
+    if isinstance(getConfig()['global']['umask'], int): 
+        os.umask( getConfig()['global']['umask'] )
     if getConfig()['global']['urllib']: downloader  = urllib2RetrievePage
     else: downloader = mechRetrievePage
     getSaved(unset=1)
@@ -1737,29 +1897,37 @@ def run():
         logStatusMsg( u"Savefile is currently in use.", 2 )
         raise Locked
     try: getSaved().load()
-    except (EOFError, IOError, ValueError, IndexError), m: logStatusMsg(unicodeC(m) + os.linesep + u"didn't load SaveProcessor. Creating new saveFile.", 1)
+    except (EOFError, IOError, ValueError, IndexError), m: 
+        logStatusMsg(unicodeC(m) + os.linesep + u"""didn't load SaveProcessor. \
+Creating new saveFile.""", 1)
     logStatusMsg(u"checking working dir, maybe changing dir", 5)
-    if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): os.chdir(getConfig()['global']['workingDir'])
+    if os.getcwd() != getConfig()['global']['workingDir'] or (os.getcwd() != 
+        os.path.realpath( getConfig()['global']['workingDir'] )): 
+            os.chdir(getConfig()['global']['workingDir'])
     sys.path.insert(0, getConfig()['global']['workingDir']) # import userFunct
-    if getConfig()['global']['runOnce'] and getSaved().lastChecked > ( int(time.time()) - (getConfig()['global']['scanMins']*60) ):
+    if getConfig()['global']['runOnce'] and ( getSaved().lastChecked > 
+        ( int(time.time()) - (getConfig()['global']['scanMins']*60) )):
         raise  SystemExit(u"Threads have already been scanned.")
     if getConfig()['global']['rssFeed']:
         logStatusMsg(u'trying to generate rss feed', 5)
         if getConfig()['global']['rssFilename']:
             logStatusMsg(u'rss filename set', 5)
-            rss = MakeRss(filename=getConfig()['global']['rssFilename'], itemsQuaDictBool=True)
+            rss = MakeRss(filename=getConfig()['global']['rssFilename'], 
+                itemsQuaDictBool=True)
             if os.path.isfile( getConfig()['global']['rssFilename'] ):
                 logStatusMsg(u'loading rss file', 5)
                 rss.parse()
-            rss.channelMeta['title'] = getConfig()['global']['rssTitle']
-            rss.channelMeta['description'] = getConfig()['global']['rssDescription']
-            rss.channelMeta['link'] = getConfig()['global']['rssLink']
-        else:       logStatusMsg(u"no rssFilename set, cannot write feed to a file")
+            (rss.channelMeta['title'], rss.channelMeta['description'], 
+                rss.channelMeta['link'] ) = (getConfig()['global']['rssTitle'],
+                getConfig()['global']['rssDescription'], 
+                getConfig()['global']['rssLink'])
+        else:  logStatusMsg(u"no rssFilename set, cannot write feed to a file")
     userFunctHandling()
     if getSaved().failedDown:
         logStatusMsg(u"Scanning previously failed downloads", 4)
         for i in  xrange( len( getSaved().failedDown) - 1, -1, -1 ):
-            if not checkScanTime( getSaved().failedDown[i]['threadName'], failed=1 ): continue
+            if not checkScanTime(getSaved().failedDown[i]['threadName'],
+                failed=1): continue
             logStatusMsg(u"  Attempting to download %s" % getSaved().failedDown[i]['link'], 4 )
             if downloadFile( **getSaved().failedDown[i] ):
                 logStatusMsg(u"Success!", 4)
@@ -1769,8 +1937,7 @@ def run():
                 logStatusMsg(u"Failure on %s in failedDown" % getSaved().failedDown[i]['link'], 4)
     logStatusMsg( u"Scanning threads", 4 )
     for key in getConfig()['threads'].keys():
-        if getConfig()['threads'][key]['active'] == False:  continue    # ignore inactive threads
-        # if they specified a checkTime value, make sure we are in the specified range
+        if not getConfig()['threads'][key]['active']:  continue 
         if not checkScanTime( key, failed=False): continue
         logStatusMsg( u"finding new downloads in thread %s" % key, 4 )
         rssparse(key) 
@@ -1819,10 +1986,32 @@ def main( ):
     
 
 
-helpMessage=u"""RSSDler is a Python based program to automatically grab the link elements of an rss feed, aka an RSS broadcatcher. 
-It happens to work just fine for grabbing RSS feeds of torrents, so called torrent broadcatching. It may also used with podcasts and such. Though designed with an eye toward rtorrent, it should work with any torrenting program that can read torrent files written to a directory. It does not explicitly interface with rtorrent in anyway and therefore has no dependency on it. You can find the webpage here: http://code.google.com/p/rssdler/
+helpMessage=u"""RSSDler is a Python based program to automatically grab the 
+    link elements of an rss feed, aka an RSS broadcatcher. 
 
-Effort has been put into keeping the program from crashing from random errors like bad links and such. However, some of the exceptions caught are too broad and keep users from knowing what is wrong with their configuration, though this problem should be significantly mitigated by the new verbosity options. Try to be careful when setting up your configuration file. If you are having problems, try to start with a very basic setup and slowly increase its complexity. You need to have a basic understanding of regular expressions to setup the regex and download<x> options, which is probably necessary to broadcatch in an efficient manner. If you do not know what and/or how to use regular expressions, google is your friend. There are literally dozens of tutorials and documentation on the subject with a range of difficulty levels from beginner to expert. If you are having problems that you believe are RSSDler's fault, post an issue at: http://code.google.com/p/rssdler/issues/list or post a message on: http://groups.google.com/group/rssdler. Please be sure to include as much information as you can.
+http://code.google.com/p/rssdler/
+
+It happens to work just fine for grabbing RSS feeds of torrents, so called 
+    torrent broadcatching. It may also used with podcasts and such. 
+    Though designed with an eye toward rtorrent, it should work with any
+    torrenting program that can read torrent files written to a directory. It 
+    does not explicitly interface with rtorrent in anyway and therefore has no 
+    dependency on it. 
+
+
+Effort has been put into keeping the program from crashing from random errors
+    like bad links and such. Try to be careful when setting up your 
+    configuration file. If you are having problems, try to start with a very
+    basic setup and slowly increase its complexity. You need to have a basic 
+    understanding of regular expressions to setup the regex and download<x> 
+    options, which is probably necessary to broadcatch in an efficient manner.
+    If you do not know what and/or how to use regular expressions, google is 
+    your friend. There are literally dozens of tutorials and documentation on 
+    the subject with a range of difficulty levels from beginner to expert. If 
+    you are having problems that you believe are RSSDler's fault, post an issue:
+    http://code.google.com/p/rssdler/issues/list or post a message on: 
+    http://groups.google.com/group/rssdler. Please be sure to include as much 
+    information as you can.
 
 %s
 
@@ -1860,7 +2049,10 @@ Author: %s
 def _main(arglist):
     signal.signal(signal.SIGINT, signalHandler)
     try: 
-        (argp, rest) =  getopt.gnu_getopt(arglist[1:], "sdfrokc:h", longopts=["state", "daemon", "full-help", "run", "runonce", "kill", "config=", "set-default-config=", "help", "list-failed", "list-saved", "purged-saved", "purge-failed", "comment-config"])
+        (argp, rest) =  getopt.gnu_getopt(arglist[1:], "sdfrokc:h", 
+            longopts=["state", "daemon", "full-help", "run", "runonce", "kill", 
+            "config=", "set-default-config=", "help", "list-failed", 
+            "list-saved", "purged-saved", "purge-failed", "comment-config"])
     except  getopt.GetoptError:
             print >> sys.stderr, helpMessage
             sys.exit(1)
@@ -1884,7 +2076,6 @@ def _main(arglist):
         elif param == "--comment-config": _action = 'comment-config'
             
     if _action == 'comment-config':
-        # do not use ReFormatString b/c we want to preserve lines for e.g. > sample.cfg
         print(commentConfig)
         raise SystemExit
     elif _action == "daemon":
@@ -1892,15 +2083,16 @@ def _main(arglist):
         if os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
             print >> sys.stderr,  u"daemon mode not supported on Windows. will try to continue, but this is likely to crash"
         elif os.name == u'mac' or os.name == u"os2":
-            print >> sys.stderr,  u"daemon mode may have issues on your platform. will try to continue, but may crash. feel free to submit a ticket with relevant output on this issue"
+            print >> sys.stderr,  u"""daemon mode may have issues on your 
+platform. will try to continue, but may crash. feel free to submit a ticket 
+with relevant output on this issue"""
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                print >> sys.stderr, u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m)
-        if (hasattr(os, "devnull")):        REDIRECT_TO = os.devnull
-        else: REDIRECT_TO = "/dev/null"
+                print >> sys.stderr, u"""cannot set umask. Umask must be an 
+integer value. Umask only available on some platforms. %s""" % unicodeC(m)
         callDaemon()
         setLogging()
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
@@ -2011,8 +2203,7 @@ def _main(arglist):
                 logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
         main()
     elif _action == 'set-default-config':
-        print >> sys.stderr , u'--set-default-config option is now obsolete' 
-        raise SystemExit
+        raise SystemExit(u'--set-default-config option is now obsolete')
     elif _action == 'state':
         pid = isRunning()
         if pid: print('%s' % unicodeC(pid) )
@@ -2020,6 +2211,5 @@ def _main(arglist):
     else:
         print(u"use -h/--help to print the short help message")
         raise SystemExit
-
 
 if __name__ == '__main__':   _main(sys.argv)
