@@ -1696,8 +1696,8 @@ def logStatusMsg( msg, level, config=True ):
     l =  {1:logging.critical, 2:logging.error, 3:logging.warn,
         4:logging.info, 5:logging.debug}
     if not config: # daemon == no stdout/err!
-        print >> sys.stderr,  unicodeC(ReFormatString( inputstring=newmsg)) 
-    elif level: l[level](msg) #ReFormatString ?
+        print >> sys.stderr,  newmsg
+    elif level: l[level](msg)
     
 # # # # #
 #Daemon
@@ -2098,10 +2098,10 @@ integer value. Umask only available on some platforms. %s""" % unicodeC(m)
         logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         main()
     elif _action == 'fullhelp':
-        print(unicodeC(ReFormatString(inputstring=helpMessage)) )
+        print(helpMessage)
         raise SystemExit
     elif _action == 'help':
-        print(unicodeC(ReFormatString(inputstring=cliOptions)) )
+        print(cliOptions)
         raise SystemExit
     elif _action == "kill":
         getConfig(filename=configFile, reload=True)
