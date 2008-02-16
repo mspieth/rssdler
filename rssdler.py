@@ -2089,7 +2089,7 @@ def _main(arglist):
         elif param == "--purge-saved": _action = 'purge-saved'
         elif param == "--comment-config": _action = 'comment-config'
     signal.signal(signal.SIGINT, signalHandler)
-    sys.excepthook = setDebug()
+    sys.excepthook = setDebug #this is NOT supposed to be called!
     if _action == 'comment-config':
         print(commentConfig)
         raise SystemExit
