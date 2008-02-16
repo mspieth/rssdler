@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0a3"
+__version__ = u"0.4.0a6"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -55,11 +55,8 @@ except ImportError: mechanize = None
 # == Globals ==
 # # # # #
 # Reminders of potential import globals elsewhere.
-create_string_buffer = None #win width
 resource = None #daemon
-struct = None #win width
 userFunctions = None
-windll = None #win wdith
 
 # Rest of Globals
 configFile = os.path.expanduser(os.path.join('~','.rssdler', 'config.txt'))
@@ -446,10 +443,11 @@ def getFilenameFromHTTP(info, url):
                 filename = unicodeC( int(time.time()) ) + fileExt
             else: filename += fileExt
     elif 'content_type' not  in info:
-            msg = u"""Proper file extension could not be determined for the \
-downloaded file: %s you may need to add an extension to the file for it to work\
- in some programs. It came from url %s. It may be correct, but I have no way of\
-  knowing due to insufficient information from the server.""" % (filename, url)
+            msg = (
+u"""Proper file extension could not be determined for the downloaded file: 
+%s you may need to add an extension to the file for it to work in some programs.
+ It came from url %s. It may be correct, but I have no way of knowing due to 
+ insufficient information from the server.""" % (filename, url) )
             logStatusMsg( msg, 1 )
     if not filename: 
         logStatusMsg('Could not determine filename for torrent from %s' % url,1)
@@ -471,7 +469,7 @@ def cookieHandler():
         isinstance(cj, (cookielib.MozillaCookieJar, cookielib.LWPCookieJar) ) ):
         logStatusMsg(u"""attempting to load cookie type: %s\
 """ % getConfig()['global']['cookieType'], 5)
-        cj = cookielib.__getattribute__( getConfig()['global']['cookieType'] )()
+        cj = getattr(cookielib, getConfig()['global']['cookieType'] )()
         try: 
             cj.load(getConfig()['global']['cookieFile'])
             returnValue = 1
@@ -485,7 +483,7 @@ cookies, stop RSSDler, correct the problem, and restart.""", 1)
         mechanize.MSIECookieJar) )):
         logStatusMsg(u"""attempting to load cookie type: %s\
 """ % getConfig()['global']['cookieType'], 5)
-        cj = mechanize.__getattribute__( getConfig()['global']['cookieType'] )()
+        cj = getattr(mechanize, getConfig()['global']['cookieType'] )()
         try: 
             cj.load(getConfig()['global']['cookieFile'])
             returnValue = 1
@@ -786,65 +784,68 @@ def findNewFile(filename, directory):
         return findNewFile( filename, directory )
     else: return unicodeC(directory), unicodeC(filename)
 
-# # # # #
-# Torrent
-# # # # #
-def _decode_int(x, f):
-    f += 1
-    newf = x.index('e', f)
-    try: n = int(x[f:newf])
-    except (OverflowError, ValueError):  n = long(x[f:newf])
-    if x[f] == '-':
-        if x[f + 1] == '0': raise ValueError
-    elif x[f] == '0' and newf != f+1:  raise ValueError
-    return (n, newf+1)
-
-def _decode_string(x, f):
-    colon = x.index(':', f)
-    try:  n = int(x[f:colon])
-    except (OverflowError, ValueError):  n = long(x[f:colon])
-    if x[f] == '0' and colon != f+1:  raise ValueError
-    colon += 1
-    return (x[colon:colon+n], colon+n)
-
-def _decode_list(x, f):
-    r, f = [], f+1
-    while x[f] != 'e':
-        v, f = _decode_func[x[f]](x, f)
-        r.append(v)
-    return (r, f + 1)
-
-def _decode_dict(x, f):
-    r, f = {}, f+1
-    lastkey = None
-    while x[f] != 'e':
-        k, f = _decode_string(x, f)
-        if lastkey >= k:   raise ValueError
-        lastkey = k
-        r[k], f = _decode_func[x[f]](x, f)
-    return (r, f + 1)
-
-_decode_func = {
-  'l' : _decode_list ,
-  'd' : _decode_dict,
-  'i' : _decode_int,
-  '0' : _decode_string,
-  '1' : _decode_string,
-  '2' : _decode_string,
-  '3' : _decode_string,
-  '4' : _decode_string,
-  '5' : _decode_string,
-  '6' : _decode_string,
-  '7' : _decode_string,
-  '8' : _decode_string,
-  '9' : _decode_string }
 def bdecode(x):
-    """This function decodes torrent data. 
-    It and related calls _decode_* come from the GPL Python implementation"""
-    try:  r, l = _decode_func[x[0]](x, 0)
-    except (IndexError, KeyError):  raise ValueError
-    if l != len(x):  raise ValueError
-    return r
+        """This function decodes torrent data. 
+        It comes (modified) from the GPL Python BitTorrent implementation"""
+        def decode_int(x, f):
+            f += 1
+            newf = x.index('e', f)
+            try: n = int(x[f:newf])
+            except (OverflowError, ValueError):  n = long(x[f:newf])
+            if x[f] == '-':
+                if x[f + 1] == '0': raise ValueError
+            elif x[f] == '0' and newf != f+1:  raise ValueError
+            return (n, newf+1)
+        def decode_string(x, f):
+            colon = x.index(':', f)
+            try:  n = int(x[f:colon])
+            except (OverflowError, ValueError):  n = long(x[f:colon])
+            if x[f] == '0' and colon != f+1:  raise ValueError
+            colon += 1
+            return (x[colon:colon+n], colon+n)
+        def decode_list(x, f):
+            r, f = [], f+1
+            while x[f] != 'e':
+                v, f = decode_func[x[f]](x, f)
+                r.append(v)
+            return (r, f + 1)
+        def decode_dict(x, f):
+            r, f = {}, f+1
+            lastkey = None
+            while x[f] != 'e':
+                k, f = decode_string(x, f)
+                if lastkey >= k:   raise ValueError
+                lastkey = k
+                r[k], f = decode_func[x[f]](x, f)
+            return (r, f + 1)
+        decode_func = {
+          'l' : decode_list ,
+          'd' : decode_dict,
+          'i' : decode_int,
+          '0' : decode_string,
+          '1' : decode_string,
+          '2' : decode_string,
+          '3' : decode_string,
+          '4' : decode_string,
+          '5' : decode_string,
+          '6' : decode_string,
+          '7' : decode_string,
+          '8' : decode_string,
+          '9' : decode_string }
+        try:  r, l = decode_func[x[0]](x, 0)
+        except TypeError:
+            try: 
+                x = x.read()
+                r, l = decode_func[x[0]](x,0)
+            except (AttributeError, IndexError, KeyError): raise ValueError
+        except (IndexError, KeyError):
+            try: 
+                fd = open(x, 'r')
+                x = fd.read()
+                r, l = decode_func[x[0]](x,0)
+            except (IOError, IndexError, KeyError): raise ValueError
+        if l != len(x):  raise ValueError
+        return r
 # # # # #
 #Persistence
 # # # # #
@@ -1064,18 +1065,16 @@ class GlobalOptions(dict):
         Where to save generated rss
     saveFile: [Optional] A string option. Default savedstate.dat. History data.
     lockPort: [Optional] An integer option. Default 8023. Port to lock saveFile
-    daemonInfo: [Optional] A string option. Default daemon.info. PID written here
-    umask: [Optional] An integer option. Default 63. Sets umask for file 
-        creation. (unix only). THIS MUST BE IN BASE10. 
-        0027 will be read as decimal 27, not octal 0027 aka decimal 23.
-        63 in octal is 0077. To convert quickly, 
-        just open the python interpreter (type 'python' at the command line), 
-        type the umask you want in octal (say 0022), press enter. 
-        The interpreter will spit out a number, this is your octal 
-        representation in decimal/base10. Note, the leading zeros are necessary 
-        for the conversion.  Do not edit this if you do not know what it does. 
+    daemonInfo: [Optional] A string. Default daemon.info. PID written here.
+    umask: [Optional] An integer option. Default 63 aka 077 in octal
+        Sets umask for file creation. PRIOR TO 0.4.0 this was read as BASE10.
+        It is now read as octal like any sane program would.
+        Do not edit this if you do not know what it does. 
+    debug: [Optional] A boolean option. Default False. If rssdler is attached to
+        a console-like device and this is True, will enter into a post-mortem 
+        debug mode.
     rss: DEPRECATED, will no longer be processed.
-    error: DEPRECATED, wil no longer be processed. (yes, already)"""
+    error: DEPRECATED, wil no longer be processed."""
     def __init__(self):
         dict.__init__(self)
         self['verbose'] = 3
@@ -1101,7 +1100,8 @@ class GlobalOptions(dict):
         self['cookieType'] = 'MozillaCookieJar'
         self['sleepTime'] = 1
         self['noClobber'] = True
-        self['umask'] = 63 #0077
+        self['umask'] = 77
+        self['debug'] = False
 
 class ThreadLink(dict):
     u"""    link: [Required] A string option. Link to the rss feed.
@@ -1347,16 +1347,17 @@ class Config(ConfigParser.SafeConfigParser, dict):
     dayList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
         'Saturday', 'Sunday', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 
         '0', '1', '2', '3', '4', '5', '6']
-    boolOptionsGlobal = ['runOnce', 'active', 'rssFeed', 'urllib', 'noClobber']
+    boolOptionsGlobal = ['runOnce', 'active', 'rssFeed', 'urllib', 'noClobber',
+        'debug']
     boolOptionsThread = ['active', 'noSave']
     stringOptionsGlobal = ['downloadDir', 'saveFile', 'cookieFile', 'cookieType'
         , 'logFile', 'workingDir', 'daemonInfo', 'rssFilename', 'rssLink',
-        'rssDescription', 'rssTitle']
+        'rssDescription', 'rssTitle', ]
     stringOptionsThread = ['link', 'directory', 'postDownloadFunction', 
         'regExTrue', 'regExTrueOptions', 'regExFalse', 'regExFalseOptions', 
         'postScanFunction']    
     intOptionsGlobal = ['maxSize', 'minSize', 'lockPort', 'scanMins', 
-        'rssLength', 'sleepTime', 'verbose', 'log', 'umask', 'maxLogLength']
+        'rssLength', 'sleepTime', 'verbose', 'umask','log', 'maxLogLength']
     intOptionsThread = ['maxSize', 'minSize', 'scanMins']
     def __init__(self, filename=None, parsecheck=1):
         u"""
@@ -1395,6 +1396,7 @@ global""" % option
                 try: self['global'][option] = self.getint('global', option)
                 except ValueError: print >> sys.stderr, u"""failed to parse \
 option %s in global""" % option
+        self['global']['umask'] = int(str(self['global']['umask']), 8)
         threads = self.sections()
         del threads[threads.index('global')]
         for thread in threads:
@@ -1586,6 +1588,15 @@ path is correct and try creating the folder with proper permissions for me\
 # # # # #
 # User/InterProcess Communication
 # # # # #
+def setDebug(type, value, tb):
+    if (hasattr(sys, 'ps1') or not sys.stderr.isatty()) or ( not 
+        getConfig()['global']['debug'] ):
+            sys.__excepthook__(type, value, tb)
+    else:
+        import traceback, pdb
+        traceback.print_exception(type, value, tb)
+        print
+        pdb.pm()
 def callUserFunction( functionName, *args ):
     u"""calls the named function in userFunctions with arguments 
     (these are positional, not keyword, arguments): 
@@ -1664,7 +1675,7 @@ class LevelFilter(logging.Filter):
 
 def make_handler2(h, f, l, *o):
     handler = h(*o)
-    handler.setFormatter(logging.Formatter(f))
+    handler.setFormatter(logging.Formatter(f, datefmt='%Y%m%d.%H:%M'))
     handler.addFilter(LevelFilter(l))
     return handler
 
@@ -1674,15 +1685,13 @@ def setLogging(reset=False):
     z = {0:0, 1:50, 2:40, 3:30, 4:20, 5:10}
     v = z[getConfig()['global']['verbose']]
     l = z[getConfig()['global']['log']]
-    if not (v or l): 
-        logging = Fkout()
-        return
-    if isinstance(logging, Fkout): import logging
-    elif reset: reload(logging)
-    logging.basicConfig(level=10, datefmt='%Y%m%d.%H:%M', stream=Fkout())
+    if reset: reload(logging)
+    logging.basicConfig(level=10, stream=Fkout())
+    logging.addLevelName(30, '')
     if v:
         logging.getLogger('').addHandler(make_handler2(logging.StreamHandler,
-            '%(levelname)s %(message)s', [max(40,v),50], sys.stderr))
+            '%(levelname)s %(funcName)s %(lineno)d %(message)s', [max(40,v),50],
+            sys.stderr))
         logging.getLogger('').addHandler(make_handler2(logging.StreamHandler,
             '%(levelname)s %(message)s', [max(v,10),30], sys.stdout))
     if l:
@@ -1885,7 +1894,6 @@ def run():
     u"""Provides main functionality -- scans threads."""
     global saved, rss, downloader, _action
     getConfig(filename=configFile, reload=True)
-    setLogging(True)
     if isinstance(getConfig()['global']['umask'], int): 
         os.umask( getConfig()['global']['umask'] )
     if getConfig()['global']['urllib']: downloader  = urllib2RetrievePage
@@ -1950,8 +1958,8 @@ Creating new saveFile.""", 1)
 
 def main( ):
     global _runOnce
-    getConfig(filename=configFile)
-    if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): os.chdir(getConfig()['global']['workingDir'])
+    setLogging()
+    logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
     if isRunning() and os.name != 'nt':
         logStatusMsg('RSSDler is already running. exiting.', 1)
         raise SystemExit(1)
@@ -1969,8 +1977,8 @@ def main( ):
             logStatusMsg( u"Processing took %d seconds" % (time.time() - startTime) , 4)
         except Exception, m:
             m1,m2,m3=sys.exc_info() # to send this to logfile or not...?
-            print >> sys.stderr, u"Unexpected Error: %s%s%s%s%s" %(unicodeC(m1),
-                unicodeC(m2),os.linesep, u'    ',unicodeC(m3)) 
+            logStatusMsg("Unexpected Error: %s%s%s%s%s" %(unicodeC(m1),
+                unicodeC(m2),os.linesep, u'    ',unicodeC(m3)) , 1)
             getSaved().save()
             getSaved().unlock()
             raise
@@ -2006,12 +2014,12 @@ Effort has been put into keeping the program from crashing from random errors
     understanding of regular expressions to setup the regex and download<x> 
     options, which is probably necessary to broadcatch in an efficient manner.
     If you do not know what and/or how to use regular expressions, google is 
-    your friend. There are literally dozens of tutorials and documentation on 
-    the subject with a range of difficulty levels from beginner to expert. If 
-    you are having problems that you believe are RSSDler's fault, post an issue:
-    http://code.google.com/p/rssdler/issues/list or post a message on: 
-    http://groups.google.com/group/rssdler. Please be sure to include as much 
-    information as you can.
+    your friend. If you are having problems that you believe are RSSDler's 
+    fault, post an issue:
+    http://code.google.com/p/rssdler/issues/list 
+    or post a message on: 
+    http://groups.google.com/group/rssdler. 
+    Please be sure to include as much information as you can.
 
 %s
 
@@ -2029,6 +2037,13 @@ Global Options:
 Thread options:
 %s
 
+Most options can be altered during runtime (i.e. by editing then saving the
+    config file. Those that require a restart include: 
+    - config file location
+    - cookie file type/location ; extra cookie data in the file 
+    - verbosity/logging level ; log file location
+    - daemonInfo
+    - umask
 
 A Netscape cookies file must have the proper header that looks like this:
 # HTTP Cookie File
@@ -2044,10 +2059,9 @@ Contact for problems, bugs, and/or feature requests:
   http://groups.google.com/group/rssdler or 
   http://code.google.com/p/rssdler/issues/list or
 Author: %s
-""" % (cliOptions, nonCoreDependencies, securityIssues, configFileNotes, GlobalOptions.__doc__, ThreadLink.__doc__, copyright, __author__)
-#if we lock saved before calling kill, it will be locked and we will never get to an unlock state which is our indicator that it is ok to kill.
+""" % (cliOptions, nonCoreDependencies, securityIssues, configFileNotes, GlobalOptions.__doc__, ThreadLink.__doc__, __copyright__, __author__)
+
 def _main(arglist):
-    signal.signal(signal.SIGINT, signalHandler)
     try: 
         (argp, rest) =  getopt.gnu_getopt(arglist[1:], "sdfrokc:h", 
             longopts=["state", "daemon", "full-help", "run", "runonce", "kill", 
@@ -2074,7 +2088,8 @@ def _main(arglist):
         elif param == "--list-saved": _action = 'list-saved'
         elif param == "--purge-saved": _action = 'purge-saved'
         elif param == "--comment-config": _action = 'comment-config'
-            
+    signal.signal(signal.SIGINT, signalHandler)
+    sys.excepthook = setDebug()
     if _action == 'comment-config':
         print(commentConfig)
         raise SystemExit
@@ -2083,19 +2098,18 @@ def _main(arglist):
         if os.name == u'nt' or os.name == u'dos' or os.name == u'ce':
             print >> sys.stderr,  u"daemon mode not supported on Windows. will try to continue, but this is likely to crash"
         elif os.name == u'mac' or os.name == u"os2":
-            print >> sys.stderr,  u"""daemon mode may have issues on your 
-platform. will try to continue, but may crash. feel free to submit a ticket 
-with relevant output on this issue"""
+            print >> sys.stderr,  (
+u"""daemon mode may have issues on your platform. will try to continue, but may 
+crash. feel free to submit a ticket with relevant output on this issue""" )
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                print >> sys.stderr, u"""cannot set umask. Umask must be an 
-integer value. Umask only available on some platforms. %s""" % unicodeC(m)
+                print >> sys.stderr, (
+u"""cannot set umask. Umask must be an integer value. Umask only available on 
+some platforms. %s""" % unicodeC(m) )
         callDaemon()
-        setLogging()
-        logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         main()
     elif _action == 'fullhelp':
         print(helpMessage)
@@ -2113,7 +2127,6 @@ integer value. Umask only available on some platforms. %s""" % unicodeC(m)
         getConfig(filename=configFile, reload=True)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
-            logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5)
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
@@ -2133,7 +2146,6 @@ integer value. Umask only available on some platforms. %s""" % unicodeC(m)
         getConfig(filename=configFile, reload=True)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
-            logStatusMsg(u"changed directory to %s" % getConfig()['global']['workingDir'], 5)
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
@@ -2194,7 +2206,6 @@ integer value. Umask only available on some platforms. %s""" % unicodeC(m)
         raise SystemExit
     elif _action == "run":
         getConfig(filename=configFile, reload=True)
-        logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
         if os.getcwd() != getConfig()['global']['workingDir'] or os.getcwd() != os.path.realpath( getConfig()['global']['workingDir'] ): 
             os.chdir(getConfig()['global']['workingDir'])
         if isinstance(getConfig()['global']['umask'], int ):    
@@ -2212,4 +2223,7 @@ integer value. Umask only available on some platforms. %s""" % unicodeC(m)
         print(u"use -h/--help to print the short help message")
         raise SystemExit
 
-if __name__ == '__main__':   _main(sys.argv)
+if __name__ == '__main__':   
+    sys.stdout = codecs.getwriter( "utf-8" )( sys.stdout, "replace" )
+    sys.stderr = codecs.getwriter( "utf-8" )( sys.stderr, "replace" )
+    _main(sys.argv)
