@@ -29,6 +29,7 @@ import getopt
 import httplib
 import logging
 import mimetypes
+import operator
 import os
 import pickle
 try: import random
@@ -1418,11 +1419,12 @@ option %s in global""" % option
                     except ValueError: print >> sys.stderr, u"""failed to parse\
  option %s in thread %s""" % (option, thread)
             #populate thread.downloads
-            downList = [ x for x in self.options(thread) if 
-                x.lower().startswith('download') ]
-            checkList = [ x for x in self.options(thread) if
-                x.lower().startswith('checktime') ]
-            downList.sort()
+            downList = ( x for x in self.options(thread) if 
+              x.lower().startswith('download') )
+            downList = self._sort(downList, 'download')
+            checkList = [ x for x in self.options(thread) if 
+              x.lower().startswith('checktime') ]
+            checkList = self._sort(checkList, 'checktime')
             for i in downList:
                 if i.lower().endswith('false'): 
                     try: self['threads'][thread]['downloads'][-1]['False'] = (
@@ -1450,7 +1452,6 @@ option %s in global""" % option
                         self._ifnone( self.get(thread, i) ))
                 else: self['threads'][thread]['downloads'].append( 
                     DownloadItemConfig( self.get(thread, i) ) )
-            checkList.sort()
             for j in checkList:
                 optionCheck = self.get(thread, j)
                 if j.endswith('day'):
@@ -1539,6 +1540,11 @@ is correct and try creating the folder with proper permissions for me\
 not find path %s and could not make a directory there. Please make sure this \
 path is correct and try creating the folder with proper permissions for me\
 """ % os.path.join(self['global']['workingDir'], downDict['Dir'] ))
+    def _sort(self, l, key):
+      l = ( re.search('(%s)(\d+)(\w*)' % key, x) for x in l )
+      l = [(x.group(1), int(x.group(2)), x.group(3)) for x in l ]
+      l.sort(key=operator.itemgetter(1))
+      return  ['%s%s%s' % (x,y,z) for (x,y,z) in l ]
     def save(self):
         fd = codecs.open(self.filename, 'w', 'utf-8')
         fd.write("%s%s" %('[global]', os.linesep))
