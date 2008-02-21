@@ -383,7 +383,7 @@ def percentQuote(sStr, urlPart=(2,), pd=percentQuoteDict):
 def unQuoteReQuote( url, quote=1 ):
     u"""fix urls from feedparser. they are not always properly unquoted 
     then unescaped. will requote by default"""
-    logStatusMsg(u"unQuoteReQuote %s" % url, 5)
+    logging.debug(u"unQuoteReQuote %s" % url)
     if percentIsQuoted(url): url = xmlUnEscape( url, 1 )
     else: url = xmlUnEscape( url, 0 ) 
     if quote: url = percentQuote( url )
@@ -393,12 +393,12 @@ def encodeQuoteUrl( url, encoding='utf-8'):
     u"""take a url, percent quote it, if necessary and encode the string 
     to encoding, default utf-8"""
     if not percentIsQuoted(url) and percentNeedsQuoted(url):
-        logStatusMsg( u"quoting url: %s" % url, 5)
+        logging.debug( u"quoting url: %s" % url)
         url = percentQuote( url )
-    logStatusMsg( u"encoding url %s" % url, 5)
+    logging.debug( u"encoding url %s" % url)
     try: url = url.encode(encoding)
     except UnicodeEncodeError, m: 
-        logStatusMsg( unicodeC(m) + os.linesep + url, 1 )
+        logging.critical( unicodeC(m) + os.linesep + url)
         return None
     return url
 
@@ -421,26 +421,26 @@ def getFilenameFromHTTP(info, url):
     u"""info is an http header from the download,
     url is the url to the downloaded file (responseObject.geturl() )."""
     filename = None
-    logStatusMsg(u"determining filename", 5)
+    logging.debug(u"determining filename")
     filename = email.message_from_string(unicodeC(info).encode('utf-8')).get_filename(failobj=False)
     if filename:
         m = htmlUnQuote(filename)
         if m.result: filename = m.result
-        logStatusMsg(u"filename from content-disposition header", 5)
+        logging.debug(u"filename from content-disposition header")
         return unicodeC( filename )
-    logStatusMsg(u"filename from url", 5)
+    logging.debug(u"filename from url")
     filename = percentUnQuote( urlparse.urlparse( url )[2].split('/')[-1] )
     try: typeGuess = info.gettype()
     except AttributeError: typeGuess = None
     typeGuess1 = mimetypes.guess_type(filename)[0]
     if typeGuess and typeGuess1 and typeGuess == typeGuess1: pass
     elif typeGuess: # trust server content-type over filename
-        logStatusMsg(u"getting extension from content-type header", 5)
+        logging.debug(u"getting extension from content-type header")
         fileExt = mimetypes.guess_extension(typeGuess)
         if fileExt:         # sloppy filename guess, probably will never get hit
             if not filename: 
-                logStatusMsg(u"""never guessed filename, just setting it to the\
- time""", 5)
+                logging.debug(u"""never guessed filename, just setting it to the\
+ time""")
                 filename = unicodeC( int(time.time()) ) + fileExt
             else: filename += fileExt
     elif 'content_type' not  in info:
@@ -449,9 +449,9 @@ u"""Proper file extension could not be determined for the downloaded file:
 %s you may need to add an extension to the file for it to work in some programs.
  It came from url %s. It may be correct, but I have no way of knowing due to 
  insufficient information from the server.""" % (filename, url) )
-            logStatusMsg( msg, 1 )
+            logging.critical( msg)
     if not filename: 
-        logStatusMsg('Could not determine filename for torrent from %s' % url,1)
+        logging.critical('Could not determine filename for torrent from %s' % url)
         return None
     if filename.endswith('.obj'): filename = filename[:-4]
     return unicodeC( filename)
@@ -461,37 +461,37 @@ def cookieHandler():
     2 if cookie already configured (even if it is for a null value)"""
     global cj
     returnValue = 2
-    logStatusMsg(u"""testing cookieFile settings""", 5)
+    logging.debug(u"""testing cookieFile settings""")
     if cj == 1: pass
     elif cj == None and not getConfig()['global']['cookieFile']: 
-        logStatusMsg(u"""no cookies set""", 5)
+        logging.debug(u"""no cookies set""")
         returnValue = 0
     elif ( getConfig()['global']['urllib'] and not 
         isinstance(cj, (cookielib.MozillaCookieJar, cookielib.LWPCookieJar) ) ):
-        logStatusMsg(u"""attempting to load cookie type: %s\
-""" % getConfig()['global']['cookieType'], 5)
+        logging.debug(u"""attempting to load cookie type: %s\
+""" % getConfig()['global']['cookieType'])
         cj = getattr(cookielib, getConfig()['global']['cookieType'] )()
         try: 
             cj.load(getConfig()['global']['cookieFile'])
             returnValue = 1
-            logStatusMsg(u"""cookies loaded""", 5)
+            logging.debug(u"""cookies loaded""")
         except (cookielib.LoadError, IOError), m:
-            logStatusMsg( unicodeC(m) + u""" disabling cookies. To re-enable \
-cookies, stop RSSDler, correct the problem, and restart.""", 1)
+            logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
+cookies, stop RSSDler, correct the problem, and restart.""")
             returnValue = 0
     elif (not getConfig()['global']['urllib'] and not 
         isinstance(cj, (mechanize.MozillaCookieJar, mechanize.LWPCookieJar, 
         mechanize.MSIECookieJar) )):
-        logStatusMsg(u"""attempting to load cookie type: %s\
-""" % getConfig()['global']['cookieType'], 5)
+        logging.debug(u"""attempting to load cookie type: %s\
+""" % getConfig()['global']['cookieType'])
         cj = getattr(mechanize, getConfig()['global']['cookieType'] )()
         try: 
             cj.load(getConfig()['global']['cookieFile'])
             returnValue = 1
-            logStatusMsg(u"""cookies loaded""", 5)
+            logging.debug(u"""cookies loaded""")
         except (mechanize._clientcookie.LoadError, IOError), m:
-            logStatusMsg( unicodeC(m) + u""" disabling cookies. To re-enable \
-cookies, stop RSSDler, correct the problem, and restart.""", 1)
+            logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
+cookies, stop RSSDler, correct the problem, and restart.""")
             returnValue = 0
     return returnValue
 
@@ -506,20 +506,20 @@ def urllib2RetrievePage( url, txheaders=((u'User-agent', _USER_AGENT),)):
     time.sleep( getConfig()['global']['sleepTime'] )
     url = encodeQuoteUrl( url , encoding='utf-8')
     if not url: 
-        logStatusMsg(u"""utf encoding, quoting url failed, returning false %s\
-""" % url, 1 )
+        logging.critical(u"""utf encoding, quoting url failed, returning false %s\
+""" % url)
         return False
     cjR = cookieHandler()
     if cjR == 1:
-        logStatusMsg(u"building and installing urllib opener with cookies",5)
+        logging.debug(u"building and installing urllib opener with cookies")
         opener = urllib2.build_opener (urllib2.HTTPCookieProcessor(cj) )
         urllib2.install_opener(opener)
     elif cjR == 0:
-        logStatusMsg(u"building and installing urllib opener without cookies",5)
+        logging.debug(u"building and installing urllib opener without cookies")
         opener = urllib2.build_opener( )
         urllib2.install_opener(opener)
         cj = 1
-    logStatusMsg(u"grabbing page at url %s" % urlNotEncoded, 5)
+    logging.debug(u"grabbing page at url %s" % urlNotEncoded)
     return urllib2.urlopen(urllib2.Request(url, headers=dict(txheadersEncoded)))
 
 def mechRetrievePage(url, txheaders=(('User-agent', _USER_AGENT),), ):
@@ -533,22 +533,22 @@ def mechRetrievePage(url, txheaders=(('User-agent', _USER_AGENT),), ):
     time.sleep( getConfig()['global']['sleepTime'] )
     url = encodeQuoteUrl( url, encoding='utf-8' )
     if not url: 
-        logStatusMsg(u"utf encoding and quoting url failed, returning false", 1)
+        logging.critical(u"utf encoding and quoting url failed, returning false")
         return False
     cjR =  cookieHandler()
     if cjR == 1:
-        logStatusMsg(u"building and installing mechanize opener with cookies",5)
+        logging.debug(u"building and installing mechanize opener with cookies")
         opener = mechanize.build_opener(mechanize.HTTPCookieProcessor(cj), 
             mechanize.HTTPRefreshProcessor(), mechanize.HTTPRedirectHandler(), 
             mechanize.HTTPEquivProcessor())
         mechanize.install_opener(opener)
     elif cjR == 0:
-        logStatusMsg(u"building and installing mech opener without cookies",5)
+        logging.debug(u"building and installing mech opener without cookies")
         opener = mechanize.build_opener(mechanize.HTTPRefreshProcessor(), 
             mechanize.HTTPRedirectHandler(), mechanize.HTTPEquivProcessor())
         mechanize.install_opener(opener)
         cj = 1
-    logStatusMsg(u"grabbing page at url %s" % urlNotEncoded, 5)
+    logging.debug(u"grabbing page at url %s" % urlNotEncoded)
     return mechanize.urlopen(mechanize.Request(url,
         headers=dict(txheadersEncoded)))
 
@@ -556,15 +556,15 @@ def getFileSize( info, data=None ):
     u"""give me the HTTP headers (info) and, 
     if you expect it to be a torrent file, the actual file, 
     i'll return the filesize, of type None if not determined"""
-    logStatusMsg(u"determining size of file", 5)
+    logging.debug(u"determining size of file")
     size = None
     if 'torrent' in info.gettype():
         if data:
             data = data.read()
             try: tparse = bdecode(data)
             except ValueError, m:
-                logStatusMsg( unicodeC( m ) + u"""File was supposed to be \
-torrent data, but could not be bdecoded, indicates it is not torrent data""", 1)
+                logging.critical( unicodeC( m ) + u"""File was supposed to be \
+torrent data, but could not be bdecoded, indicates it is not torrent data""")
                 return size
             if 'length' in tparse['info']: size = int(tparse['info']['length'])
             elif 'files' in tparse['info']:
@@ -574,7 +574,7 @@ torrent data, but could not be bdecoded, indicates it is not torrent data""", 1)
         try: 
             if 'content-length' in info: size = int(info['content-length'])
         except ValueError:  pass # 
-    logStatusMsg(u"filesize seems to be %s" % size, 5)
+    logging.debug(u"filesize seems to be %s" % size)
     return size, data
 
 # # # # #
@@ -591,7 +591,7 @@ def checkFileSize(size, threadName, downloadDict):
     takes the size in bytes, threadName and downloadDict (parsed download<x>).
     """
     returnValue = True
-    logStatusMsg(u"checking file size", 5)
+    logging.debug(u"checking file size")
     if downloadDict['maxSize'] != None: maxSize = downloadDict['maxSize']
     elif getConfig()['threads'][threadName]['maxSize'] != None: 
         maxSize = getConfig()['threads'][threadName]['maxSize']
@@ -610,14 +610,14 @@ def checkFileSize(size, threadName, downloadDict):
     if minSize:
         minSize = minSize * 1024 * 1024
         if size <  minSize: returnValue = False
-    if returnValue: logStatusMsg(u"size within parameters", 5)
-    else: logStatusMsg(u"size outside parameters", 5)
+    if returnValue: logging.debug(u"size within parameters")
+    else: logging.debug(u"size outside parameters")
     return returnValue
 
 def checkRegExGTrue(tName, itemNode):
     u"""return type True or False if search matches or no, respectively."""
     if getConfig()['threads'][tName]['regExTrue']:
-        logStatusMsg(u"checking regExTrue on %s" % itemNode['title'].lower(), 5)
+        logging.debug(u"checking regExTrue on %s" % itemNode['title'].lower())
         if getConfig()['threads'][tName]['regExTrueOptions']: 
             regExSearch = re.compile(
                 getConfig()['threads'][tName]['regExTrue'].lower(),
@@ -633,7 +633,7 @@ def checkRegExGFalse(tName, itemNode):
     u"""return type True or False if search doesn't match or does, respectively.
     """
     if getConfig()['threads'][tName]['regExFalse']:
-        logStatusMsg(u"checking regExFalse on %s" % itemNode['title'].lower(),5)
+        logging.debug(u"checking regExFalse on %s" % itemNode['title'].lower())
         if getConfig()['threads'][tName]['regExFalseOptions']: 
             regExSearch = re.compile(
                 getConfig()['threads'][tName]['regExFalse'].lower(), 
@@ -662,7 +662,7 @@ def checkRegExDown(tName, itemNode):
     returns DownloadItemConfig instance otherwise"""
     # Also, it's incredibly inefficient
     # for every x rss entries and y download items, it runs this xy times.
-    logStatusMsg(u"checking download<x>", 5)
+    logging.debug(u"checking download<x>")
     for downloadDict in getConfig()['threads'][tName]['downloads']:
         if getConfig()['threads'][tName]['regExTrueOptions']: 
             LTrue = re.compile( downloadDict['localTrue'], 
@@ -693,7 +693,7 @@ def downloadFile(link=None, threadName=None, rssItemNode=None,
     False if it failed, and a tuple of arguments for userFunct"""
     try: data = downloader(link)
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m: 
-        logStatusMsg(unicodeC(m)+os.linesep+u'error grabbing url: %s' % link, 1)
+        logging.critical(unicodeC(m)+os.linesep+u'error grabbing url: %s' % link)
         return False
     filename = getFilenameFromHTTP(data.info(), link)
     if not filename: return False
@@ -707,12 +707,12 @@ def downloadFile(link=None, threadName=None, rssItemNode=None,
     else: directory = getConfig()['global']['downloadDir']
     try: filename = writeNewFile( filename, directory, data2 )
     except IOError: 
-        logStatusMsg( u"write to disk failed", 1 )
+        logging.critical( u"write to disk failed")
         return False
-    logStatusMsg( u"\tFilename: %s%s\tDirectory: %s%s\tFrom Thread: %s%s" % ( 
-        filename, os.linesep, directory, os.linesep, threadName, os.linesep ),3)
+    logging.warn( u"\tFilename: %s%s\tDirectory: %s%s\tFrom Thread: %s%s" % ( 
+        filename, os.linesep, directory, os.linesep, threadName, os.linesep ))
     if rss:
-        logStatusMsg( u"generating rss item", 5)
+        logging.debug( u"generating rss item")
         if 'description' in rssItemNode: description =rssItemNode['description']
         else: description = None
         if 'title' in rssItemNode: title = rssItemNode['title']
@@ -734,7 +734,7 @@ def writeNewFile(filename, directory, data):
     else: tmpPath = os.path.join(directory, u'.__' +  filename + u'.tmp')
     realPath = os.path.join(directory, filename)
     try:
-        logStatusMsg(u'opening %s' % tmpPath, 5)
+        logging.debug(u'opening %s' % tmpPath)
         # open should handle unicode path automagically
         fd = codecs.open( tmpPath, 'wb') #'replace' ?
         if hasattr(data, 'xreadlines'):
@@ -751,10 +751,10 @@ def writeNewFile(filename, directory, data):
     except IOError, m: 
         if getConfig()['global']['noClobber'] and os.path.isfile( tmpPath ): 
             os.unlink(tmpPath)
-        logStatusMsg(unicodeC(m) +u'Failed to write file %s in directory %s' % (
-            filename, directory) , 1)
+        logging.critical(unicodeC(m)+u'Failed to write file %s in directory %s'%(
+            filename, directory) )
         raise IOError
-    logStatusMsg(u'moving to %s' % realPath, 5)
+    logging.debug(u'moving to %s' % realPath)
     os.rename(tmpPath, realPath)
     return filename
 
@@ -763,8 +763,8 @@ def findNewFile(filename, directory):
     adds '.1' before the file extension, 
     or just .1 on the end if no file extension"""
     if os.path.isfile( os.path.join(directory, filename) ):
-        logStatusMsg(u"""filename already taken, looking for another: %s\
-""" % filename, 2)
+        logging.error(u"""filename already taken, looking for another: %s\
+""" % filename)
         filenameList = filename.split(u'.')
         if len( filenameList ) >1: 
             try: 
@@ -1630,9 +1630,9 @@ def callUserFunction( functionName, *args ):
     retrievedLink: the url that was sent by the server
     """
     global userFunctions
-    logStatusMsg( u"attempting a user function", 5)
+    logging.debug( u"attempting a user function")
     if not hasattr(userFunctions, functionName):
-        logStatusMsg( u"module does not have function named %s called from thread %s" % (functionName, threadName), 1)
+        logging.critical( u"module does not have function named %s called from thread %s" % (functionName, threadName))
         return None
     userFunct = getattr(userFunctions, functionName)
     userFunct( *args )
@@ -1650,7 +1650,7 @@ def userFunctHandling():
     if not userFunctions:
         for threadKey in getConfig()['threads'].keys():
             if getConfig()['threads'][threadKey]['postDownloadFunction'] or getConfig()['threads'][threadKey]['postScanFunction']:
-                # logStatusMsg( os.path.realpath('./'), 5)  # this makes no sense whatsoever
+                # logging.debug( os.path.realpath('./'))  # this makes no sense whatsoever
                 import userFunctions
                 break
         else:           userFunctions = 1
@@ -1704,15 +1704,6 @@ def setLogging(reset=False):
         logging.getLogger('').addHandler(make_handler2(logging.FileHandler,
             '%(asctime)s %(levelname)-8s %(message)s', [max(l,10),50], 
             getConfig()['global']['logFile'],'a'))
-
-def logStatusMsg( msg, level, config=True ):
-    u"""write a message to the log/stdout/stderr, depending on the level. 
-    if config=False, goes straight to stderr"""
-    l =  {1:logging.critical, 2:logging.error, 3:logging.warn,
-        4:logging.info, 5:logging.debug}
-    if not config: # daemon == no stdout/err!
-        print >> sys.stderr,  newmsg
-    elif level: l[level](msg)
     
 # # # # #
 #Daemon
@@ -1758,7 +1749,7 @@ def createDaemon():
     """
     try:        pid = os.fork()
     except OSError, e:
-        logStatusMsg(u"s [%d]" % (e.strerror, e.errno), 1)
+        logging.critical(u"s [%d]" % (e.strerror, e.errno))
         raise OSError
     if pid == 0:    # The first child.
         os.setsid()
@@ -1811,18 +1802,18 @@ def rssparse(tName):
     page = None
     try: page = downloader(getConfig()['threads'][tName]['link'])
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, ), m:   
-        logStatusMsg( unicodeC(m) + os.linesep + u'error grabbing url %s' % getConfig()['threads'][tName]['link'] , 1)
+        logging.critical( unicodeC(m) + os.linesep + u'error grabbing url %s' % getConfig()['threads'][tName]['link'] )
         return None
     if not page: 
-        logStatusMsg( u"failed to grab url %s" % getConfig()['threads'][tName]['link'], 1)
+        logging.critical( u"failed to grab url %s" % getConfig()['threads'][tName]['link'])
         return None
     pr = page.read()
     try: ppage = feedparser.parse(pr)
     except Exception, m: # feedparser does not seem to throw exceptions properly, is a dictionary of some kind
-        logStatusMsg( unicodeC(m) + os.linesep + u"page grabbed was not a parseable rss feed", 1)
+        logging.critical( unicodeC(m) + os.linesep + u"page grabbed was not a parseable rss feed")
         return None
     if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '':
-        logStatusMsg(u"setting ttl", 5)
+        logging.debug(u"setting ttl")
         getSaved().minScanTime[tName] = (time.time(), int(ppage['feed']['ttl']))
     elif getConfig()['threads'][tName]['scanMins']:
         getSaved().minScanTime[tName] = (time.time(), getConfig()['threads'][tName]['scanMins'] )
@@ -1849,21 +1840,21 @@ def rssparse(tName):
             else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
             #if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
             if ppage['entries'][i]['link'] in getSaved().downloads: 
-                logStatusMsg(u"already downloaded %s" % ppage['entries'][i]['link'], 5)
+                logging.debug(u"already downloaded %s" % ppage['entries'][i]['link'])
                 continue
             # if it failed before, no reason to believe it will work now, plus it's already queued up
             if searchFailed( ppage['entries'][i]['link'] ): 
-                logStatusMsg(u"link was in failedDown", 5)
+                logging.debug(u"link was in failedDown")
                 continue
             dirDict = checkRegEx(tName, ppage['entries'][i])
             if not dirDict: continue
             userFunctArgs = downloadFile(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict)
             if userFunctArgs == None: continue # size was inappropriate == None
             elif userFunctArgs == False: # was supposed to download, but failed
-                logStatusMsg(u"adding to failedDown: %s" % ppage['entries'][i]['link'] , 5)
+                logging.debug(u"adding to failedDown: %s" % ppage['entries'][i]['link'] )
                 getSaved().failedDown.append( FailedItem(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict) )
             elif userFunctArgs: # should have succeeded
-                logStatusMsg(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] , 5)
+                logging.debug(u"adding to saved downloads: %s" % ppage['entries'][i]['link'] )
                 getSaved().downloads.append( ppage['entries'][i]['link'] )
                 if isinstance(dirDict, DownloadItemConfig) and dirDict['Function']:
                     callUserFunction( dirDict['Function'], *userFunctArgs )
@@ -1875,9 +1866,9 @@ def rssparse(tName):
 def checkScanTime( threadName , failed=False):
     u"""looks for a reason to not scan the thread, through minScanTime, checkTime."""
     if threadName in getSaved().minScanTime and getSaved().minScanTime[threadName ][0]  > ( int(time.time()) - getSaved().minScanTime[threadName][1]*60 ):
-        logStatusMsg(u"""RSS feed "%s" has indicated that we should wait \
+        logging.info(u"""RSS feed "%s" has indicated that we should wait \
 greater than the scan time you have set in your configuration. Will try again \
-at next configured scantime""" % threadName, 4)
+at next configured scantime""" % threadName)
         return False
     if not failed and len(getConfig()['threads'][threadName]['checkTime']) != 0: # if it was from failed, don't worry about user set scan time
         timeTuple = time.localtime().tm_wday, time.localtime().tm_hour
@@ -1893,7 +1884,7 @@ at next configured scantime""" % threadName, 4)
     
 def checkSleep( totalTime ):
     u"""let's us know when we need to stop sleeping and rescan"""
-    logStatusMsg(u'checking sleep', 5)
+    logging.debug(u'checking sleep')
     time.sleep(totalTime)
 
 def run():
@@ -1908,13 +1899,13 @@ def run():
     getSaved(getConfig()['global']['saveFile'])
     try:    getSaved().lock()
     except Locked:
-        logStatusMsg( u"Savefile is currently in use.", 2 )
+        logging.error( u"Savefile is currently in use.")
         raise Locked
     try: getSaved().load()
     except (EOFError, IOError, ValueError, IndexError), m: 
-        logStatusMsg(unicodeC(m) + os.linesep + u"""didn't load SaveProcessor. \
-Creating new saveFile.""", 1)
-    logStatusMsg(u"checking working dir, maybe changing dir", 5)
+        logging.debug(unicodeC(m) + os.linesep +u"""didn't load SaveProcessor. \
+Creating new saveFile.""")
+    logging.debug(u"checking working dir, maybe changing dir")
     if os.getcwd() != getConfig()['global']['workingDir'] or (os.getcwd() != 
         os.path.realpath( getConfig()['global']['workingDir'] )): 
             os.chdir(getConfig()['global']['workingDir'])
@@ -1923,37 +1914,37 @@ Creating new saveFile.""", 1)
         ( int(time.time()) - (getConfig()['global']['scanMins']*60) )):
         raise  SystemExit(u"Threads have already been scanned.")
     if getConfig()['global']['rssFeed']:
-        logStatusMsg(u'trying to generate rss feed', 5)
+        logging.debug(u'trying to generate rss feed')
         if getConfig()['global']['rssFilename']:
-            logStatusMsg(u'rss filename set', 5)
+            logging.debug(u'rss filename set')
             rss = MakeRss(filename=getConfig()['global']['rssFilename'], 
                 itemsQuaDictBool=True)
             if os.path.isfile( getConfig()['global']['rssFilename'] ):
-                logStatusMsg(u'loading rss file', 5)
+                logging.debug(u'loading rss file')
                 rss.parse()
             (rss.channelMeta['title'], rss.channelMeta['description'], 
                 rss.channelMeta['link'] ) = (getConfig()['global']['rssTitle'],
                 getConfig()['global']['rssDescription'], 
                 getConfig()['global']['rssLink'])
-        else:  logStatusMsg(u"no rssFilename set, cannot write feed to a file")
+        else:  logging.critical(u"no rssFilename set, cannot write feed to a file")
     userFunctHandling()
     if getSaved().failedDown:
-        logStatusMsg(u"Scanning previously failed downloads", 4)
+        logging.info(u"Scanning previously failed downloads")
         for i in  xrange( len( getSaved().failedDown) - 1, -1, -1 ):
             if not checkScanTime(getSaved().failedDown[i]['threadName'],
                 failed=1): continue
-            logStatusMsg(u"  Attempting to download %s" % getSaved().failedDown[i]['link'], 4 )
+            logging.info(u"  Attempting to download %s" % getSaved().failedDown[i]['link'])
             if downloadFile( **getSaved().failedDown[i] ):
-                logStatusMsg(u"Success!", 4)
+                logging.info(u"Success!")
                 del getSaved().failedDown[ i ]
                 getSaved().save()
             else:
-                logStatusMsg(u"Failure on %s in failedDown" % getSaved().failedDown[i]['link'], 4)
-    logStatusMsg( u"Scanning threads", 4 )
+                logging.info(u"Failure on %s in failedDown" % getSaved().failedDown[i]['link'])
+    logging.info( u"Scanning threads")
     for key in getConfig()['threads'].keys():
         if not getConfig()['threads'][key]['active']:  continue 
         if not checkScanTime( key, failed=False): continue
-        logStatusMsg( u"finding new downloads in thread %s" % key, 4 )
+        logging.info( u"finding new downloads in thread %s" % key)
         rssparse(key) 
     if rss:
         rss.close(length=getConfig()['global']['rssLength'])
@@ -1965,33 +1956,33 @@ Creating new saveFile.""", 1)
 def main( ):
     global _runOnce
     setLogging()
-    logStatusMsg( u"--- RSSDler %s" % getVersion() , 4)
+    logging.info( u"--- RSSDler %s" % getVersion() )
     if isRunning() and os.name != 'nt':
-        logStatusMsg('RSSDler is already running. exiting.', 1)
+        logging.critical('RSSDler is already running. exiting.')
         raise SystemExit(1)
-    logStatusMsg(u"writing daemonInfo", 5)
+    logging.debug(u"writing daemonInfo")
     try: codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write(unicodeC(os.getpid()))
     except IOError, m: 
-        logStatusMsg( unicodeC(m) + os.linesep + u"Could not write to, or not set, daemonInfo", 1 )
+        logging.critical( unicodeC(m) + os.linesep + u"Could not write to, or not set, daemonInfo")
     if not _runOnce:
         _runOnce = getConfig()['global']['runOnce']
     while True:
         try:
-            logStatusMsg( u"[Waking up] %s" % time.asctime() , 4)
+            logging.info( u"[Waking up] %s" % time.asctime() )
             startTime = time.time()
             run()
-            logStatusMsg( u"Processing took %d seconds" % (time.time() - startTime) , 4)
+            logging.info( u"Processing took %d seconds" % (time.time() - startTime) )
         except Exception, m:
             m1,m2,m3=sys.exc_info() # to send this to logfile or not...?
-            logStatusMsg("Unexpected Error: %s%s%s%s%s" %(unicodeC(m1),
-                unicodeC(m2),os.linesep, u'    ',unicodeC(m3)) , 1)
+            logging.critical("Unexpected Error: %s %s %s%s%s" %(unicodeC(m1),
+                unicodeC(m2),os.linesep, u'    ',unicodeC(m3)) )
             getSaved().save()
             getSaved().unlock()
             raise
         if _runOnce:
-            logStatusMsg( u"[Complete] %s" % time.asctime() , 4)
+            logging.info( u"[Complete] %s" % time.asctime() )
             break
-        logStatusMsg( u"[Sleeping] %s" % time.asctime() , 4)
+        logging.info( u"[Sleeping] %s" % time.asctime() )
         elapsed = time.time() - getSaved().lastChecked
         #checkSleep has a 10 second resolution, let's sleep for 9, just to be on the safe side
         time.sleep(9)
@@ -2173,7 +2164,7 @@ some platforms. %s""" % unicodeC(m) )
         if os.umask != None:    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
+                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m))
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
@@ -2196,7 +2187,7 @@ some platforms. %s""" % unicodeC(m) )
         if os.umask != None:    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
+                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m))
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
@@ -2217,7 +2208,7 @@ some platforms. %s""" % unicodeC(m) )
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logStatusMsg( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m), 2)
+                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m))
         main()
     elif _action == 'set-default-config':
         raise SystemExit(u'--set-default-config option is now obsolete')
