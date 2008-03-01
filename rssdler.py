@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0a6"
+__version__ = u"0.4.0a7"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -1380,27 +1380,24 @@ class Config(ConfigParser.SafeConfigParser, dict):
             self.parse()
             self.check()
     def parse(self):
+        try: glob = [ x for x in self.sections() if x.lower() == 'global'][0]
+        except IndexError: raise SystemExit('no global section found')
         for option in self.boolOptionsGlobal:
-            try: 
-                if option.lower() in self.options('global'): 
-                    try: self['global'][option]=self.getboolean('global',option)
-                    except ValueError: 
-                        print >> sys.stderr, u"""failed to parse option %s in \
+            if option.lower() in self.options(glob): 
+                try: self['global'][option]=self.getboolean(glob,option)
+                except ValueError: 
+                    print >> sys.stderr, u"""failed to parse option %s in \
 global""" % option
-            except ConfigParser.NoSectionError, m:
-                raise SystemExit(unicodeC(m))
         for option in self.stringOptionsGlobal:
-            if option.lower() in self.options('global'):
-                self['global'][option] = self._ifnone(self.get('global',option))
+            if option.lower() in self.options(glob):
+                self['global'][option] = self._ifnone(self.get(glob,option))
         for option in self.intOptionsGlobal:
-            if option.lower() in self.options('global'):
-                try: self['global'][option] = self.getint('global', option)
+            if option.lower() in self.options(glob):
+                try: self['global'][option] = self.getint(glob, option)
                 except ValueError: print >> sys.stderr, u"""failed to parse \
 option %s in global""" % option
-        self['global']['umask'] = int(str(self['global']['umask']), 8)
-        threads = self.sections()
-        del threads[threads.index('global')]
-        for thread in threads:
+        if isinstance(self['global']['umask'] , int): self['global']['umask'] = int(str(self['global']['umask']), 8)
+        for thread in ( x for x in self.sections() if x.lower() != 'global'):
             self['threads'][thread] = ThreadLink()
             for option in self.boolOptionsThread:
                 if option.lower() in self.options(thread):
@@ -1419,12 +1416,8 @@ option %s in global""" % option
                     except ValueError: print >> sys.stderr, u"""failed to parse\
  option %s in thread %s""" % (option, thread)
             #populate thread.downloads
-            downList = ( x for x in self.options(thread) if 
-              x.lower().startswith('download') )
-            downList = self._sort(downList, 'download')
-            checkList = [ x for x in self.options(thread) if 
-              x.lower().startswith('checktime') ]
-            checkList = self._sort(checkList, 'checktime')
+            downList = self._sort('download', thread)
+            checkList = self._sort('checktime', thread)
             for i in downList:
                 if i.lower().endswith('false'): 
                     try: self['threads'][thread]['downloads'][-1]['False'] = (
@@ -1476,6 +1469,32 @@ the week for %s""" % optionCheck
     def _ifnone(self, option):
         if option == '' or option.lower() == 'none': return None
         else: return option
+    def _sort(self, key, thread):
+      """Inner functions takes from: 
+      http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/285264 """
+      def try_int(s):
+          "Convert to integer if possible."
+          try: return int(s)
+          except: return s
+      def natsort_key(s):
+          "Used internally to get a tuple by which s is sorted."
+          return map(try_int, re.findall(r'(\d+|\D+)', s))
+      def natcmp(a, b):
+          "Natural string comparison, case sensitive."
+          return cmp(natsort_key(a), natsort_key(b))
+      def natcasecmp(a, b):
+          "Natural string comparison, ignores case."
+          return natcmp(a.lower(), b.lower())
+      def natsort(seq, cmp=natcmp):
+          "In-place natural string sort."
+          seq.sort(cmp)
+      def natsorted(seq, cmp=natcmp):
+          "Returns a copy of seq, sorted by natural string sort."
+          temp = seq[:]
+          natsort(temp, cmp)
+          return temp
+      l = [x for x in self.options(thread) if x.startswith(key) ]
+      return natsorted(l)
     def check(self):
         global mechanize
         if not self['global']['urllib'] and not mechanize:
@@ -1540,11 +1559,6 @@ is correct and try creating the folder with proper permissions for me\
 not find path %s and could not make a directory there. Please make sure this \
 path is correct and try creating the folder with proper permissions for me\
 """ % os.path.join(self['global']['workingDir'], downDict['Dir'] ))
-    def _sort(self, l, key):
-      l = ( re.search('(%s)(\d+)(\w*)' % key, x) for x in l )
-      l = [(x.group(1), int(x.group(2)), x.group(3)) for x in l ]
-      l.sort(key=operator.itemgetter(1))
-      return  ['%s%s%s' % (x,y,z) for (x,y,z) in l ]
     def save(self):
         fd = codecs.open(self.filename, 'w', 'utf-8')
         fd.write("%s%s" %('[global]', os.linesep))
