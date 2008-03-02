@@ -29,7 +29,6 @@ import getopt
 import httplib
 import logging
 import mimetypes
-import operator
 import os
 import pickle
 try: import random
@@ -71,7 +70,6 @@ _action = None
 _configInstance = None
 _log = None
 _runOnce = None
-#_sharedData = None
 _USER_AGENT = u"RSSDler %s" % __version__
 # ~ defined helps with feedburner feeds
 percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25', 
@@ -79,7 +77,7 @@ percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25',
   u'+': u'%2B', u'*': u'%2A', u',': u'%2C', u'=': u'%3D', u'@': u'%40', 
   u';': u'%3B', u':': u'%3A', u']': u'%5D', u'[': u'%5B', u'?': u'%3F', 
   u'!':u'%7E'}
-percentunQuoteDict = dict(((j,i) for (i,j) in percentQuoteDict.iteritems()))
+percentunQuoteDict = dict(((j,i) for (i,j) in percentQuoteDict.items()))
 
 commentConfig = u"""# lines (like this one) starting with # are comments and 
 # will be ignored by the config parser
@@ -414,6 +412,21 @@ class htmlUnQuote(sgmllib.SGMLParser):
         self.result = "%s&%s%s" % (self.result, name, x)
     def handle_data(self, data):
         if data: self.result += data
+def natsorted(seq, case=False):
+    """Returns a copy of seq, sorted by natural string sort. local is faster
+    Inner functions modified from: 
+    http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/285264"""
+    def try_int(s):
+      "Convert to integer if possible."
+      try: return int(s)
+      except (TypeError, ValueError): return s
+    def natsort_key(s): return map(try_int, re.findall(r'(\d+|\D+)', s))
+    def natcmp(a, b): return cmp(natsort_key(a), natsort_key(b))
+    def natcmpcase(a,b): return natcmp(a.lower(), b.lower())
+    temp = list(seq)[:]
+    if case: temp.sort(cmp=natcmpcase)
+    else: temp.sort(cmp=natcmp)
+    return temp
 # # # # #
 # Network Communication
 # # # # #
@@ -1415,10 +1428,7 @@ option %s in global""" % option
                         option)
                     except ValueError: print >> sys.stderr, u"""failed to parse\
  option %s in thread %s""" % (option, thread)
-            #populate thread.downloads
-            downList = self._sort('download', thread)
-            checkList = self._sort('checktime', thread)
-            for i in downList:
+            for i in self.getsortedOnName('download', thread):
                 if i.lower().endswith('false'): 
                     try: self['threads'][thread]['downloads'][-1]['False'] = (
                         self.getboolean(thread, i) )
@@ -1445,7 +1455,7 @@ option %s in global""" % option
                         self._ifnone( self.get(thread, i) ))
                 else: self['threads'][thread]['downloads'].append( 
                     DownloadItemConfig( self.get(thread, i) ) )
-            for j in checkList:
+            for j in self.getsortedOnName('checktime', thread):
                 optionCheck = self.get(thread, j)
                 if j.endswith('day'):
                     if self.dayList.count(optionCheck.capitalize()): 
@@ -1469,30 +1479,7 @@ the week for %s""" % optionCheck
     def _ifnone(self, option):
         if option == '' or option.lower() == 'none': return None
         else: return option
-    def _sort(self, key, thread):
-      """Inner functions takes from: 
-      http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/285264 """
-      def try_int(s):
-          "Convert to integer if possible."
-          try: return int(s)
-          except: return s
-      def natsort_key(s):
-          "Used internally to get a tuple by which s is sorted."
-          return map(try_int, re.findall(r'(\d+|\D+)', s))
-      def natcmp(a, b):
-          "Natural string comparison, case sensitive."
-          return cmp(natsort_key(a), natsort_key(b))
-      def natcasecmp(a, b):
-          "Natural string comparison, ignores case."
-          return natcmp(a.lower(), b.lower())
-      def natsort(seq, cmp=natcmp):
-          "In-place natural string sort."
-          seq.sort(cmp)
-      def natsorted(seq, cmp=natcmp):
-          "Returns a copy of seq, sorted by natural string sort."
-          temp = seq[:]
-          natsort(temp, cmp)
-          return temp
+    def getsortedOnName(self, key, thread):
       l = [x for x in self.options(thread) if x.startswith(key) ]
       return natsorted(l)
     def check(self):
