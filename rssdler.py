@@ -1813,7 +1813,8 @@ def rssparse(tName):
     except Exception, m: # feedparser does not seem to throw exceptions properly, is a dictionary of some kind
         logging.critical( unicodeC(m) + os.linesep + u"page grabbed was not a parseable rss feed")
         return None
-    if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '':
+    if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '' and not (
+      getConfig()['threads'][tName]['scanMins'] > int(ppage['feed']['ttl'])):
         logging.debug(u"setting ttl")
         getSaved().minScanTime[tName] = (time.time(), int(ppage['feed']['ttl']))
     elif getConfig()['threads'][tName]['scanMins']:
