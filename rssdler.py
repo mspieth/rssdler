@@ -79,7 +79,8 @@ percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25',
   u'!':u'%7E'}
 percentunQuoteDict = dict(((j,i) for (i,j) in percentQuoteDict.items()))
 
-commentConfig = u"""# lines (like this one) starting with # are comments and 
+commentConfig = u"""# default config filename is config.txt in ~/.rssdler
+# lines (like this one) starting with # are comments and 
 # will be ignored by the config parser
 # the only required section (though the program won't do much without others)
 # sections are denoted by a line starting with [
@@ -722,7 +723,7 @@ def downloadFile(link=None, threadName=None, rssItemNode=None,
     except IOError: 
         logging.critical( u"write to disk failed")
         return False
-    logging.warn( u"\tFilename: %s%s\tDirectory: %s%s\tFrom Thread: %s%s" % ( 
+    logging.warn( u"Filename: %s%s\tDirectory: %s%s\tFrom Thread: %s%s" % ( 
         filename, os.linesep, directory, os.linesep, threadName, os.linesep ))
     if rss:
         logging.debug( u"generating rss item")

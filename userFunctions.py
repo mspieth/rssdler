@@ -11,7 +11,7 @@ def ifTorrent(directory, filename, rssItemNode, retrievedLink, downloadDict, thr
     except ValueError: fdT = False
     if fdT:     return True
     else:
-        failedProcedure(u"The file %s wasn't actually torrent data. Attempting to remove from queue. Will add to failedDown" % filename , 1, directory, filename, threadName, rssItemNode, downloadDict )
+        failedProcedure(u"The file %s wasn't actually torrent data. Attempting to remove from queue. Will add to failedDown" % filename , directory, filename, threadName, rssItemNode, downloadDict )
         return False
 
 def currentOnly(directory, filename, rssItemNode, retrievedLink, downloadDict, threadName):
@@ -60,7 +60,49 @@ def saveFeed(page, ppage, retrievedLink, threadName):
     rssl.close(length=length)
     rssl.write()
 
-def failedProcedure( message, level, directory, filename, threadName, rssItemNode, downloadDict ):
+def downloadFromSomeSite( directory, filename, rssItemNode, retrievedLink, downloadDict, threadName ):
+  """download a file from an html page. 
+  set two options in your thread configuration 
+  baselink: the baseurl of the site (should include a trailing /
+    example: http://cnn.com/
+  urlsearch: a string that will be present in the url for any given download. 
+    e.g. /download/, /torrent/, gettorrent.php, etc.
+    by default, this is not a regular expression, but a code snippet is provided
+    in the source if you want to treat it as one.
+    depends on libxml2dom
+    """
+  baselink = getConfig().get(threadName, 'baselink')
+  urlsearch = getConfig().get(threadName, 'urlsearch')
+  global libxml2dom
+  try: libxml2dom
+  except NameError: import libxml2dom
+  try: a = codecs.open( os.path.join( directory, filename ), 'rb' )
+  except IOError, m:
+    failedProcedure( u"""%s: could not even open our just written file.leaving \
+function..""" % m, directory, filename, threadName, rssItemNode, downloadDict) 
+    return None
+  p = libxml2dom.parseString( a.read(), html=True)
+  try: link = "%s%s" % (baselink ,  [x.getAttribute('href') for x in
+    p.getElementsByTagName('a') if x.hasAttribute('href') and
+    x.getAttribute('href').count(urlsearch) ][0] )
+    # if you want a regex. Then, instead of
+    # x.getAttribute('href').count(urlsearch) do:
+    # re.search(urlsearch, x.getAttribute('href'))
+  except IndexError, m:
+    failedProcedure( u"""%s: could not find href for downloaded %s item for \
+redownload""" % (m, threadName), directory, filename, threadName, 
+  rssItemNode, downloadDict)
+    return None
+  try: d = downloader(link)
+  except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m:
+    failedProcedure( '%s: could not download torrent from site' % m,
+      directory, filename, threadName, rssItemNode, downloadDict)
+    return None
+  newfilename = getFilenameFromHTTP( d.info(), d.geturl() )
+  newfilename = writeNewFile( newfilename, directory, d )
+  os.unlink( os.path.join(directory, filename) )
+
+def failedProcedure( message, directory, filename, threadName, rssItemNode, downloadDict ):
     u"""A function to take care of failed downloads, cleans up saved, failed, rss, the directory/filename, and prints to the log. should be called from other functions here, not directly from RSSDler."""
     logStatusMsg( message, level)
     saved.failedDown.append( FailedItem( saved.downloads.pop(), threadName, rssItemNode, downloadDict) )
