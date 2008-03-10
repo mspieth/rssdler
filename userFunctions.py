@@ -5,7 +5,7 @@ def ifTorrent(directory, filename, rssItemNode, retrievedLink, downloadDict, thr
     global saved
     try: fd = open(os.path.join(directory, filename), 'rb')
     except IOError, m:
-        logStatusMsg( unicode(m) + u" could not even open our just written file. leaving function..", 2)
+        logging.error( unicode(m) + u" could not even open our just written file. leaving function..")
         return None
     try: fdT = bdecode( fd.read() )
     except ValueError: fdT = False
@@ -20,7 +20,7 @@ def currentOnly(directory, filename, rssItemNode, retrievedLink, downloadDict, t
     except (ValueError, ConfigParser.NoOptionError): maxage = 86400
     if time.time() - time.mktime( rssItemNode['updated_parsed'] ) > maxage:
         try: os.unlink( os.path.join(directory, filename) )
-        except OSError: logStatusMsg(u"could not remove file from disk: %s" % filename, 1 ) 
+        except OSError: logging.critical(u"could not remove file from disk: %s" % filename)
         global rss
         if rss: rss.delItem()
     
