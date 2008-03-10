@@ -29,15 +29,6 @@ def noRss(directory, filename, rssItemNode, retrievedLink, downloadDict, threadN
     global rss
     if rss: rss.delItem()
 
-def rmObj(directory, filename, rssItemNode, retrievedLink, downloadDict, threadName):
-    u"""A temporary fix to issue #2 (link below). Removes .obj extension from files with mime-type Octect-Stream
-    http://code.google.com/p/rssdler/issues/detail?id=2
-    """
-    if filename.endswith('.obj'):
-        newfilename = filename[:-4]
-        try: os.rename( os.path.join(directory, filename), os.path.join(directory, newfilename) )
-        except Exception, m: logStatusMsg(u"could not remove .obj from filename %s" % filename, 2)
-
 def saveFeed(page, ppage, retrievedLink, threadName):
     u"""A helper postScanFunction. Do not call directly, use saveFeed. Uses MakeRss to generate an archive of rss items.
     Useful for later perusal by a human read rss reader without having to hit up the server multiple times.
@@ -70,9 +61,16 @@ def downloadFromSomeSite( directory, filename, rssItemNode, retrievedLink, downl
     by default, this is not a regular expression, but a code snippet is provided
     in the source if you want to treat it as one.
     depends on libxml2dom
+    assumes you want to grab a torrent file. 
+    Comment out last two lines if you want a non-torrent file
     """
-  baselink = getConfig().get(threadName, 'baselink')
-  urlsearch = getConfig().get(threadName, 'urlsearch')
+  try:
+    baselink = getConfig().get(threadName, 'baselink')
+    urlsearch = getConfig().get(threadName, 'urlsearch')
+  except ConfigParser.NoOptionError:
+    logging.critical("""To use downloadFromSomeSite function, \
+you must provide options baselink and urlsearch in your config""")
+    return None
   global libxml2dom
   try: libxml2dom
   except NameError: import libxml2dom
@@ -91,7 +89,7 @@ function..""" % m, directory, filename, threadName, rssItemNode, downloadDict)
   except IndexError, m:
     failedProcedure( u"""%s: could not find href for downloaded %s item for \
 redownload""" % (m, threadName), directory, filename, threadName, 
-  rssItemNode, downloadDict)
+      rssItemNode, downloadDict)
     return None
   try: d = downloader(link)
   except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m:
@@ -100,11 +98,13 @@ redownload""" % (m, threadName), directory, filename, threadName,
     return None
   newfilename = getFilenameFromHTTP( d.info(), d.geturl() )
   newfilename = writeNewFile( newfilename, directory, d )
-  os.unlink( os.path.join(directory, filename) )
+  # assume we want a torrent file
+  if ifTorrent( directory, newfilename, rssItemNode, retrievedLink, downloadDict, threadName):
+    os.unlink( os.path.join(directory, filename) )
 
 def failedProcedure( message, directory, filename, threadName, rssItemNode, downloadDict ):
     u"""A function to take care of failed downloads, cleans up saved, failed, rss, the directory/filename, and prints to the log. should be called from other functions here, not directly from RSSDler."""
-    logStatusMsg( message, level)
+    logging.critical(unicodeC(message))
     saved.failedDown.append( FailedItem( saved.downloads.pop(), threadName, rssItemNode, downloadDict) )
     try: os.unlink(os.path.join(directory, filename))
     except OSError: logStatusMsg(u"could not remove file from disk: %s" % filename, 1 ) 
