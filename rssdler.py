@@ -1976,9 +1976,8 @@ def main( ):
             run()
             logging.info( u"Processing took %d seconds" % (time.time() - startTime) )
         except Exception, m:
-            m1,m2,m3=sys.exc_info() # to send this to logfile or not...?
-            logging.critical("Unexpected Error: %s %s %s%s%s" %(unicodeC(m1),
-                unicodeC(m2),os.linesep, u'    ',unicodeC(m3)) )
+            import traceback
+            logging.critical("Unexpected Error: %s" % traceback.format_exc() )
             getSaved().save()
             getSaved().unlock()
             raise
