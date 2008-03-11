@@ -928,8 +928,12 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         if parse: self.parse()
     def loadChanOpt(self):
         u"""takes self.channelMeta and  turns it into xml and adds the nodes to self.channel. Will only add those elements which are part of the rss standard (aka those elements in self.chanMetOpt. If you add to this list, you can override what is allowed to be added to the feed."""
-        if 'title' not in self.channelMeta or 'description' not in self.channelMeta or 'link' not in self.channelMeta:
-            raise ValueError, "channelMeta must specify at least 'title', 'description', and 'link' according to RSS2.0 spec. these are case sensitive"
+        if 'title' not in self.channelMeta: 
+          self.channelMeta['title'] = 'Title Not Specified'
+        if 'description' not in self.channelMeta: 
+          self.channelMeta['description'] = 'No Description'
+        if 'link' not in self.channelMeta: 
+          self.channelMeta['link'] = 'http://nolinkgiven.com'
         for i in ( self.channel.appendChild(self.makeTextNode(key, self.channelMeta[key])) for key in self.chanMetOpt if key in self.channelMeta ): pass
     def makeTextNode(self, nodeName, nodeText, nodeAttributes=()):
         """returns an xml text element node, with input being the name of the node, text, and optionally node attributes as a sequence
