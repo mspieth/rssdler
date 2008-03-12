@@ -1,11 +1,13 @@
-def ifTorrent(directory, filename, rssItemNode, retrievedLink, downloadDict, threadName):
-    u"""a postDownloadFunction for RSSDler. Confirms that downloaded data is valid bencoded (torrent) data
-    If not, removes the file from disk, saved.downloads, and rss feed, adds it to saved.failedDown
+def ifTorrent(directory, filename, rssItemNode, retrievedLink, downloadDict, 
+  threadName):
+    u"""Confirms that downloaded data is valid bencoded (torrent) data
+    If not, executes failedProcedure
     """
     global saved
     try: fd = open(os.path.join(directory, filename), 'rb')
     except IOError, m:
-        logging.error( unicode(m) + u" could not even open our just written file. leaving function..")
+        logging.error( unicode(m) + 
+          u" could not even open our just written file. leaving function..")
         return None
     try: fdT = bdecode( fd.read() )
     except ValueError: fdT = False
@@ -14,25 +16,31 @@ def ifTorrent(directory, filename, rssItemNode, retrievedLink, downloadDict, thr
         failedProcedure(u"The file %s wasn't actually torrent data. Attempting to remove from queue. Will add to failedDown" % filename , directory, filename, threadName, rssItemNode, downloadDict )
         return False
 
-def currentOnly(directory, filename, rssItemNode, retrievedLink, downloadDict, threadName):
-    u"""A postDownloadFunction: checks to make sure that the item was added recently. Useful for feeds that get messed up on occasion."""
+def currentOnly(directory, filename, rssItemNode, retrievedLink, downloadDict, 
+  threadName):
+    u"""checks to make sure that the item was added recently. 
+    Useful for feeds that get messed up on occasion."""
     try: maxage = getConfig().getint(threadName, 'maxage')
     except (ValueError, ConfigParser.NoOptionError): maxage = 86400
     if time.time() - time.mktime( rssItemNode['updated_parsed'] ) > maxage:
         try: os.unlink( os.path.join(directory, filename) )
-        except OSError: logging.critical(u"could not remove file from disk: %s" % filename)
+        except OSError: 
+          logging.critical(u"could not remove file from disk: %s" % filename)
         global rss
         if rss: rss.delItem()
     
-def noRss(directory, filename, rssItemNode, retrievedLink, downloadDict, threadName):
-    u"""A postDownloadFunction: removes the downloaded item from RSS, in case you want to generate an rss feed of some downloaded items, but not all"""
+def noRss(*args):
+    u"""removes the downloaded item from RSS, 
+    in case you do not want to generate an rss feed of some downloaded items"""
     global rss
     if rss: rss.delItem()
 
 def saveFeed(page, ppage, retrievedLink, threadName):
-    u"""A helper postScanFunction. Do not call directly, use saveFeed. Uses MakeRss to generate an archive of rss items.
-    Useful for later perusal by a human read rss reader without having to hit up the server multiple times.
-    WILL generate an invalid feed that may break some readers. See issue #3 (link below).
+    u"""Uses MakeRss to generate an archive of rss items.
+    Useful for later perusal by a human read rss reader,
+    without having to hit up the server multiple times.
+    WILL generate an invalid feed that may break some readers. 
+    See issue #3 (link below).
     http://code.google.com/p/rssdler/issues/detail?id=3
     """
     # makes use of custom options you can define for each section/thread
@@ -44,14 +52,16 @@ def saveFeed(page, ppage, retrievedLink, threadName):
     except ConfigParser.NoOptionError: filename = "%s.xml" % threadName
     try: length = getConfig().getint(threadName, 'rsslength')
     except ConfigParser.NoOptionError: length = 100
-    rssl = MakeRss(filename=filename, parse=True, itemsQuaDictBool=True)
+    rssl = MakeRss(filename=filename, parse=True)
     rssl.channelMeta = ppage['feed']
-    links = [ x['link'] for x in rssl.itemsQuaDict ] # if no link key, this will fail without proper handling
-    [ rssl.addItem(x) for x in reversed(ppage['entries']) if x['link'] not in links ]
+    links = [ x['link'] for x in rssl.itemsQuaDict ]
+    for x in reversed(ppage['entries']):
+      if x['link'] not in links: rssl.addItem(x)
     rssl.close(length=length)
     rssl.write()
 
-def downloadFromSomeSite( directory, filename, rssItemNode, retrievedLink, downloadDict, threadName ):
+def downloadFromSomeSite( directory, filename, rssItemNode, retrievedLink, 
+  downloadDict, threadName ):
   """download a file from an html page. 
   set two options in your thread configuration 
   baselink: the baseurl of the site (should include a trailing /
@@ -99,13 +109,19 @@ redownload""" % (m, threadName), directory, filename, threadName,
   newfilename = getFilenameFromHTTP( d.info(), d.geturl() )
   newfilename = writeNewFile( newfilename, directory, d )
   # assume we want a torrent file
-  if ifTorrent( directory, newfilename, rssItemNode, retrievedLink, downloadDict, threadName):
+  if ifTorrent( directory, newfilename, rssItemNode, retrievedLink,
+    downloadDict, threadName):
     os.unlink( os.path.join(directory, filename) )
 
-def failedProcedure( message, directory, filename, threadName, rssItemNode, downloadDict ):
-    u"""A function to take care of failed downloads, cleans up saved, failed, rss, the directory/filename, and prints to the log. should be called from other functions here, not directly from RSSDler."""
+def failedProcedure( message, directory, filename, threadName, rssItemNode, 
+  downloadDict ):
+    u"""A function to take care of failed downloads.
+    cleans up saved, failed, rss, the directory/filename, and prints to the log.
+    should be called from other functions here, not directly from RSSDler."""
     logging.critical(unicodeC(message))
-    saved.failedDown.append( FailedItem( saved.downloads.pop(), threadName, rssItemNode, downloadDict) )
+    saved.failedDown.append( FailedItem( saved.downloads.pop(), threadName, 
+      rssItemNode, downloadDict) )
     try: os.unlink(os.path.join(directory, filename))
-    except OSError: logStatusMsg(u"could not remove file from disk: %s" % filename, 1 ) 
+    except OSError: 
+      logging.critical(u"could not remove file from disk: %s" % filename)
     if rss: rss.delItem()

@@ -31,8 +31,6 @@ import logging
 import mimetypes
 import os
 import pickle
-try: import random
-except ImportError: random = None
 import re
 import signal
 import sgmllib
@@ -899,22 +897,29 @@ class DownloadItemConfig(dict):
         if 'data' in state: self.update(state['data'])
 
 class MakeRss(object):
-    u"""A class to generate, and optionally parse and load, an RSS 2.0 feed. Example usage:
-rss = MakeRss(filename='rss.xml')
-rss.addItem(dict)
-rss.close()
-rss.write()
-"""
-    def __init__(self, channelMeta={}, parse=False, filename=None, itemsQuaDictBool=True):
-        u"""channelMeta is a dictionary where the keys are the feed attributes (description, title, link are REQUIRED). 
-filename sets the internal filename, where parsed feeds are parsed from (by default) and the stored feed data is written to (by default).
-parse will read the xml file found at self.filename and load the data into the various places
-itemsQuaDictBool: whether to store added entries as dictionary objects or XML objects. The former is easier to deal with and is how RSSDler works with them as of 0.3.2"""
-        global minidom, random
+    u"""A class to generate, and optionally parse and load, an RSS 2.0 feed. 
+    Example usage:
+    rss = MakeRss(filename='rss.xml')
+    rss.addItem(dict)
+    rss.close()
+    rss.write()"""
+    chanMetOpt = ['title', 'description', 'link', 'language', 
+      'copyright', 'managingEditor', 'webMaster', 'pubDate', 
+      'lastBuildDate', 'category', 'generator', 'docs', 'cloud', 'ttl', 
+      'image', 'rating', 'textInput', 'skipHours', 'skipDays']
+    itemMeta = ['title', 'link', 'description', 'author', 'category', 
+      'comments', 'enclosure', 'guid', 'pubDate', 'source']
+    def __init__(self, channelMeta={}, parse=False, filename=None):
+        u"""channelMeta is a dictionary where the keys are the feed attributes 
+        (description, title, link are REQUIRED). 
+        filename sets the internal filename, where parsed feeds are parsed from 
+        (by default) and the stored feed data is written to (by default).
+        parse will read the xml file found at self.filename and load the data 
+        into the various places
+        or XML objects. The former is easier to deal with and is how RSSDler 
+        works with them as of 0.3.2"""
+        global minidom
         if not minidom: raise ImportError('minidom not imported')
-        if not random: raise ImportError('random not imported')
-        self.chanMetOpt = ['title', 'description', 'link', 'language', 'copyright', 'managingEditor', 'webMaster', 'pubDate', 'lastBuildDate', 'category', 'generator', 'docs', 'cloud', 'ttl', 'image', 'rating', 'textInput', 'skipHours', 'skipDays']
-        self.itemMeta = ['title', 'link', 'description', 'author', 'category', 'comments', 'enclosure', 'guid', 'pubDate', 'source']
         object.__init__(self)
         self.feed = minidom.Document()
         self.rss = self.feed.createElement('rss')
@@ -924,34 +929,45 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
         self.filename = filename
         self.items = []
         self.itemsQuaDict = []
-        self.itemsQuaDictBool = itemsQuaDictBool
         if parse: self.parse()
     def loadChanOpt(self):
-        u"""takes self.channelMeta and  turns it into xml and adds the nodes to self.channel. Will only add those elements which are part of the rss standard (aka those elements in self.chanMetOpt. If you add to this list, you can override what is allowed to be added to the feed."""
+        u"""takes self.channelMeta and  turns it into xml 
+        and adds the nodes to self.channel. Will only add those elements which 
+        are part of the rss standard (aka those elements in self.chanMetOpt. 
+        If you add to this list, you can override what is allowed
+        to be added to the feed."""
         if 'title' not in self.channelMeta: 
           self.channelMeta['title'] = 'Title Not Specified'
         if 'description' not in self.channelMeta: 
           self.channelMeta['description'] = 'No Description'
         if 'link' not in self.channelMeta: 
           self.channelMeta['link'] = 'http://nolinkgiven.com'
-        for i in ( self.channel.appendChild(self.makeTextNode(key, self.channelMeta[key])) for key in self.chanMetOpt if key in self.channelMeta ): pass
+        for key in self.chanMetOpt:
+          if key in self.channelMeta: 
+            self.channel.appendChild(self.makeTextNode(key, self.channelMeta[key]))
     def makeTextNode(self, nodeName, nodeText, nodeAttributes=()):
-        """returns an xml text element node, with input being the name of the node, text, and optionally node attributes as a sequence
+        """returns an xml text element node, 
+        with input being the name of the node, text, 
+        and optionally node attributes as a sequence
         of tuple pairs (attributeName, attributeValue)
         """
         node = self.feed.createElement(nodeName)
         text = self.feed.createTextNode(unicodeC(nodeText))
         node.appendChild(text)
-        if nodeAttributes:  
-          for i in ( node.setAttribute(attribute, value) for attribute, value in nodeAttributes ): pass
+        for attribute, value in nodeAttributes: 
+          node.setAttribute(attribute, value)
         return node
     def makeItemNode(self, itemAttr={}, action='insert'):
-        """Generates xml ItemNodes from a Dictionary. Only allows elements in RSS specification. Overridden by adding elements to self.itemMeta. Should not need to call directly unless action='return'.
+        """Generates xml ItemNodes from a Dictionary. 
+        Only allows elements in RSS specification. 
+        Overridden by adding elements to self.itemMeta. 
+        Should not need to call directly unless action='return'.
         action: 
             insert: put at 0th position in list.
             return: do not attach to self.items at all, just return the XML object.
         """
-        if 'title' not in itemAttr and 'description' not in itemAttr: raise Exception, "must provide at least a title OR description for each item"
+        if 'title' not in itemAttr: itemAttr['title'] = 'no title given'
+        if 'description' not in itemAttr: itemAttr['description'] = 'not given'
         if 'pubdate' not in itemAttr and 'pubDate' not in itemAttr:
             if 'updated_parsed' in itemAttr: 
                 itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", itemAttr['updated_parsed'])
@@ -959,28 +975,30 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
             else: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         if 'guid' not in itemAttr:
             if 'link' in itemAttr: itemAttr['guid'] = itemAttr['link']
-            else: itemAttr['guid'] = random.randint(0,9000000000)
+            else: itemAttr['guid'] = 'NO GUID'
         item = self.feed.createElement('item')
-        for i in ( item.appendChild(self.makeTextNode(key, itemAttr[key])) for key in self.itemMeta if key in itemAttr ): pass
+        for key in self.itemMeta:
+          if key in itemAttr: 
+            item.appendChild(self.makeTextNode(key, itemAttr[key]))
         if action.lower() == 'insert':  self.items.insert(0, item)
         elif action.lower() == 'return': return item
-        else: raise Exception, "Illegal value for action, must be insert, append, or return"
     def appendItemNodes(self, length=20):
-        """adds the items in self.items to self.channel. starts at the front of the list."""
-        if self.itemsQuaDictBool: 
-          for i in ( self.makeItemNode(item) for item in reversed(self.itemsQuaDict) ): pass
+        """adds the items in self.items to self.channel. starts at the front"""
+        for item in reversed(self.itemsQuaDict): self.makeItemNode(item) 
         if length==0: 
-            for i in ( self.channel.appendChild( item ) for item in self.items ): pass
+          for item in self.items: self.channel.appendChild(item)
         else: 
-            for i in ( self.channel.appendChild( item ) for item in self.items[:length] ): pass
+          for item in self.items[:length]: self.channel.appendChild(item)
     def close(self, length=20):
-        u"""takes care of taking the channelMeta data and the items (dictionary or XML), and putting it all together in self.feed"""
+        u"""takes care of taking the channelMeta data and the items 
+        (dictionary or XML), and putting it all together in self.feed"""
         self.loadChanOpt()
         self.appendItemNodes(length=length)
         self.rss.appendChild(self.channel)
         self.feed.appendChild(self.rss)
     def parse(self, filename=None, rawfeed=None, parsedfeed=None, itemsonly=False):
-        """give parse a raw feed (just the xml/rss file, unparsed) and it will fill in the class attributes, and allow you to modify the feed.
+        """give parse a raw feed (just the xml/rss file, unparsed) and 
+        it will fill in the class attributes, and allow you to modify the feed.
         Or give me a feedparser.parsed feed (parsedfeed) and I'll do the same"""
         if filename:
             if not os.path.isfile(filename): return None
@@ -992,18 +1010,18 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
             p = feedparser.parse(self.filename)
         else: raise Exception, "Must give either a rawfeed, filename, set self.filename, or parsedfeed"
         if not itemsonly:
-            if 'updated' in p['feed']: p['feed']['pubDate'] = p['feed']['pubdate']  = p['feed']['updated']
+            if 'updated' in p['feed']: 
+              p['feed']['pubDate'] = p['feed']['pubdate']  =p['feed']['updated']
             elif 'updated_parsed' in p['feed']: 
                 p['feed']['pubDate'] = p['feed']['pubdate']  = time.strftime("%a, %d %b %Y %H:%M:%S GMT", p['feed']['updated_parsed'])
             self.channelMeta = p['feed']
-        if self.itemsQuaDictBool:   self.itemsQuaDict.extend(p['entries'])
-        else:  
-          for i in ( self.makeItemNode(itemAttr=x) for x in reversed(p['entries']) ): pass
+        self.itemsQuaDict.extend(p['entries'])
     def _write(self, data, fd):
         fd.write( data.toprettyxml() )
         fd.flush()
     def write(self, filename=None, file=None):
-        """Writes self.feed to a file, default self.filename. If fed filename, will write and close self.feed to file at filename.
+        """Writes self.feed to a file, default self.filename. 
+        If fed filename, will write and close self.feed to file at filename.
         if fed file, will write to file, but closing it is up to you"""
         if file: self._write(self.feed, file)
         elif filename:
@@ -1015,13 +1033,13 @@ itemsQuaDictBool: whether to store added entries as dictionary objects or XML ob
             self._write(self.feed, outfile)
             outfile.close()
     def addItem(self, newItem):
-        """newItem is a dictionary representing an rss item. Use this method to add new items to the object, regardless if you are using itemsQuaDictBool or not"""
-        if self.itemsQuaDictBool:   self.itemsQuaDict.insert(0, newItem)
-        else: self.makeItemNode( newItem )
+        """newItem is a dictionary representing an rss item. 
+        Use this method to add new items to the object,"""
+        self.itemsQuaDict.insert(0, newItem)
     def delItem(self, x=0):
-        u"""returns what should be the last added item to the rss feed. Or specify which item to return"""
-        if self.itemsQuaDictBool: self.itemsQuaDict.pop(x)
-        else: self.items.pop(x)
+        u"""returns what should be the last added item to the rss feed. 
+        Or specify which item to return"""
+        self.itemsQuaDict.pop(x)
 
 class GlobalOptions(dict):
     u"""    downloadDir: [Recommended] A string option. Default is workingDir. 
@@ -1678,7 +1696,7 @@ def noprint(*args, **kwds):
     pass
 
 class Fkout(object):
-    debug=error=warning=info=debug=write=flush=close=noprint
+    error=warning=info=debug=write=flush=close = noprint
 
 class LevelFilter(logging.Filter):
     def __init__(self, levels): self.level = levels
@@ -1924,8 +1942,7 @@ Creating new saveFile.""")
         logging.debug(u'trying to generate rss feed')
         if getConfig()['global']['rssFilename']:
             logging.debug(u'rss filename set')
-            rss = MakeRss(filename=getConfig()['global']['rssFilename'], 
-                itemsQuaDictBool=True)
+            rss = MakeRss(filename=getConfig()['global']['rssFilename'])
             if os.path.isfile( getConfig()['global']['rssFilename'] ):
                 logging.debug(u'loading rss file')
                 rss.parse()
