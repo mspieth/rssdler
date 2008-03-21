@@ -964,7 +964,8 @@ class MakeRss(object):
         if 'description' not in itemAttr: itemAttr['description'] = 'not given'
         if 'pubdate' not in itemAttr and 'pubDate' not in itemAttr:
             if 'updated_parsed' in itemAttr: 
-                itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", itemAttr['updated_parsed'])
+                try: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", itemAttr['updated_parsed'])
+                except TypeError: itemAttr['pubDate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
             elif 'updated' in itemAttr: itemAttr['pubDate'] = itemAttr['pubdate'] = itemAttr['updated']
             else: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         if 'guid' not in itemAttr:
