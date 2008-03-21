@@ -572,16 +572,15 @@ def getFileSize( info, data=None ):
     size = None
     if 'torrent' in info.gettype():
         if data:
-            data = data.read()
+            if hasattr(data, 'read'): data = data.read()
             try: tparse = bdecode(data)
             except ValueError, m:
                 logging.critical( unicodeC( m ) + u"""File was supposed to be \
 torrent data, but could not be bdecoded, indicates it is not torrent data""")
-                return size
+                return size, data
             if 'length' in tparse['info']: size = int(tparse['info']['length'])
-            elif 'files' in tparse['info']:
-                size = int(0)
-                for j in tparse['info']['files']:   size += int(j['length'])
+            elif 'files' in tparse['info']: 
+              size = sum(int(j['length']) for j in tparse['info']['files'])
     else:
         try: 
             if 'content-length' in info: size = int(info['content-length'])
@@ -845,18 +844,13 @@ def bdecode(x):
           '7' : decode_string,
           '8' : decode_string,
           '9' : decode_string }
+        if hasattr(x, 'read'): x = x.read()
         try:  r, l = decode_func[x[0]](x, 0)
-        except TypeError:
-            try: 
-                x = x.read()
-                r, l = decode_func[x[0]](x,0)
-            except (AttributeError, IndexError, KeyError): raise ValueError
         except (IndexError, KeyError):
             try: 
-                fd = open(x, 'r')
-                x = fd.read()
+                x = open(x, 'r').read()
                 r, l = decode_func[x[0]](x,0)
-            except (IOError, IndexError, KeyError): raise ValueError
+            except (OSError, IOError, IndexError, KeyError): raise ValueError
         if l != len(x):  raise ValueError
         return r
 # # # # #
@@ -1703,7 +1697,7 @@ class LevelFilter(logging.Filter):
     def filter(self, record): 
         return self.level[0] <=  record.levelno <= self.level[1]
 
-def make_handler2(h, f, l, *o):
+def make_handler(h, f, l, *o):
     handler = h(*o)
     handler.setFormatter(logging.Formatter(f, datefmt='%Y%m%d.%H:%M'))
     handler.addFilter(LevelFilter(l))
@@ -1719,13 +1713,13 @@ def setLogging(reset=False):
     logging.basicConfig(level=10, stream=Fkout())
     logging.addLevelName(30, '')
     if v:
-        logging.getLogger('').addHandler(make_handler2(logging.StreamHandler,
+        logging.getLogger('').addHandler(make_handler(logging.StreamHandler,
             '%(levelname)s %(funcName)s %(lineno)d %(message)s', [max(40,v),50],
             sys.stderr))
-        logging.getLogger('').addHandler(make_handler2(logging.StreamHandler,
+        logging.getLogger('').addHandler(make_handler(logging.StreamHandler,
             '%(levelname)s %(message)s', [max(v,10),30], sys.stdout))
     if l:
-        logging.getLogger('').addHandler(make_handler2(logging.FileHandler,
+        logging.getLogger('').addHandler(make_handler(logging.FileHandler,
             '%(asctime)s %(levelname)-8s %(message)s', [max(l,10),50], 
             getConfig()['global']['logFile'],'a'))
     
