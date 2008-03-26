@@ -310,6 +310,23 @@ class Locked( Exception ):
 # # # # #
 #String/URI Handling
 # # # # #
+class StrWithReadline(str):
+  """Crappy hack to use Firefox3 cookies b/c *CookieJar does not support
+  loadString()"""
+  def __init__(self, x=None): 
+    if x==None: x=''
+    str.__init__(self, x)
+    self._lines=[]
+    self._linespot = 0
+  def readline(self):
+    if not self._lines:  self._lines = self.splitlines()
+    if self._linespot < len(self._lines):
+      a = self._lines[self._linespot]
+      self._linespot+=1
+      if a: return a
+      else: return '\n'
+    else: return ''
+    
 def unicodeC( s ):
     if not isinstance(s, basestring): s= unicode(s) # __str__ for exceptions etc
     if isinstance(s, str): s = unicode(s, 'utf-8', 'replace')
@@ -422,10 +439,8 @@ def natsorted(seq, case=False):
     def natsort_key(s): return map(try_int, re.findall(r'(\d+|\D+)', s))
     def natcmp(a, b): return cmp(natsort_key(a), natsort_key(b))
     def natcmpcase(a,b): return natcmp(a.lower(), b.lower())
-    temp = list(seq)[:]
-    if case: temp.sort(cmp=natcmpcase)
-    else: temp.sort(cmp=natcmp)
-    return temp
+    if case: return sorted(seq, cmp=natcmpcase)
+    else: return sorted(seq, cmp=natcmp)
 # # # # #
 # Network Communication
 # # # # #
@@ -472,6 +487,22 @@ def cookieHandler():
     u"""returns 0 if no cookie configured, 1 if cookie configured, 
     2 if cookie already configured (even if it is for a null value)"""
     global cj
+    def convertMoz3ToNet(cookie_file):
+      """modified from: 
+      https://addons.mozilla.org/en-US/firefox/discussions/comments.php?DiscussionID=8623"""
+      import sqlite3 as db
+      conn = db.connect(cookie_file)
+      cur = conn.cursor()
+      cur.execute("""SELECT host, path, isSecure, expiry, name, value FROM \
+moz_cookies;""")
+      s = """# HTTP Cookie File
+# http://www.netscape.com/newsref/std/cookie_spec.html
+# This is a generated file!  Do not edit.\n\n"""
+      for row in cur.fetchall():
+        s = ("%s%s\tTRUE\t%s\t%s\t%d\t%s\t%s\n" % (s, row[0], row[1],
+          str(bool(row[2])).upper(), row[3], str(row[4]), str(row[5])))
+      conn.close() 
+      return s
     returnValue = 2
     logging.debug(u"""testing cookieFile settings""")
     if cj == 1: pass
@@ -482,12 +513,22 @@ def cookieHandler():
         isinstance(cj, (cookielib.MozillaCookieJar, cookielib.LWPCookieJar) ) ):
         logging.debug(u"""attempting to load cookie type: %s\
 """ % getConfig()['global']['cookieType'])
-        cj = getattr(cookielib, getConfig()['global']['cookieType'] )()
-        try: 
+        if getConfig()['global']['cookieType'] == 'Firefox3':
+          cj = cookielib.MozillaCookieJar()
+          try: 
+            cj._really_load(convertMoz3ToNet(getConfig()['global']['cookieFile']
+              , 'fake_filename', 0, 0))
+          except (cookielib.LoadError, IOError), m:
+            logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
+cookies, stop RSSDler, correct the problem, and restart.""")
+            returnValue = 0
+        else:
+          cj = getattr(cookielib, getConfig()['global']['cookieType'] )()
+          try: 
             cj.load(getConfig()['global']['cookieFile'])
             returnValue = 1
             logging.debug(u"""cookies loaded""")
-        except (cookielib.LoadError, IOError), m:
+          except (cookielib.LoadError, IOError), m:
             logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
 cookies, stop RSSDler, correct the problem, and restart.""")
             returnValue = 0
@@ -496,6 +537,15 @@ cookies, stop RSSDler, correct the problem, and restart.""")
         mechanize.MSIECookieJar) )):
         logging.debug(u"""attempting to load cookie type: %s\
 """ % getConfig()['global']['cookieType'])
+        if getConfig()['global']['cookieType'] == 'Firefox3':
+          cj = mechanize.MozillaCookieJar()
+          try: 
+            cj._really_load(convertMoz3ToNet(getConfig()['global']['cookieFile']
+              , 'fake_filename', 0, 0))
+          except (mechanize._clientcookie.LoadError, IOError), m:
+            logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
+cookies, stop RSSDler, correct the problem, and restart.""")
+            returnValue = 0
         cj = getattr(mechanize, getConfig()['global']['cookieType'] )()
         try: 
             cj.load(getConfig()['global']['cookieFile'])
@@ -1391,6 +1441,8 @@ class Config(ConfigParser.SafeConfigParser, dict):
     intOptionsGlobal = ['maxSize', 'minSize', 'lockPort', 'scanMins', 
         'rssLength', 'sleepTime', 'verbose', 'umask','log', 'maxLogLength']
     intOptionsThread = ['maxSize', 'minSize', 'scanMins']
+    validCookies = ['MSIECookieJar' , 'LWPCookieJar' , 'MozillaCookieJar', 
+      'Firefox3' ]
     def __init__(self, filename=None, parsecheck=1):
         u"""
         see helpMessage
@@ -1498,8 +1550,7 @@ the week for %s""" % optionCheck
         if option == '' or option.lower() == 'none': return None
         else: return option
     def getsortedOnName(self, key, thread):
-      l = [x for x in self.options(thread) if x.startswith(key) ]
-      return natsorted(l)
+      return natsorted([x for x in self.options(thread) if x.startswith(key) ])
     def check(self):
         global mechanize
         if not self['global']['urllib'] and not mechanize:
@@ -1521,8 +1572,7 @@ Invalid configuration, no download directory""")
 Choose one or the other. May be caused by failed mechanize import. Incompatible\
  configuration, IE cookies must use mechanize. please install and configure\
  mechanize""")
-        if self['global']['cookieType'] not in ['MSIECookieJar' ,
-            'LWPCookieJar' , 'MozillaCookieJar' ]:
+        if self['global']['cookieType'] not in self.validCookies:
             raise SystemExit(u"""Invalid cookieType option: %s. Only \
 MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...
 """ % self['global']['cookieType'])
@@ -1565,50 +1615,8 @@ not find path %s and could not make a directory there. Please make sure this \
 path is correct and try creating the folder with proper permissions for me\
 """ % os.path.join(self['global']['workingDir'], downDict['Dir'] ))
     def save(self):
-        fd = codecs.open(self.filename, 'w', 'utf-8')
-        fd.write("%s%s" %('[global]', os.linesep))
-        keys = self['global'].keys()
-        keys.sort()
-        for key in keys:
-            if key == 'rss': continue # rss option deprecated
-            if self['global'][key] == GlobalOptions()[key]: continue #
-            fd.write("%s = %s%s" % (key, unicodeC(self['global'][key]), 
-                os.linesep))
-        fd.write(os.linesep)
-        threads = self['threads'].keys()
-        threads.sort()
-        for thread in threads:
-            fd.write("[%s]%s" % (thread, os.linesep))
-            threadKeys = self['threads'][thread].keys()
-            threadKeys.sort()
-            for threadKey in threadKeys:
-                checkNum = 1
-                if threadKey.lower() == 'downloads':
-                    for downNum, downDict in enumerate(self['threads'][thread][threadKey]):
-                        fd.write('download%s = %s%s' % (downNum, unicodeC(downDict['localTrue']), os.linesep))
-                        # don't bother writing if it's the default value
-                        if downDict['Dir'] != DownloadItemConfig()['Dir']: 
-                            fd.write('download%sDir = %s%s' % (downNum, unicodeC(downDict['Dir']), os.linesep))
-                        if downDict['False'] != DownloadItemConfig()['False']: 
-                            fd.write('download%sFalse = %s%s' % (downNum, unicodeC(downDict['False']), os.linesep))
-                        if downDict['Function'] != DownloadItemConfig()['Function']:
-                            fd.write('download%sFunction = %s%s' % (downNum, unicodeC(downDict['Function']), os.linesep))
-                        if downDict['maxSize'] != DownloadItemConfig()['maxSize']: 
-                            fd.write('download%sMaxSize = %s%s' % (downNum, unicodeC(downDict['maxSize']), os.linesep) )
-                        if downDict['minSize'] != DownloadItemConfig()['minSize']: 
-                            fd.write('download%sMinSize = %s%s' % (downNum, unicodeC(downDict['minSize']), os.linesep) )
-                        if downDict['True'] != DownloadItemConfig()['True']: 
-                            fd.write('download%sTrue = %s%s' % (downNum, unicodeC(downDict['True']), os.linesep))
-                elif 'checkTime' == threadKey:
-                    for checkNum, checkTup in enumerate( self['threads'][thread][threadKey] ):
-                        fd.write('checkTime%sDay = %s%s' % (checkNum, self.dayList[checkTup[0]], os.linesep))
-                        fd.write('checkTime%sStart = %s%s' % (checkNum, unicodeC(checkTup[1]), os.linesep))
-                        fd.write('checkTime%sStop = %s%s' % (checkNum, unicodeC(checkTup[2]), os.linesep))
-                else:
-                    if self['threads'][thread][threadKey] == ThreadLink()[threadKey]: continue
-                    fd.write('%s = %s%s' % (threadKey, unicodeC(self['threads'][thread][threadKey]), os.linesep))
-            fd.write(os.linesep)
-        fd.close()
+        raise DeprecationWarning("""this feature failed at saving custom \
+options. You should implement the native ConfigParser write methods""")
 
 # # # # #
 # User/InterProcess Communication
