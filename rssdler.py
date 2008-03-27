@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0a7"
+__version__ = u"0.4.0a8"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -31,6 +31,8 @@ import logging
 import mimetypes
 import os
 import pickle
+try: import random
+except ImportError: random = None
 import re
 import signal
 import sgmllib
@@ -962,8 +964,9 @@ class MakeRss(object):
         into the various places
         or XML objects. The former is easier to deal with and is how RSSDler 
         works with them as of 0.3.2"""
-        global minidom
+        global minidom, random
         if not minidom: raise ImportError('minidom not imported')
+        if not random: raise ImportError('random not imported')
         object.__init__(self)
         self.feed = minidom.Document()
         self.rss = self.feed.createElement('rss')
@@ -1018,9 +1021,8 @@ class MakeRss(object):
                 except TypeError: itemAttr['pubDate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
             elif 'updated' in itemAttr: itemAttr['pubDate'] = itemAttr['pubdate'] = itemAttr['updated']
             else: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
-        if 'guid' not in itemAttr:
-            if 'link' in itemAttr: itemAttr['guid'] = itemAttr['link']
-            else: itemAttr['guid'] = 'NO GUID'
+        if 'guid' not in itemAttr: 
+          itemAttr['guid'] = random.randint(10000,1000000000)
         item = self.feed.createElement('item')
         for key in self.itemMeta:
           if key in itemAttr: 
