@@ -1023,6 +1023,8 @@ class MakeRss(object):
             else: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
         if 'guid' not in itemAttr: 
           itemAttr['guid'] = random.randint(10000,1000000000)
+        if 'link' not in itemAttr or not itemAttr['link']: 
+          itemAttr['link'] = itemAttr['guid']
         item = self.feed.createElement('item')
         for key in self.itemMeta:
           if key in itemAttr: 
@@ -1854,12 +1856,17 @@ def rssparse(tName):
                 and 'href' in entry['enclosures'][0]
                 #and not getConfig()['threads'][tName]['preferLink'] # proposed configuration option
                 ):
-                    entry['link'] = unQuoteReQuote( entry['enclosures'][0]['href'] )
+                    entry['link']=unQuoteReQuote(entry['enclosures'][0]['href'])
             else: entry['link'] = unQuoteReQuote( entry['link'] )
             getSaved().downloads.append(entry['link'])
     else:
         for i in range(len(ppage['entries'])):
             # deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
+            if 'link' not in ppage['entries'][i]: continue
+              #and (
+              #'enclosures' not in ppage['entries'][i] or 
+              #not ppage['entries'][i]['enclosures'] or 
+              #'href' not in ppage['entries'][i]['enclosures'][0]): continue
             ppage['entries'][i]['oldlink'] = ppage['entries'][i]['link']
             if ( 'enclosures' in ppage['entries'][i]  
                 and len(ppage['entries'][i]['enclosures']) 
