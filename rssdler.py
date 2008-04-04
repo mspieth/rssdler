@@ -349,18 +349,6 @@ def xmlUnEscape( sStr, percent=0, pd=percentunQuoteDict ):
     if percent: sStr = percentUnQuote( sStr, pd )
     sStr = sStr.replace("&amp;", "&")
     return sStr
-    
-def xmlEscape( sStr, percent=1, pd=percentQuoteDict ):
-    u"""this does not function perfectly with percent=1 
-    aka also doing percent encoding. trailing ; get converted to %3B. 
-    perhaps they should be? but not likely. 
-    can specify your own percent quote dict (key, value) 
-    pairs are of (search, replace) ordering with percentQuoteDict.
-    """
-    for i,j in (("&","&amp;"),(">","&gt;"),("<","&lt;")): sStr=sStr.replace(i,j)
-    if percent: # sStr = unicodeC(percentQuote(sStr, pd=pd))
-        for search in pd: sStr = sStr.replace(search, pd[search])
-    return sStr
 
 def percentIsQuoted(sStr, testCases=percentQuoteDict.values()):
     u"""does not include query string or page marker (#) in detection. 
@@ -561,7 +549,7 @@ def urllib2RetrievePage( url, th=((u'User-agent', _USER_AGENT),)):
     logging.debug(u"grabbing page at url %s" % urlNotEncoded)
     return urllib2.urlopen(urllib2.Request(url, headers=dict(th)))
 
-def mechRetrievePage(url, txheaders=(('User-agent', _USER_AGENT),), ):
+def mechRetrievePage(url, th=(('User-agent', _USER_AGENT),), ):
     u"""URL is the full path to the resource we are retrieve/Posting
     txheaders: sequence of tuples of header key, value
     """
@@ -1083,8 +1071,9 @@ class GlobalOptions(dict):
         that has cookie data for whatever site(s) you have set that require it.
     cookieType: [Optional] A string option. Default 'MozillaCookieJar.' 
         Possible values (case sensitive): 'MozillaCookieJar', 'LWPCookieJar', 
-        'MSIECookieJar'. only mechanize supports MSIECookieJar.
+        'MSIECookieJar', 'Firefox3'. Only mechanize supports MSIECookieJar.
         Program will exit with error if you try to use urllib and MSIECookieJar.
+        Firefox3 requires that you use Python 2.5+ and support is experimental.
     scanMins: [Optional] An integer option. Default 15. Values are in minutes. 
         The number of minutes between scans.
         If a feed uses the <ttl> tag, it will be respected. 
@@ -1655,7 +1644,6 @@ def userFunctHandling():
     if not userFunctions:
         for threadKey in getConfig()['threads'].keys():
             if getConfig()['threads'][threadKey]['postDownloadFunction'] or getConfig()['threads'][threadKey]['postScanFunction']:
-                # logging.debug( os.path.realpath('./'))  # this makes no sense whatsoever
                 import userFunctions
                 break
         else:           userFunctions = 1
