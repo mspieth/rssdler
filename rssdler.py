@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0a8"
+__version__ = u"0.4.0a9"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -39,6 +39,7 @@ import sgmllib
 import socket
 import sys
 import time
+import traceback
 import urllib
 import urllib2
 import urlparse
@@ -57,6 +58,7 @@ except ImportError: mechanize = None
 # Reminders of potential import globals elsewhere.
 resource = None #daemon
 userFunctions = None
+sqlite3 = None #Firefox3 cookies
 
 # Rest of Globals
 configFile = os.path.expanduser(os.path.join('~','.rssdler', 'config.txt'))
@@ -485,136 +487,105 @@ u"""Proper file extension could not be determined for the downloaded file:
     if filename.endswith('.obj'): filename = filename[:-4]
     return unicodeC( filename)
 
-def cookieHandler():
-    u"""returns 0 if no cookie configured, 1 if cookie configured, 
-    2 if cookie already configured (even if it is for a null value)"""
-    global cj
-    def convertMoz3ToNet(cookie_file):
-      """modified from: 
-      https://addons.mozilla.org/en-US/firefox/discussions/comments.php?DiscussionID=8623"""
-      import sqlite3 as db
-      conn = db.connect(cookie_file)
-      cur = conn.cursor()
-      cur.execute("""SELECT host, path, isSecure, expiry, name, value FROM \
+def convertMoz3ToNet(cookie_file):
+  """modified from: 
+  https://addons.mozilla.org/en-US/firefox/discussions/comments.php?DiscussionID=8623"""
+  conn = sqlite3.connect(cookie_file)
+  cur = conn.cursor()
+  cur.execute("""SELECT host, path, isSecure, expiry, name, value FROM \
 moz_cookies;""")
-      s = """# HTTP Cookie File
+  s = """# HTTP Cookie File
 # http://www.netscape.com/newsref/std/cookie_spec.html
 # This is a generated file!  Do not edit.\n\n"""
-      for row in cur.fetchall():
-        s = ("%s%s\tTRUE\t%s\t%s\t%d\t%s\t%s\n" % (s, row[0], row[1],
-          str(bool(row[2])).upper(), row[3], str(row[4]), str(row[5])))
-      conn.close() 
-      return s
-    returnValue = 2
-    logging.debug(u"""testing cookieFile settings""")
-    if cj == 1: pass
-    elif cj == None and not getConfig()['global']['cookieFile']: 
-        logging.debug(u"""no cookies set""")
-        returnValue = 0
-    elif ( getConfig()['global']['urllib'] and not 
-        isinstance(cj, (cookielib.MozillaCookieJar, cookielib.LWPCookieJar) ) ):
-        logging.debug(u"""attempting to load cookie type: %s\
-""" % getConfig()['global']['cookieType'])
-        if getConfig()['global']['cookieType'] == 'Firefox3':
-          cj = cookielib.MozillaCookieJar()
-          try: 
-            cj._really_load(convertMoz3ToNet(getConfig()['global']['cookieFile']
-              , 'fake_filename', 0, 0))
-          except (cookielib.LoadError, IOError), m:
-            logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
-cookies, stop RSSDler, correct the problem, and restart.""")
-            returnValue = 0
-        else:
-          cj = getattr(cookielib, getConfig()['global']['cookieType'] )()
-          try: 
-            cj.load(getConfig()['global']['cookieFile'])
-            returnValue = 1
-            logging.debug(u"""cookies loaded""")
-          except (cookielib.LoadError, IOError), m:
-            logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
-cookies, stop RSSDler, correct the problem, and restart.""")
-            returnValue = 0
-    elif (not getConfig()['global']['urllib'] and not 
-        isinstance(cj, (mechanize.MozillaCookieJar, mechanize.LWPCookieJar, 
-        mechanize.MSIECookieJar) )):
-        logging.debug(u"""attempting to load cookie type: %s\
-""" % getConfig()['global']['cookieType'])
-        if getConfig()['global']['cookieType'] == 'Firefox3':
-          cj = mechanize.MozillaCookieJar()
-          try: 
-            cj._really_load(convertMoz3ToNet(getConfig()['global']['cookieFile']
-              , 'fake_filename', 0, 0))
-          except (mechanize._clientcookie.LoadError, IOError), m:
-            logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
-cookies, stop RSSDler, correct the problem, and restart.""")
-            returnValue = 0
-        cj = getattr(mechanize, getConfig()['global']['cookieType'] )()
-        try: 
-            cj.load(getConfig()['global']['cookieFile'])
-            returnValue = 1
-            logging.debug(u"""cookies loaded""")
-        except (mechanize._clientcookie.LoadError, IOError), m:
-            logging.critical( unicodeC(m)+u""" disabling cookies. To re-enable \
-cookies, stop RSSDler, correct the problem, and restart.""")
-            returnValue = 0
-    return returnValue
+  for row in cur.fetchall():
+    s = ("%s%s\tTRUE\t%s\t%s\t%d\t%s\t%s\n" % (s, row[0], row[1],
+      str(bool(row[2])).upper(), row[3], str(row[4]), str(row[5])))
+  conn.close() 
+  return StrWithReadline(s)
 
-def urllib2RetrievePage( url, txheaders=((u'User-agent', _USER_AGENT),)):
+def cookieHandler():
+    u"""tries to turn cj into a *CookieJar according to user preferences."""
+    global cj
+    cType = getConfig()['global']['cookieType']
+    cFile = getConfig()['global']['cookieFile']
+    netMod = getConfig()['global']['urllib']
+    m="Cookies disabled. RSSDler will reload the cookies if you fix the problem"
+    logging.debug(u"""testing cookieFile settings""")
+    if not cFile: logging.debug(u"""no cookie file configured""")
+    elif netMod:
+        logging.debug(u"""attempting to load cookie type: %s""" % cType)
+        if cType == 'Firefox3': cj = cookielib.MozillaCookieJar()
+        else: cj = getattr(cookielib, cType)()
+        try: 
+          if cType == 'Firefox3':
+            cj._really_load(convertMoz3ToNet(cFile, 'fake_filename', 0, 0))
+          else: cj.load(cFile)
+        except (cookielib.LoadError, IOError):
+          logging.critical( traceback.format_exc() + m)
+          cj = None
+        else: logging.debug(u"""cookies loaded""")
+    else:
+        logging.debug(u"""attempting to load cookie type: %s""" % cType)
+        if cType == 'Firefox3': cj = mechanize.MozillaCookieJar()
+        else: cj = getattr(mechanize, cType )()
+        try: 
+          if cType == 'Firefox3':
+            cj._really_load(convertMoz3ToNet(cFile, 'fake_filename', 0, 0))
+          else: cj.load(cFile)
+        except(mechanize._clientcookie.LoadError, IOError):
+          logging.critical( traceback.format_exc() + m)
+          cj = None
+        else: logging.debug(u"""cookies loaded""")
+
+def urllib2RetrievePage( url, th=((u'User-agent', _USER_AGENT),)):
     u"""URL is the full path to the resource we are retrieve/Posting
-    txheaders is a sequence of (field,value) pairs of any extra headers
+    th is a sequence of (field,value) pairs of any extra headers
     """
     global cj, opener
-    txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in 
-        txheaders  )
-    urlNotEncoded = url
+    th = [ (x.encode('utf-8'), y.encode('utf-8')) for x,y in th ]
     time.sleep( getConfig()['global']['sleepTime'] )
-    url = encodeQuoteUrl( url , encoding='utf-8')
+    url, urlNotEncoded = encodeQuoteUrl( url, encoding='utf-8' ), url
     if not url: 
         logging.critical(u"""utf encoding, quoting url failed, returning false %s\
 """ % url)
         return False
-    cjR = cookieHandler()
-    if cjR == 1:
+    if not urllib2._opener:
+      cookieHandler()
+      if cj:
         logging.debug(u"building and installing urllib opener with cookies")
-        opener = urllib2.build_opener (urllib2.HTTPCookieProcessor(cj) )
-        urllib2.install_opener(opener)
-    elif cjR == 0:
+        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj) )
+      else:
         logging.debug(u"building and installing urllib opener without cookies")
         opener = urllib2.build_opener( )
-        urllib2.install_opener(opener)
-        cj = 1
+      urllib2.install_opener(opener)
     logging.debug(u"grabbing page at url %s" % urlNotEncoded)
-    return urllib2.urlopen(urllib2.Request(url, headers=dict(txheadersEncoded)))
+    return urllib2.urlopen(urllib2.Request(url, headers=dict(th)))
 
 def mechRetrievePage(url, txheaders=(('User-agent', _USER_AGENT),), ):
     u"""URL is the full path to the resource we are retrieve/Posting
     txheaders: sequence of tuples of header key, value
     """
     global cj, opener
-    urlNotEncoded = url
-    txheadersEncoded = ( (x.encode('utf-8'), y.encode('utf-8') ) for x,y in 
-        txheaders )
+    th = [ (x.encode('utf-8'), y.encode('utf-8')) for x,y in th ]
     time.sleep( getConfig()['global']['sleepTime'] )
-    url = encodeQuoteUrl( url, encoding='utf-8' )
+    url, urlNotEncoded = encodeQuoteUrl( url, encoding='utf-8' ), url
     if not url: 
         logging.critical(u"utf encoding and quoting url failed, returning false")
         return False
-    cjR =  cookieHandler()
-    if cjR == 1:
+    if not mechanize._opener:
+      cookieHandler()
+      if cj:
         logging.debug(u"building and installing mechanize opener with cookies")
         opener = mechanize.build_opener(mechanize.HTTPCookieProcessor(cj), 
-            mechanize.HTTPRefreshProcessor(), mechanize.HTTPRedirectHandler(), 
-            mechanize.HTTPEquivProcessor())
-        mechanize.install_opener(opener)
-    elif cjR == 0:
+          mechanize.HTTPRefreshProcessor(), mechanize.HTTPRedirectHandler(), 
+          mechanize.HTTPEquivProcessor())
+      else:
         logging.debug(u"building and installing mech opener without cookies")
         opener = mechanize.build_opener(mechanize.HTTPRefreshProcessor(), 
-            mechanize.HTTPRedirectHandler(), mechanize.HTTPEquivProcessor())
-        mechanize.install_opener(opener)
-        cj = 1
+          mechanize.HTTPRedirectHandler(), mechanize.HTTPEquivProcessor())
+      mechanize.install_opener(opener)
     logging.debug(u"grabbing page at url %s" % urlNotEncoded)
-    return mechanize.urlopen(mechanize.Request(url,
-        headers=dict(txheadersEncoded)))
+    return mechanize.urlopen(mechanize.Request(url, headers=dict(th)))
 
 def getFileSize( info, data=None ):
     u"""give me the HTTP headers (info) and, 
@@ -1580,6 +1551,9 @@ Choose one or the other. May be caused by failed mechanize import. Incompatible\
             raise SystemExit(u"""Invalid cookieType option: %s. Only \
 MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...
 """ % self['global']['cookieType'])
+        if self['global']['cookieType'] == 'Firefox3':
+          global sqlite3
+          import sqlite3
         if self['global']['lockPort'] == None:
             self['global']['lockPort'] = 8023
         if ( 'log' in self['global'] and self['global']['log'] and 
@@ -1630,7 +1604,7 @@ def setDebug(type, value, tb):
         getConfig()['global']['debug'] ):
             sys.__excepthook__(type, value, tb)
     else:
-        import traceback, pdb
+        import pdb
         traceback.print_exception(type, value, tb)
         print
         pdb.pm()
@@ -2005,6 +1979,10 @@ def main( ):
     while True:
         try:
             logging.info( u"[Waking up] %s" % time.asctime() )
+            global cj
+            cj = None # will allow us to grab updated cookies, if any
+            if mechanize: mechanize._opener = None
+            urllib2._opener = None
             startTime = time.time()
             run()
             logging.info( u"Processing took %d seconds" % (time.time() - startTime) )
