@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0a9"
+__version__ = u"0.4.0a10"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -37,6 +37,7 @@ import re
 import signal
 import sgmllib
 import socket
+import StringIO
 import sys
 import time
 import traceback
@@ -307,30 +308,12 @@ securityIssues = u"""Security Note:
 # # # # #
 class Locked( Exception ):
     def __init__(self, value=u"""An lock() on savefile failed.""" ):
-        self.value = value
-    def __str__(self):
-        return repr( self.value)
+      self.value = value
+    def __str__(self): return repr( self.value)
 
 # # # # #
 #String/URI Handling
 # # # # #
-class StrWithReadline(str):
-  """Crappy hack to use Firefox3 cookies b/c *CookieJar does not support
-  loadString()"""
-  def __init__(self, x=None): 
-    if x==None: x=''
-    str.__init__(self, x)
-    self._lines=[]
-    self._linespot = 0
-  def readline(self):
-    if not self._lines:  self._lines = self.splitlines()
-    if self._linespot < len(self._lines):
-      a = self._lines[self._linespot]
-      self._linespot+=1
-      if a: return a
-      else: return '\n'
-    else: return ''
-    
 def unicodeC( s ):
     if not isinstance(s, basestring): s= unicode(s) # __str__ for exceptions etc
     if isinstance(s, str): s = unicode(s, 'utf-8', 'replace')
@@ -482,14 +465,15 @@ def convertMoz3ToNet(cookie_file):
   cur = conn.cursor()
   cur.execute("""SELECT host, path, isSecure, expiry, name, value FROM \
 moz_cookies;""")
-  s = """# HTTP Cookie File
+  s = StringIO.StringIO("""# HTTP Cookie File
 # http://www.netscape.com/newsref/std/cookie_spec.html
-# This is a generated file!  Do not edit.\n\n"""
-  for row in cur.fetchall():
-    s = ("%s%s\tTRUE\t%s\t%s\t%d\t%s\t%s\n" % (s, row[0], row[1],
-      str(bool(row[2])).upper(), row[3], str(row[4]), str(row[5])))
+# This is a generated file!  Do not edit.\n\n""")
+  s.writelines( "%s\tTRUE\t%s\t%s\t%d\t%s\t%s\n" % (row[0], row[1],
+      unicode(bool(row[2])).upper(), row[3], unicode(row[4]), unicode(row[5]))
+      for row in cur.fetchall())
   conn.close() 
-  return StrWithReadline(s)
+  s.seek(0)
+  return s
 
 def cookieHandler():
     u"""tries to turn cj into a *CookieJar according to user preferences."""
@@ -914,6 +898,7 @@ class MakeRss(object):
       'image', 'rating', 'textInput', 'skipHours', 'skipDays']
     itemMeta = ['title', 'link', 'description', 'author', 'category', 
       'comments', 'enclosure', 'guid', 'pubDate', 'source']
+    _date_fmt = "%a, %d %b %Y %H:%M:%S GMT"
     def __init__(self, channelMeta={}, parse=False, filename=None):
         u"""channelMeta is a dictionary where the keys are the feed attributes 
         (description, title, link are REQUIRED). 
@@ -976,10 +961,10 @@ class MakeRss(object):
         if 'description' not in itemAttr: itemAttr['description'] = 'not given'
         if 'pubdate' not in itemAttr and 'pubDate' not in itemAttr:
             if 'updated_parsed' in itemAttr: 
-                try: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", itemAttr['updated_parsed'])
-                except TypeError: itemAttr['pubDate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
+                try: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime(self._date_fmt, itemAttr['updated_parsed'])
+                except TypeError: itemAttr['pubDate'] = time.strftime(self._date_fmt, time.gmtime())
             elif 'updated' in itemAttr: itemAttr['pubDate'] = itemAttr['pubdate'] = itemAttr['updated']
-            else: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime())
+            else: itemAttr['pubDate'] = itemAttr['pubdate'] = time.strftime(self._date_fmt, time.gmtime())
         if 'guid' not in itemAttr: 
           itemAttr['guid'] = random.randint(10000,1000000000)
         if 'link' not in itemAttr or not itemAttr['link']: 
@@ -1021,7 +1006,7 @@ class MakeRss(object):
             if 'updated' in p['feed']: 
               p['feed']['pubDate'] = p['feed']['pubdate']  =p['feed']['updated']
             elif 'updated_parsed' in p['feed']: 
-                p['feed']['pubDate'] = p['feed']['pubdate']  = time.strftime("%a, %d %b %Y %H:%M:%S GMT", p['feed']['updated_parsed'])
+                p['feed']['pubDate'] = p['feed']['pubdate']  = time.strftime(self._date_fmt, p['feed']['updated_parsed'])
             self.channelMeta = p['feed']
         self.itemsQuaDict.extend(p['entries'])
     def _write(self, data, fd):
@@ -1892,17 +1877,18 @@ def run():
     getConfig(filename=configFile, reload=True)
     if isinstance(getConfig()['global']['umask'], int): 
         os.umask( getConfig()['global']['umask'] )
-    if getConfig()['global']['urllib']: downloader  = urllib2RetrievePage
-    else: downloader = mechRetrievePage
+    if not getConfig()['global']['urllib'] and mechanize: 
+      downloader = mechRetrievePage
+    else: downloader  = urllib2RetrievePage
     getSaved(unset=1)
     getSaved(getConfig()['global']['saveFile'])
     try:    getSaved().lock()
     except Locked:
         logging.error( u"Savefile is currently in use.")
-        raise Locked
+        raise
     try: getSaved().load()
     except (EOFError, IOError, ValueError, IndexError), m: 
-        logging.debug(unicodeC(m) + os.linesep +u"""didn't load SaveProcessor. \
+        logging.debug(traceback.format_exc() +u"""didn't load SaveProcessor. \
 Creating new saveFile.""")
     logging.debug(u"checking working dir, maybe changing dir")
     if os.getcwd() != getConfig()['global']['workingDir'] or (os.getcwd() != 
@@ -1975,7 +1961,6 @@ def main( ):
             run()
             logging.info( u"Processing took %d seconds" % (time.time() - startTime) )
         except Exception, m:
-            import traceback
             logging.critical("Unexpected Error: %s" % traceback.format_exc() )
             getSaved().save()
             getSaved().unlock()
@@ -1984,13 +1969,7 @@ def main( ):
             logging.info( u"[Complete] %s" % time.asctime() )
             break
         logging.info( u"[Sleeping] %s" % time.asctime() )
-        elapsed = time.time() - getSaved().lastChecked
-        #checkSleep has a 10 second resolution, let's sleep for 9, just to be on the safe side
-        time.sleep(9)
-        if  getConfig()['global']['scanMins'] * 60 < time.time() - getSaved().lastChecked: checkSleep ( getConfig()['global']['scanMins'] * 60 - elapsed )
-        else: checkSleep( getConfig()['global']['scanMins'] * 60 )
-    
-
+        checkSleep( getConfig()['global']['scanMins'] * 60 )
 
 helpMessage=u"""RSSDler is a Python based program to automatically grab the 
     link elements of an rss feed, aka an RSS broadcatcher. 
