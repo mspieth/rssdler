@@ -1607,14 +1607,13 @@ options. You should implement the native ConfigParser write methods""")
 # User/InterProcess Communication
 # # # # #
 def setDebug(type, value, tb):
-    if (hasattr(sys, 'ps1') or not sys.stderr.isatty()) or ( not 
-        getConfig()['global']['debug'] ):
-            sys.__excepthook__(type, value, tb)
-    else:
-        import pdb
-        traceback.print_exception(type, value, tb)
-        print
-        pdb.pm()
+  if getConfig()['global']['debug'] and _action != 'daemon':
+    import pdb
+    traceback.print_exception(type, value, tb)
+    print
+    pdb.pm()
+  else: sys.__excepthook__(type, value, tb)
+
 def callUserFunction( functionName, *args ):
     u"""calls the named function in userFunctions with arguments 
     (these are positional, not keyword, arguments): 
