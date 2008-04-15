@@ -483,17 +483,17 @@ def convertSafariToMoz(cookie_file):
 # http://www.netscape.com/newsref/std/cookie_spec.html
 # This is a generated file!  Do not edit.\n\n""")
   try: x = minidom.parse(cookie_file)
-  except IOError: 
+  except IOError: # No xml parsing errors caught.
     logging.critical('Cookie file faied to load. Please check for correct path')
     s.seek(0)
     return s
-  for cookie in minidom.parse(cookie_file).getElementsByTagName('dict'):
+  for cookie in x.getElementsByTagName('dict'):
     for key in cookie.getElementsByTagName('key'):
       keyText = key.firstChild.wholeText.lower()
       valueText = key.nextSibling.nextSibling.firstChild.wholeText
       if keyText == 'domain': host = valueText
       elif keyText == 'path': path = valueText
-      elif keyText == 'expires': 
+      elif keyText == 'expires': # ignores HH:MM:SS, etc.: 2018-02-14T15:37:51Z
         expires =str(int(time.mktime(time.strptime(valueText[:10],'%Y-%m-%d'))))
       elif keyText == 'name': name = valueText
       elif keyText == 'value': value = valueText
