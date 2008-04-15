@@ -513,9 +513,9 @@ def cookieHandler():
         else: cj = getattr(cookielib, cType)()
         try: 
           if cType == 'Firefox3':
-            cj._really_load(convertMoz3ToNet(cFile, 'fake_filename', 0, 0))
+            cj._really_load(convertMoz3ToNet(cFile), 'fake_filename', 0, 0)
           elif cType == 'Safari': 
-            cj._really_load(convertSafariToMoz(cFile, 'fake_filename', 0, 0))
+            cj._really_load(convertSafariToMoz(cFile), 'fake_filename', 0, 0)
           else: cj.load(cFile)
         except (cookielib.LoadError, IOError):
           logging.critical( traceback.format_exc() + m)
@@ -527,9 +527,9 @@ def cookieHandler():
         else: cj = getattr(mechanize, cType )()
         try: 
           if cType == 'Firefox3':
-            cj._really_load(convertMoz3ToNet(cFile, 'fake_filename', 0, 0))
+            cj._really_load(convertMoz3ToNet(cFile), 'fake_filename', 0, 0)
           elif cType == 'Safari':
-            cj._really_load(convertSafariToMoz(cFile, 'fake_filename', 0, 0))
+            cj._really_load(convertSafariToMoz(cFile), 'fake_filename', 0, 0)
           else: cj.load(cFile)
         except(mechanize._clientcookie.LoadError, IOError):
           logging.critical( traceback.format_exc() + m)
