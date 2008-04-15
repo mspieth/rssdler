@@ -479,9 +479,14 @@ def convertSafariToMoz(cookie_file):
   "convert Safari cookies to a Netscape format readable by rssdler"
   if not minidom: 
     raise ImportError('xml.dom.minidom needed for use of Safari Cookies')
-    s = StringIO.StringIO("""# HTTP Cookie File
+  s = StringIO.StringIO("""# HTTP Cookie File
 # http://www.netscape.com/newsref/std/cookie_spec.html
 # This is a generated file!  Do not edit.\n\n""")
+  try: x = minidom.parse(cookie_file)
+  except IOError: 
+    logging.critical('Cookie file faied to load. Please check for correct path')
+    s.seek(0)
+    return s
   for cookie in minidom.parse(cookie_file).getElementsByTagName('dict'):
     for key in cookie.getElementsByTagName('key'):
       keyText = key.firstChild.wholeText.lower()
