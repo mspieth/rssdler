@@ -475,6 +475,29 @@ moz_cookies;""")
   s.seek(0)
   return s
 
+def convertSafariToMoz(cookie_file):
+  "convert Safari cookies to a Netscape format readable by rssdler"
+  if not minidom: 
+    raise ImportError('xml.dom.minidom needed for use of Safari Cookies')
+    s = StringIO.StringIO("""# HTTP Cookie File
+# http://www.netscape.com/newsref/std/cookie_spec.html
+# This is a generated file!  Do not edit.\n\n""")
+  for cookie in minidom.parse(cookiefile).getElementsByTagName('dict'):
+    for key in cookie.getElementsByTagName('key'):
+      keyText = key.firstChild.wholeText.lower()
+      valueText = key.nextSibling.nextSibling.firstChild.wholeText
+      if keyText == 'domain': host = valueText
+      elif keyText == 'path': path = valueText
+      elif keyText == 'expires': 
+        expires =str(int(time.mktime(time.strptime(valueText[:10],'%Y-%m-%d'))))
+      elif keyText == 'name': name = valueText
+      elif keyText == 'value': value = valueText
+    s.writelines( "%s\tTRUE\t%s\tFALSE\t%d\t%s\t%s\n" % ( host, path, expires, 
+      name, value))
+  s.seek(0)
+  return s
+  
+
 def cookieHandler():
     u"""tries to turn cj into a *CookieJar according to user preferences."""
     global cj
@@ -486,11 +509,13 @@ def cookieHandler():
     if not cFile: logging.debug(u"""no cookie file configured""")
     elif netMod:
         logging.debug(u"""attempting to load cookie type: %s""" % cType)
-        if cType == 'Firefox3': cj = cookielib.MozillaCookieJar()
+        if cType in ['Safari', 'Firefox3']: cj = cookielib.MozillaCookieJar()
         else: cj = getattr(cookielib, cType)()
         try: 
           if cType == 'Firefox3':
             cj._really_load(convertMoz3ToNet(cFile, 'fake_filename', 0, 0))
+          elif cType == 'Safari': 
+            cj._really_load(convertSafariToMoz(cFile, 'fake_filename', 0, 0))
           else: cj.load(cFile)
         except (cookielib.LoadError, IOError):
           logging.critical( traceback.format_exc() + m)
@@ -498,11 +523,13 @@ def cookieHandler():
         else: logging.debug(u"""cookies loaded""")
     else:
         logging.debug(u"""attempting to load cookie type: %s""" % cType)
-        if cType == 'Firefox3': cj = mechanize.MozillaCookieJar()
+        if cType in [ 'Safari', 'Firefox3']: cj = mechanize.MozillaCookieJar()
         else: cj = getattr(mechanize, cType )()
         try: 
           if cType == 'Firefox3':
             cj._really_load(convertMoz3ToNet(cFile, 'fake_filename', 0, 0))
+          elif cType == 'Safari':
+            cj._really_load(convertSafariToMoz(cFile, 'fake_filename', 0, 0))
           else: cj.load(cFile)
         except(mechanize._clientcookie.LoadError, IOError):
           logging.critical( traceback.format_exc() + m)
@@ -1056,9 +1083,10 @@ class GlobalOptions(dict):
         that has cookie data for whatever site(s) you have set that require it.
     cookieType: [Optional] A string option. Default 'MozillaCookieJar.' 
         Possible values (case sensitive): 'MozillaCookieJar', 'LWPCookieJar', 
-        'MSIECookieJar', 'Firefox3'. Only mechanize supports MSIECookieJar.
+        'MSIECookieJar', 'Firefox3', 'Safari'. Only mechanize supports MSIECookieJar.
         Program will exit with error if you try to use urllib and MSIECookieJar.
         Firefox3 requires that you use Python 2.5+ and support is experimental.
+        Safari support requires xml.dom.minidom and support is experimental
     scanMins: [Optional] An integer option. Default 15. Values are in minutes. 
         The number of minutes between scans.
         If a feed uses the <ttl> tag, it will be respected. 
@@ -1391,7 +1419,7 @@ class Config(ConfigParser.SafeConfigParser, dict):
         'rssLength', 'sleepTime', 'verbose', 'umask','log', 'maxLogLength']
     intOptionsThread = ['maxSize', 'minSize', 'scanMins']
     validCookies = ['MSIECookieJar' , 'LWPCookieJar' , 'MozillaCookieJar', 
-      'Firefox3' ]
+      'Firefox3', 'Safari']
     def __init__(self, filename=None, parsecheck=1):
         u"""
         see helpMessage
