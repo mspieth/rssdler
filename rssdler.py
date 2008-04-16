@@ -386,8 +386,8 @@ def encodeQuoteUrl( url, encoding='utf-8'):
         url = percentQuote( url )
     logging.debug( u"encoding url %s" % url)
     try: url = url.encode(encoding)
-    except UnicodeEncodeError, m: 
-        logging.critical( unicodeC(m) + os.linesep + url)
+    except UnicodeEncodeError: 
+        logging.critical( ''.join((traceback.format_exc(),os.linesep,url)))
         return None
     return url
 
@@ -468,6 +468,7 @@ moz_cookies;""")
   s = StringIO.StringIO("""# HTTP Cookie File
 # http://www.netscape.com/newsref/std/cookie_spec.html
 # This is a generated file!  Do not edit.\n\n""")
+  s.seek(0,2)
   s.writelines( "%s\tTRUE\t%s\t%s\t%d\t%s\t%s\n" % (row[0], row[1],
       unicode(bool(row[2])).upper(), row[3], unicode(row[4]), unicode(row[5]))
       for row in cur.fetchall())
@@ -482,6 +483,7 @@ def convertSafariToMoz(cookie_file):
   s = StringIO.StringIO("""# HTTP Cookie File
 # http://www.netscape.com/newsref/std/cookie_spec.html
 # This is a generated file!  Do not edit.\n\n""")
+  s.seek(0,2)
   try: x = minidom.parse(cookie_file)
   except IOError: # No xml parsing errors caught.
     logging.critical('Cookie file faied to load. Please check for correct path')
@@ -491,17 +493,18 @@ def convertSafariToMoz(cookie_file):
     for key in cookie.getElementsByTagName('key'):
       keyText = key.firstChild.wholeText.lower()
       valueText = key.nextSibling.nextSibling.firstChild.wholeText
-      if keyText == 'domain': host = valueText
+      if keyText == 'domain': 
+        if valueText.startswith('.'): host = valueText
+        else: host = '.%s' % valueText
       elif keyText == 'path': path = valueText
       elif keyText == 'expires': # ignores HH:MM:SS, etc.: 2018-02-14T15:37:51Z
         expires =str(int(time.mktime(time.strptime(valueText[:10],'%Y-%m-%d'))))
       elif keyText == 'name': name = valueText
       elif keyText == 'value': value = valueText
-    s.writelines( "%s\tTRUE\t%s\tFALSE\t%d\t%s\t%s\n" % ( host, path, expires, 
+    s.writelines( "%s\tTRUE\t%s\tFALSE\t%s\t%s\t%s\n" % ( host, path, expires, 
       name, value))
   s.seek(0)
   return s
-  
 
 def cookieHandler():
     u"""tries to turn cj into a *CookieJar according to user preferences."""
@@ -601,9 +604,9 @@ def getFileSize( info, data=None ):
         if data:
             if hasattr(data, 'read'): data = data.read()
             try: tparse = bdecode(data)
-            except ValueError, m:
-                logging.critical( unicodeC( m ) + u"""File was supposed to be \
-torrent data, but could not be bdecoded, indicates it is not torrent data""")
+            except ValueError:
+                logging.critical(''.join((traceback.format_exc() ,
+u"""File was supposed to be torrent data, but could not be bdecoded""")))
                 return size, data
             if 'length' in tparse['info']: size = int(tparse['info']['length'])
             elif 'files' in tparse['info']: 
@@ -731,7 +734,8 @@ def downloadFile(link=None, threadName=None, rssItemNode=None,
     False if it failed, and a tuple of arguments for userFunct"""
     try: data = downloader(link)
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m: 
-        logging.critical(unicodeC(m)+os.linesep+u'error grabbing url: %s' % link)
+        logging.critical(''.join((traceback.format_exc(), os.linesep, 
+          u'error grabbing url: %s' % link)))
         return False
     filename = getFilenameFromHTTP(data.info(), link)
     if not filename: return False
@@ -786,11 +790,11 @@ def writeNewFile(filename, directory, data):
         else: fd.write(data)
         fd.flush()
         fd.close()
-    except IOError, m: 
+    except IOError: 
         if getConfig()['global']['noClobber'] and os.path.isfile( tmpPath ): 
             os.unlink(tmpPath)
-        logging.critical(unicodeC(m)+u'Failed to write file %s in directory %s'%(
-            filename, directory) )
+        logging.critical(''.join((traceback.format_exc() ,
+          u'Failed to write file %s in directory %s'%(filename, directory))))
         raise IOError
     logging.debug(u'moving to %s' % realPath)
     os.rename(tmpPath, realPath)
@@ -1572,33 +1576,33 @@ MSIECookieJar, LWPCookieJar, and MozillaCookieJar are valid options. Exiting...
                 self['global']['downloadDir']) ):
                 try: os.mkdir( os.path.join(self['global']['workingDir'], 
                     self['global']['downloadDir']) )
-                except OSError, m: 
-                    raise SystemExit(unicodeC(m) + os.linesep + u"""Could not \
-find path %s and could not make a directory there. Please make sure this path \
-is correct and try creating the folder with proper permissions for me
-""" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']))
+                except OSError: 
+                    raise SystemExit(''.join((traceback.format_exc(),os.linesep,
+u"""Could not find path %s and could not make a directory there. Please make \
+sure this path is correct and try creating the folder with proper permissions
+""" % os.path.join(self['global']['workingDir'], self['global']['downloadDir']))))
         for thread in self['threads']:
             if self['threads'][thread]['directory'] and not os.path.isdir( 
                 os.path.join(self['global']['workingDir'], 
                 self['threads'][thread]['directory']) ):
                 try: os.mkdir( os.path.join(self['global']['workingDir'], 
                     self['threads'][thread]['directory']) )
-                except OSError, m: 
-                    raise SystemExit(unicodeC(m) + os.linesep + u"""Could not \
-find path %s and could not make a directory there. Please make sure this path \
-is correct and try creating the folder with proper permissions for me\
+                except OSError: 
+                  raise SystemExit(''.join((traceback.format_exc(),os.linesep,
+u"""Could not find path %s and could not make a directory there. Please make \
+sure this path is correct and try creating the folder with proper permissions
 """ % os.path.join(self['global']['workingDir'], 
-        self['threads'][thread]['directory']))
+        self['threads'][thread]['directory']))))
             for downDict in self['threads'][thread]['downloads']:
                 if downDict['Dir'] and not os.path.isdir( 
                     os.path.join(self['global']['workingDir'],downDict['Dir'])):
                     try: os.mkdir( os.path.join(self['global']['workingDir'], 
                         downDict['Dir'] ) )
                     except OSError, m:
-                        raise SystemExit(unicodeC(m) + os.linesep + u"""Could \
-not find path %s and could not make a directory there. Please make sure this \
-path is correct and try creating the folder with proper permissions for me\
-""" % os.path.join(self['global']['workingDir'], downDict['Dir'] ))
+                      raise SystemExit(''.join((traceback.format_exc(),os.linesep,
+u"""Could not find path %s and could not make a directory there. Please make \
+sure this path is correct and try creating the folder with proper permissions
+""" % os.path.join(self['global']['workingDir'], downDict['Dir'] ))))
     def save(self):
         raise DeprecationWarning("""this feature failed at saving custom \
 options. You should implement the native ConfigParser write methods""")
@@ -1607,7 +1611,7 @@ options. You should implement the native ConfigParser write methods""")
 # User/InterProcess Communication
 # # # # #
 def setDebug(type, value, tb):
-  if getConfig()['global']['debug'] and _action != 'daemon':
+  if getConfig()['global']['debug'] and _action !='daemon' and sys.stderr.isatty():
     import pdb
     traceback.print_exception(type, value, tb)
     print
@@ -1811,8 +1815,9 @@ def rssparse(tName):
     u"""loops through the rss feed, searching for downloadable files"""
     page = None
     try: page = downloader(getConfig()['threads'][tName]['link'])
-    except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, ), m:   
-        logging.critical( unicodeC(m) + os.linesep + u'error grabbing url %s' % getConfig()['threads'][tName]['link'] )
+    except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException, ):   
+        logging.critical(''.join((traceback.format_exc(), os.linesep,
+          u'error grabbing url %s' % getConfig()['threads'][tName]['link'])))
         return None
     if not page: 
         logging.critical( u"failed to grab url %s" % getConfig()['threads'][tName]['link'])
@@ -1820,7 +1825,8 @@ def rssparse(tName):
     pr = page.read()
     try: ppage = feedparser.parse(pr)
     except Exception, m: # feedparser does not seem to throw exceptions properly, is a dictionary of some kind
-        logging.critical( unicodeC(m) + os.linesep + u"page grabbed was not a parseable rss feed")
+        logging.critical(''.join((traceback.format_exc(), os.linesep,
+          u"page grabbed was not a parseable rss feed")))
         return None
     if 'ttl' in ppage['feed'] and ppage['feed']['ttl'] != '' and not (
       getConfig()['threads'][tName]['scanMins'] > int(ppage['feed']['ttl'])):
@@ -1978,8 +1984,9 @@ def main( ):
         raise SystemExit(1)
     logging.debug(u"writing daemonInfo")
     try: codecs.open( os.path.join(getConfig()['global']['workingDir'], getConfig()['global']['daemonInfo']), 'w', 'utf-8').write(unicodeC(os.getpid()))
-    except IOError, m: 
-        logging.critical( unicodeC(m) + os.linesep + u"Could not write to, or not set, daemonInfo")
+    except IOError: 
+        logging.critical(''.join((traceback.format_exc(),os.linesep, 
+          u"Could not write to, or not set, daemonInfo")))
     if not _runOnce:
         _runOnce = getConfig()['global']['runOnce']
     while True:
@@ -2117,7 +2124,7 @@ crash. feel free to submit a ticket with relevant output on this issue""" )
             except (AttributeError, ValueError), m:
                 print >> sys.stderr, (
 u"""cannot set umask. Umask must be an integer value. Umask only available on 
-some platforms. %s""" % unicodeC(m) )
+some platforms. %s""" % traceback.format_exc() )
         callDaemon()
         main()
     elif _action == 'fullhelp':
@@ -2176,7 +2183,7 @@ some platforms. %s""" % unicodeC(m) )
         if os.umask != None:    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m))
+                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % traceback.format_exc())
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
@@ -2198,8 +2205,8 @@ some platforms. %s""" % unicodeC(m) )
             os.chdir(getConfig()['global']['workingDir'])
         if os.umask != None:    
             try: os.umask( getConfig()['global']['umask'] )
-            except (AttributeError, ValueError), m:
-                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m))
+            except (AttributeError, ValueError):
+                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % traceback.format_exc())
         while 1:
             getSaved( getConfig()['global']['saveFile'] )
             try: 
@@ -2220,7 +2227,7 @@ some platforms. %s""" % unicodeC(m) )
         if isinstance(getConfig()['global']['umask'], int ):    
             try: os.umask( getConfig()['global']['umask'] )
             except (AttributeError, ValueError), m:
-                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % unicodeC(m))
+                logging.error( u'cannot set umask. Umask must be an integer value. Umask only available on some platforms. %s' % traceback.format_exc())
         main()
     elif _action == 'set-default-config':
         raise SystemExit(u'--set-default-config option is now obsolete')
