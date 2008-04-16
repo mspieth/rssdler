@@ -491,18 +491,23 @@ def convertSafariToMoz(cookie_file):
     return s
   for cookie in x.getElementsByTagName('dict'):
     for key in cookie.getElementsByTagName('key'):
-      keyText = key.firstChild.wholeText.lower()
-      valueText = key.nextSibling.nextSibling.firstChild.wholeText
+      #keyText = key.firstChild.wholeText.lower()
+      try: valueText = key.nextSibling.nextSibling.firstChild.wholeText
+      except AttributeError:
+          logging.critical('failed to obtain valueText for key %s' % keyText)
+          break
       if keyText == 'domain': 
-        if valueText.startswith('.'): host = valueText
-        else: host = '.%s' % valueText
+        host = valueText
+        #if valueText.startswith('.'): host = valueText
+        #else: host = '.%s' % valueText
       elif keyText == 'path': path = valueText
       elif keyText == 'expires': # ignores HH:MM:SS, etc.: 2018-02-14T15:37:51Z
         expires =str(int(time.mktime(time.strptime(valueText[:10],'%Y-%m-%d'))))
       elif keyText == 'name': name = valueText
       elif keyText == 'value': value = valueText
-    s.writelines( "%s\tTRUE\t%s\tFALSE\t%s\t%s\t%s\n" % ( host, path, expires, 
-      name, value))
+    else: 
+      s.writelines( "%s\tTRUE\t%s\tFALSE\t%s\t%s\t%s\n" % (host, path, expires,
+        name, value))
   s.seek(0)
   return s
 
