@@ -1414,6 +1414,7 @@ def getSaved( filename=None, unset=False):
     return saved
 
 class Config(ConfigParser.SafeConfigParser, dict):
+    topSections = ['global']
     dayList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
         'Saturday', 'Sunday', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 
         '0', '1', '2', '3', '4', '5', '6']
@@ -1648,13 +1649,14 @@ options. You should implement the native ConfigParser write methods""")
       if hasattr(fp, 'write'): fd = fp
       else: fd = codecs.open(fp,'w','utf-8')
       if self._defaults: 
-        self._write(self._defaults.items(), DEFAULTSECT)
-      if 'global' in self._sections: 
-        self._write(self._sections['global'].items(), 'global')
+        _write(self._defaults.items(), DEFAULTSECT)
+      for section in self.topSections:
+        if section in self._sections: 
+          _write(self._sections[section].items(), section)
       for section in sorted(list(self._sections)):
-        if section !='global': 
-          fd._write(self._sections[section].items(), section)
-      if fd != fp: fd.close() # if we opened, we close
+        if section not in self.topSections: 
+          _write(self._sections[section].items(), section)
+      if fd != fp: fd.close() # if we open, we close
 
 # # # # #
 # User/InterProcess Communication
