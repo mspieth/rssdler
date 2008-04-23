@@ -125,3 +125,27 @@ def failedProcedure( message, directory, filename, threadName, rssItemNode,
     except OSError: 
       logging.critical(u"could not remove file from disk: %s" % filename)
     if rss: rss.delItem()
+
+def advanceEpisode(directory, filename, rssItemNode,retrievedLink, downloadDict,
+  threadName):
+  s = getConfig()
+  try: regex = s.get(threadName,'advanceEpReg')
+  except ConfigParser.NoOptionError: regex = r'\D+(\d+)\D+(\d+)'
+  try: regNum = s.get(threadName,'advanceEpNum')
+  except ConfigParser.NoOptionError: regNum = 2
+  try: regSub = s.get(threadName, 'advanceEpSub')
+  except ConfigParser.NoOptionError: regSub = '(.*)%s$'
+  if downloadDict['localTrue'] == None: return
+  try: e = int(re.search(regex, downloadDict).group(regNum)) 
+  except (ValueError, IndexError): return
+  s = ''.join(re.sub(regSub % e, '\1', downloadDict['localTrue']), str(e+1))
+  index = getConfig()['threads'][threadName]['downloads'].index(downloadDict)
+  getConfig()['threads'][threadName]['downloads'][index]['localTrue'] = s
+  getConfig().push()
+  fd = codecs.open(configFile, 'w', 'utf-8')
+  getConfig().write(fd)
+  fd.flush()
+  fd.close()
+  getConfig(reload=True)
+  
+  

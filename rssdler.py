@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0a10"
+__version__ = u"0.4.0a11"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -63,15 +63,12 @@ sqlite3 = None #Firefox3 cookies
 
 # Rest of Globals
 configFile = os.path.expanduser(os.path.join('~','.rssdler', 'config.txt'))
-cj = None
 downloader = None
-opener = None
 rss = None
 saved = None
 MAXFD = 1024
 _action = None
 _configInstance = None
-_log = None
 _runOnce = None
 _USER_AGENT = u"RSSDler %s" % __version__
 # ~ defined helps with feedburner feeds
@@ -513,7 +510,7 @@ def convertSafariToMoz(cookie_file):
 
 def cookieHandler():
     u"""tries to turn cj into a *CookieJar according to user preferences."""
-    global cj
+    cj = None
     cType = getConfig()['global']['cookieType']
     cFile = getConfig()['global']['cookieFile']
     netMod = getConfig()['global']['urllib']
@@ -548,12 +545,12 @@ def cookieHandler():
           logging.critical( traceback.format_exc() + m)
           cj = None
         else: logging.debug(u"""cookies loaded""")
+    return cj
 
 def urllib2RetrievePage( url, th=((u'User-agent', _USER_AGENT),)):
     u"""URL is the full path to the resource we are retrieve/Posting
     th is a sequence of (field,value) pairs of any extra headers
     """
-    global cj, opener
     th = [ (x.encode('utf-8'), y.encode('utf-8')) for x,y in th ]
     time.sleep( getConfig()['global']['sleepTime'] )
     url, urlNotEncoded = encodeQuoteUrl( url, encoding='utf-8' ), url
@@ -562,7 +559,7 @@ def urllib2RetrievePage( url, th=((u'User-agent', _USER_AGENT),)):
 """ % url)
         return False
     if not urllib2._opener:
-      cookieHandler()
+      cj = cookieHandler()
       if cj:
         logging.debug(u"building and installing urllib opener with cookies")
         opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj) )
@@ -577,7 +574,6 @@ def mechRetrievePage(url, th=(('User-agent', _USER_AGENT),), ):
     u"""URL is the full path to the resource we are retrieve/Posting
     txheaders: sequence of tuples of header key, value
     """
-    global cj, opener
     th = [ (x.encode('utf-8'), y.encode('utf-8')) for x,y in th ]
     time.sleep( getConfig()['global']['sleepTime'] )
     url, urlNotEncoded = encodeQuoteUrl( url, encoding='utf-8' ), url
@@ -585,7 +581,7 @@ def mechRetrievePage(url, th=(('User-agent', _USER_AGENT),), ):
         logging.critical(u"utf encoding and quoting url failed, returning false")
         return False
     if not mechanize._opener:
-      cookieHandler()
+      cj = cookieHandler()
       if cj:
         logging.debug(u"building and installing mechanize opener with cookies")
         opener = mechanize.build_opener(mechanize.HTTPCookieProcessor(cj), 
@@ -1611,6 +1607,31 @@ sure this path is correct and try creating the folder with proper permissions
     def save(self):
         raise DeprecationWarning("""this feature failed at saving custom \
 options. You should implement the native ConfigParser write methods""")
+    def push(self):
+      u"""Pushes the value in the conveniently accessed config dictionaries
+      onto the ConfigParser instances so that self.write() changes with any
+      updated values"""
+      for key, value in self['global'].iteritems():
+        self.set('global', key, unicodeC(value))
+      for section, values in self['threads'].iteritems():
+        for option in self.options(section): 
+          if option.lower().startswith('download'): self.remove_option(option)
+          elif option.lower().startswith('checktime'): self.remove_option(option)
+        for key, value in self['threads'][section].iteritems():
+          if key == 'downloads':
+            for downNum, downDict in enumerate(self['threads'][section]['downloads']):
+              for downKey, downValue in downDict.iteritems():
+                if downKey == 'localtrue': 
+                  self.set(section, u'download%s' % downNum, unicodeC(downValue))
+                else:
+                  self.set(section,u'download%s%s' %(downNum,downKey),unicodeC(downValue))
+          elif key.lower() == 'checktime':
+            for checkNum, checkTup in enumerate(self['threads'][section][key]):
+              self.set(section, 'checkTime%sDay' % checkNum, self.dayList[checkTup[0]])
+              self.set(section, 'checkTime%sStart' % checkNum, unicodeC(checkTup[1]))
+              self.set(section, 'checkTime%sStop' % checkNum, unicodeC(checkTup[2]))
+          else:
+            self.set(section, key, value)
 
 # # # # #
 # User/InterProcess Communication
@@ -1997,8 +2018,6 @@ def main( ):
     while True:
         try:
             logging.info( u"[Waking up] %s" % time.asctime() )
-            global cj
-            cj = None # will allow us to grab updated cookies, if any
             if mechanize: mechanize._opener = None
             urllib2._opener = None
             startTime = time.time()
