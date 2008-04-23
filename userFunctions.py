@@ -127,7 +127,7 @@ def failedProcedure( message, directory, filename, threadName, rssItemNode,
     if rss: rss.delItem()
 
 def advanceEpisode(downloadDict, threadName, regex=r'^(\D+\d+\D+)(\d+)(\D*)$',
-  regNum=2, regSub=r'\g<1>%02d\g<2>'):
+  regNum=2, regSub=r'\g<1>%02d\g<3>'):
   u"""The intent of this function is to advance the episode implicitly defined in a filter
   The function works simply by using the regex to get the episode number,
   the matching parentheses of which is defined by regNum. 
@@ -150,15 +150,15 @@ def advanceEpisode(downloadDict, threadName, regex=r'^(\D+\d+\D+)(\d+)(\D*)$',
     e.g. weeds.*4.*01.*hdtv
   if this does not fit your show syntax
   you will need to customize the regular expressions."""
+  global configFile
   if downloadDict['localTrue'] == None: return # no episode to match
   # this probably shouldn't happen, but will prevent an exception on index below
-  if not getConfig()['threads'][threadName]['downloads'].count(downloadDict): 
-    return
+  if getConfig()['threads'][threadName]['downloads'].count(downloadDict): 
+    index = getConfig()['threads'][threadName]['downloads'].index(downloadDict)
+  else: return
   try: e = int(re.search(regex, downloadDict['localTrue']).group(regNum)) +1
   except (ValueError, IndexError): return # no episode to match
-  s = re.sub(regex,regSub % e, downloadDict['localTrue'])
-  index = getConfig()['threads'][threadName]['downloads'].index(downloadDict)
-  getConfig()['threads'][threadName]['downloads'][index]['localTrue'] = s
+  downloadDict['localTrue']= re.sub(regex,regSub % e, downloadDict['localTrue'])
   getConfig().push()
   fd = codecs.open(configFile, 'w', 'utf-8')
   getConfig().write(fd)
