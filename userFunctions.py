@@ -159,11 +159,9 @@ def advanceEpisode(downloadDict, threadName, regex=r'^(\D+\d+\D+)(\d+)(\D*)$',
   try: e = int(re.search(regex, downloadDict['localTrue']).group(regNum)) +1
   except (ValueError, IndexError): return # no episode to match
   downloadDict['localTrue']= re.sub(regex,regSub % e, downloadDict['localTrue'])
+  getConfig()['threads'][threadName]['downloads'][index] = downloadDict
   getConfig().push()
-  fd = codecs.open(configFile, 'w', 'utf-8')
-  getConfig().write(fd)
-  fd.flush()
-  fd.close()
-  getConfig(reload=True)
+  getConfig().write(configFile)
+  #getConfig(reload=True) # SHOULD be unnecessary
   
   

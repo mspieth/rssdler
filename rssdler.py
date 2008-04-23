@@ -29,6 +29,7 @@ import getopt
 import httplib
 import logging
 import mimetypes
+import operator
 import os
 import pickle
 try: import random
@@ -1615,7 +1616,7 @@ options. You should implement the native ConfigParser write methods""")
         #avoid setting options that weren't already set
         if self.has_option('global',key): 
           self.set('global', key, unicodeC(value))
-      for section, values in self['threads'].iteritems():
+      for section in self['threads'].keys():
         for option in self.options(section): 
           if re.match('(checktime|download)\d',option, re.I): 
             self.remove_option(section, option)
@@ -1623,9 +1624,9 @@ options. You should implement the native ConfigParser write methods""")
           if key == 'downloads':
             for downNum, downDict in enumerate(self['threads'][section]['downloads']):
               for downKey, downValue in downDict.iteritems():
-                if downKey == 'localtrue': 
+                if downKey == 'localTrue': 
                   self.set(section, u'download%s' % downNum, unicodeC(downValue))
-                else:
+                elif downValue != DownloadItemConfig()[downKey]:
                   self.set(section,u'download%s%s' %(downNum,downKey),unicodeC(downValue))
           elif key.lower() == 'checktime':
             for checkNum, checkTup in enumerate(self['threads'][section][key]):
@@ -1633,7 +1634,27 @@ options. You should implement the native ConfigParser write methods""")
               self.set(section, 'checkTime%sStart' % checkNum, unicodeC(checkTup[1]))
               self.set(section, 'checkTime%sStop' % checkNum, unicodeC(checkTup[2]))
           elif self.has_option(section,key):
-            self.set(section, key, value)
+            self.set(section, key, unicodeC(value))
+    def write(self, fp):
+      """bypasses ConfigParser.write method, because it mangles the file
+      expects RSSDler type configuration. 
+      This derives from RawConfigParser.write """
+      def _write(options, sectionname):
+        fd.write("[%s]\n" % sectionname) #why not use __name__?
+        for k,v in sorted(list(options,operator.itemgetter(0))):
+          if k != '__name__':
+            fd.write("%s = %s\n" % (k, str(v).replace('\n', '\n\t')))
+        fd.write("\n")
+      if hasattr(fp, 'write'): fd = fp
+      else: fd = codecs.open(fp,'w','utf-8')
+      if self._defaults: 
+        self._write(self._defaults.items(), DEFAULTSECT)
+      if 'global' in self._sections: 
+        self._write(self._sections['global'].items(), 'global')
+      for section in sorted(list(self._sections)):
+        if section !='global': 
+          fd._write(self._sections[section].items(), section)
+      if fd != fp: fd.close() # if we opened, we close
 
 # # # # #
 # User/InterProcess Communication
