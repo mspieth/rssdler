@@ -1612,7 +1612,9 @@ options. You should implement the native ConfigParser write methods""")
       onto the ConfigParser instances so that self.write() changes with any
       updated values"""
       for key, value in self['global'].iteritems():
-        self.set('global', key, unicodeC(value))
+        #avoid setting options that weren't already set
+        if self.has_option('global',key): 
+          self.set('global', key, unicodeC(value))
       for section, values in self['threads'].iteritems():
         for option in self.options(section): 
           if re.match('download\d',option, re.I): self.remove_option(option)
@@ -1630,7 +1632,7 @@ options. You should implement the native ConfigParser write methods""")
               self.set(section, 'checkTime%sDay' % checkNum, self.dayList[checkTup[0]])
               self.set(section, 'checkTime%sStart' % checkNum, unicodeC(checkTup[1]))
               self.set(section, 'checkTime%sStop' % checkNum, unicodeC(checkTup[2]))
-          else:
+          elif self.has_option(section,key):
             self.set(section, key, value)
 
 # # # # #
