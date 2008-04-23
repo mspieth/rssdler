@@ -1642,7 +1642,7 @@ options. You should implement the native ConfigParser write methods""")
       This derives from RawConfigParser.write """
       def _write(options, sectionname):
         fd.write("[%s]\n" % sectionname) #why not use __name__?
-        for k,v in sorted(list(options,operator.itemgetter(0))):
+        for k,v in sorted(list(options),key=operator.itemgetter(0)):
           if k != '__name__':
             fd.write("%s = %s\n" % (k, str(v).replace('\n', '\n\t')))
         fd.write("\n")
