@@ -1615,8 +1615,8 @@ options. You should implement the native ConfigParser write methods""")
         self.set('global', key, unicodeC(value))
       for section, values in self['threads'].iteritems():
         for option in self.options(section): 
-          if option.lower().startswith('download'): self.remove_option(option)
-          elif option.lower().startswith('checktime'): self.remove_option(option)
+          if re.match('download\d',option, re.I): self.remove_option(option)
+          elif re.match('checktime\d',option, re.I): self.remove_option(option)
         for key, value in self['threads'][section].iteritems():
           if key == 'downloads':
             for downNum, downDict in enumerate(self['threads'][section]['downloads']):

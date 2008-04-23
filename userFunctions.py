@@ -128,17 +128,17 @@ def failedProcedure( message, directory, filename, threadName, rssItemNode,
 
 def advanceEpisode(directory, filename, rssItemNode,retrievedLink, downloadDict,
   threadName):
-  s = getConfig()
-  try: regex = s.get(threadName,'advanceEpReg')
-  except ConfigParser.NoOptionError: regex = r'\D+(\d+)\D+(\d+)'
-  try: regNum = s.get(threadName,'advanceEpNum')
+  if downloadDict['localTrue'] == None: return # no episode to match
+  if not getConfig()['threads'][threadName]['downloads'].count(downloadDict): return
+  try: regex = getConfig().get(threadName,'advanceEpReg') # regex to subtract episode number
+  except ConfigParser.NoOptionError: regex = r'(\D+\d+\D+)(\d+)(\D*)'
+  try: regNum = getConfig().get(threadName,'advanceEpNum')
   except ConfigParser.NoOptionError: regNum = 2
-  try: regSub = s.get(threadName, 'advanceEpSub')
-  except ConfigParser.NoOptionError: regSub = '(.*)%s$'
-  if downloadDict['localTrue'] == None: return
-  try: e = int(re.search(regex, downloadDict).group(regNum)) 
-  except (ValueError, IndexError): return
-  s = ''.join(re.sub(regSub % e, '\1', downloadDict['localTrue']), str(e+1))
+  try: regSub = getConfig().get(threadName, 'advanceEpSub')
+  except ConfigParser.NoOptionError: regSub = r'\g<1>%s\g<2>'
+  try: e = int(re.search(regex, downloadDict['localTrue']).group(regNum)) +1
+  except (ValueError, IndexError): return # no episode to match
+  s = re.sub(regex,regSub % e, downloadDict['localTrue'])
   index = getConfig()['threads'][threadName]['downloads'].index(downloadDict)
   getConfig()['threads'][threadName]['downloads'][index]['localTrue'] = s
   getConfig().push()
