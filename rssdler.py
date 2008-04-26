@@ -488,24 +488,23 @@ def convertSafariToMoz(cookie_file):
     s.seek(0)
     return s
   for cookie in x.getElementsByTagName('dict'):
+    d = {}
     for key in cookie.getElementsByTagName('key'):
       keyText = key.firstChild.wholeText.lower()
       try: valueText = key.nextSibling.nextSibling.firstChild.wholeText
-      except AttributeError:
-          logging.critical('failed to obtain valueText for key %s' % keyText)
-          break
-      if keyText == 'domain': 
-        #host = valueText
-        if valueText.startswith('.'): host = valueText
-        else: host = '.%s' % valueText
-      elif keyText == 'path': path = valueText
+      except AttributeError: valueText = ''
+      if keyText == 'domain': d['domain'] = valueText
+      elif keyText == 'path': d['path'] = valueText
       elif keyText == 'expires': # ignores HH:MM:SS, etc.: 2018-02-14T15:37:51Z
-        expires =str(int(time.mktime(time.strptime(valueText[:10],'%Y-%m-%d'))))
-      elif keyText == 'name': name = valueText
-      elif keyText == 'value': value = valueText
+        d['expires'] =str(int(time.mktime(time.strptime(valueText,'%Y-%m-%dT%H:%M:%SZ'))))
+      elif keyText == 'name': d['name'] = valueText
+      elif keyText == 'value': d['value'] = valueText
     else: 
-      s.writelines( "%s\tTRUE\t%s\tFALSE\t%s\t%s\t%s\n" % (host, path, expires,
-        name, value))
+      if 5 == len(set(d.keys()).intersection(('domain','path','expires','name','value'))):
+        d['dspec'] = str(d['host'].startswith('.')).upper()
+        s.writelines( "%(domain)s\t%(dspec)s\t%(path)s\tFALSE\t%(expires)s\t%(name)s\t%(value)s\n" % d)
+      else:
+        logging.error('there was an error parsing the cookie with these values\n%s' % d)
   s.seek(0)
   return s
 

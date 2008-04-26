@@ -3,7 +3,6 @@ def ifTorrent(directory, filename, rssItemNode, retrievedLink, downloadDict,
     u"""Confirms that downloaded data is valid bencoded (torrent) data
     If not, executes failedProcedure
     """
-    global saved
     try: fd = open(os.path.join(directory, filename), 'rb')
     except IOError, m:
         logging.error( unicode(m) + 
@@ -39,15 +38,13 @@ def saveFeed(page, ppage, retrievedLink, threadName):
     u"""Uses MakeRss to generate an archive of rss items.
     Useful for later perusal by a human read rss reader,
     without having to hit up the server multiple times.
+    Set the filename with the config option 'rssfile'; length with 'rsslength'
+    in your THREAD's configuration section (for each thread you want to save)
+    otherwise, defaults to sectionName.xml and 100.
     WILL generate an invalid feed that may break some readers. 
     See issue #3 (link below).
     http://code.google.com/p/rssdler/issues/detail?id=3
     """
-    # makes use of custom options you can define for each section/thread
-    # those options are rssfile and rsslength
-    # these are NOT global options, only apply to the thread
-    # if this function is called without these specified in the config
-    # will default to threadName.xml and length = 100
     try: filename= getConfig().get(threadName, 'rssfile') 
     except ConfigParser.NoOptionError: filename = "%s.xml" % threadName
     try: length = getConfig().getint(threadName, 'rsslength')
@@ -59,6 +56,24 @@ def saveFeed(page, ppage, retrievedLink, threadName):
       if x['link'] not in links: rssl.addItem(x)
     rssl.close(length=length)
     rssl.write()
+
+def rewriteFeed(*args):
+  u"""Rewrite Description to make links to profile page,
+  uses options rewriteregex, rewritelink, and rewritetext to
+  manipulate entries."""
+  page, ppage, retrievedLink, threadName = args
+  try: search = getConfig().get(threadName, 'rewriteregex')
+  except ConfigParser.NoOptionError: saveFeed(*args)
+  try: baselink = getConfig().get(threadName, 'rewritelink')
+  except ConfigParser.NoOptionError: saveFeed(*args)
+  try: addtext = getConfig().get(threadName, 'rewritetext')
+  except ConfigParser.NoOptionError: saveFeed(*args)
+  for i, entry in enumerate(ppage['entries']):
+    try: link = "%s%s" % (baselink, re.search(search, entry['link']).group(1))
+    except AttributeError: link = baselink
+    text = """<a href="%s">%s</a> """ % (link, addtext)
+    ppage['entries'][i]['description'] = "%s %s" %( text, entry['description'])
+  saveFeed(page, ppage, retrievedLink, threadName)
 
 def downloadFromSomeSite( directory, filename, rssItemNode, retrievedLink, 
   downloadDict, threadName ):
@@ -118,6 +133,7 @@ def failedProcedure( message, directory, filename, threadName, rssItemNode,
     u"""A function to take care of failed downloads.
     cleans up saved, failed, rss, the directory/filename, and prints to the log.
     should be called from other functions here, not directly from RSSDler."""
+    global saved
     logging.critical(unicodeC(message))
     saved.failedDown.append( FailedItem( saved.downloads.pop(), threadName, 
       rssItemNode, downloadDict) )
@@ -128,14 +144,16 @@ def failedProcedure( message, directory, filename, threadName, rssItemNode,
 
 def advanceEpisode(downloadDict, threadName, regex=r'^(\D+\d+\D+)(\d+)(\D*)$',
   regNum=2, regSub=r'\g<1>%02d\g<3>'):
-  u"""The intent of this function is to advance the episode implicitly defined in a filter
+  u"""The intent is to advance the episode implicitly defined in a filter.
   The function works simply by using the regex to get the episode number,
   the matching parentheses of which is defined by regNum. 
   The function then advances the episode number by 1 and
-  substitutes it back into the space defined by regSub.
+  substitutes it back into the space defined by regSub,
+  which means you should have ONE interpolation (%d, etc.) defined 
   
   It then changes the config dictionary, pushes it into the ConfigParser and
-  saves it to the config file. This has the potential to maul your config file.
+  saves it to the config file, which will kill the organization and comments of
+  your config file (blame ConfigParser).
   
   The defaults will NOT work if you have numbers in the name of the show.
   The function should not be called directly as a postDownloadFunction
@@ -148,18 +166,18 @@ def advanceEpisode(downloadDict, threadName, regex=r'^(\D+\d+\D+)(\d+)(\D*)$',
   This function expects the format of the filter to be something like:
     name.of.the.show.SEASONbreakNumberMaybesomeMore
     e.g. weeds.*4.*01.*hdtv
+    as indicated, the '.*hdtv' part is optional.
   if this does not fit your show syntax
   you will need to customize the regular expressions."""
   global configFile
-  if downloadDict['localTrue'] == None: return # no episode to match
-  # this probably shouldn't happen, but will prevent an exception on index below
-  if getConfig()['threads'][threadName]['downloads'].count(downloadDict): 
-    index = getConfig()['threads'][threadName]['downloads'].index(downloadDict)
-  else: return
+  if ( downloadDict['localTrue'] == None or 
+    not getConfig()['threads'][threadName]['downloads'].count(downloadDict)):
+      return # no episode to match
+  index = getConfig()['threads'][threadName]['downloads'].index(downloadDict)
   try: e = int(re.search(regex, downloadDict['localTrue']).group(regNum)) +1
   except (ValueError, IndexError): return # no episode to match
-  downloadDict['localTrue']= re.sub(regex,regSub % e, downloadDict['localTrue'])
-  getConfig()['threads'][threadName]['downloads'][index] = downloadDict
+  s = re.sub(regex,regSub % e, downloadDict['localTrue'])
+  getConfig()['threads'][threadName]['downloads'][index]['localTrue'] = s
   getConfig().push()
   getConfig().write(configFile)
   #getConfig(reload=True) # SHOULD be unnecessary
