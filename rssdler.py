@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0a11"
+__version__ = u"0.4.0"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -79,7 +79,9 @@ percentQuoteDict = {u'!': u'%21', u' ': u'%20', u'#': u'%23', u'%': u'%25',
   u';': u'%3B', u':': u'%3A', u']': u'%5D', u'[': u'%5B', u'?': u'%3F', 
   u'!':u'%7E'}
 percentunQuoteDict = dict(((j,i) for (i,j) in percentQuoteDict.items()))
-
+netscapeHeader= """# HTTP Cookie File
+# http://www.netscape.com/newsref/std/cookie_spec.html
+# This is a generated file!  Do not edit.\n\n"""
 commentConfig = u"""# default config filename is config.txt in ~/.rssdler
 # lines (like this one) starting with # are comments and 
 # will be ignored by the config parser
@@ -92,7 +94,7 @@ commentConfig = u"""# default config filename is config.txt in ~/.rssdler
 downloadDir = /home/user/downloads
 
 # makes this the 'working directory' of RSSDler. anytime you specify a filename
-# without an absolute path, it will be relative to this 
+# without an absolute path, it will be relative to this, this s the default:
 workingDir = /home/user/.rssdler
 
 # if a file is smaller than this, it will not be downloaded. 
@@ -121,8 +123,8 @@ cookieFile = /home/user/.mozilla/firefox/user/cookies.txt
 # type of cookie file to be found at above location. default MozillaCookieJar
 cookieType = MozillaCookieJar
 # other possible types are:
-# cookieType = LWPCookieJar
-# only works if urllib = False
+# LWPCookieJar, Safari, Firefox3
+# only works if urllib = False and mechanize is installed
 # cookieType = MSIECookieJar
 
 #how long to wait between checking feeds (in minutes). Default 15.
@@ -136,6 +138,7 @@ runOnce = True
 
 # set to true to avoid having to install mechanize. 
 # side effects described in help. Default False.
+# will fallback to a sane value if mechanize is not installed
 urllib = True
 
 # the rest of the global options are described in the help,
@@ -865,17 +868,8 @@ def bdecode(x):
         decode_func = {
           'l' : decode_list ,
           'd' : decode_dict,
-          'i' : decode_int,
-          '0' : decode_string,
-          '1' : decode_string,
-          '2' : decode_string,
-          '3' : decode_string,
-          '4' : decode_string,
-          '5' : decode_string,
-          '6' : decode_string,
-          '7' : decode_string,
-          '8' : decode_string,
-          '9' : decode_string }
+          'i' : decode_int}
+        for i in range(10): decode_func[str(i)] = decode_string
         if hasattr(x, 'read'): x = x.read()
         try:  r, l = decode_func[x[0]](x, 0)
         except (IndexError, KeyError):
@@ -1072,7 +1066,8 @@ class MakeRss(object):
         self.itemsQuaDict.pop(x)
 
 class GlobalOptions(dict):
-    u"""    downloadDir: [Recommended] A string option. Default is workingDir. 
+    u"""    
+    downloadDir: [Recommended] A string option. Default is workingDir. 
         Set to a directory where downloaded files will go.
     workingDir: [Optional] A string option. Default is ${HOME}/.rssdler.
         Directory rssdler switches to, relative paths are relative to this
@@ -1095,8 +1090,9 @@ class GlobalOptions(dict):
         Possible values (case sensitive): 'MozillaCookieJar', 'LWPCookieJar', 
         'MSIECookieJar', 'Firefox3', 'Safari'. Only mechanize supports MSIECookieJar.
         Program will exit with error if you try to use urllib and MSIECookieJar.
-        Firefox3 requires that you use Python 2.5+ and support is experimental.
-        Safari support requires xml.dom.minidom and support is experimental
+        Firefox3 requires that you use Python 2.5+, specifically sqlite3 must be
+          available.
+        Safari requires xml.dom.minidom and is experimental
     scanMins: [Optional] An integer option. Default 15. Values are in minutes. 
         The number of minutes between scans.
         If a feed uses the <ttl> tag, it will be respected. 
@@ -1135,7 +1131,7 @@ class GlobalOptions(dict):
     saveFile: [Optional] A string option. Default savedstate.dat. History data.
     lockPort: [Optional] An integer option. Default 8023. Port to lock saveFile
     daemonInfo: [Optional] A string. Default daemon.info. PID written here.
-    umask: [Optional] An integer option. Default 63 aka 077 in octal
+    umask: [Optional] An integer option. Default 077 in octal.
         Sets umask for file creation. PRIOR TO 0.4.0 this was read as BASE10.
         It is now read as octal like any sane program would.
         Do not edit this if you do not know what it does. 
@@ -1705,7 +1701,7 @@ def callUserFunction( functionName, *args ):
 def userFunctHandling():
     u"""tries to import userFunctions, sets up the namespace
     reserved words in userFunctions: everything in globals() except '__builtins__', '__name__', '__doc__', 'userFunctHandling', 'callUserFunction', 'userFunctions'. If using daemon mode, 'resource' is reserved.
-    Reserved words: 'Config', 'ConfigParser', 'DownloadItemConfig', 'FailedItem', 'Fatal', 'GlobalOptions', 'Locked', 'Log', 'MAXFD', 'MakeRss', 'ReFormatString', 'SaveInfo', 'SaveProcessor', 'SharedData', 'ThreadLink', 'Warning', '_USER_AGENT', '__author__', '__copyright__', '__file__', '__version__', '_action', '_bdecode', '_configInstance', '_log', '_runOnce', '_sharedData', 'bdecode', 'callDaemon', 'checkFileSize', 'checkRegEx', 'checkRegExDown', 'checkRegExGFalse', 'checkRegExGTrue', 'checkScanTime', 'checkSleep', 'cj', 'cliOptions', 'codecs', 'commentConfig', 'config', 'configFile', 'configFileNotes', 'cookieHandler', 'cookielib', 'copy', 'createDaemon', 'create_string_buffer', 'deque', 'downloadFile', 'downloader', 'encodeQuoteUrl', 'feedparser', 'findNewFile', 'getConfig', 'getFileSize', 'getFilenameFromHTTP', 'getSharedData', 'getVersion', 'getopt', 'helpMessage', 'httplib', 'killDaemon', 'logMsg', 'logStatusMsg', 'main', 'mechRetrievePage', 'mechanize', 'mimetypes', 'minidom', 'mybdecode', 'mydeque', 'nonCoreDependencies', 'opener', 'os', 'percentIsQuoted', 'percentNeedsQuoted', 'percentQuote', 'percentQuoteCustom', 'percentQuoteDict', 'percentUnQuote', 'percentunQuoteDict', 'pickle', 'random', 're', 'resource', 'rss', 'rssparse', 'run', 'saved', 'searchFailed', 'securityIssues', 'signal', 'signalHandler', 'socket', 'status', 'struct', 'sys', 'time', 'unQuoteReQuote', 'urllib', 'urllib2', 'urllib2RetrievePage', 'urlparse', 'utfWriter', 'windll', 'writeNewFile', 'xmlEscape', 'xmlUnEscape'
+    Reserved words: 'Config', 'ConfigParser', 'DownloadItemConfig', 'FailedItem', 'Fkout', 'GlobalOptions', 'LevelFilter', 'Locked', 'MAXFD', 'MakeRss', 'SaveInfo', 'SaveProcessor', 'StringIO', 'ThreadLink', '_USER_AGENT', '__author__', '__copyright__', '__file__', '__version__', '_action', '_configInstance', '_main', '_runOnce', 'bdecode', 'callDaemon', 'checkFileSize', 'checkRegEx', 'checkRegExDown', 'checkRegExGFalse', 'checkRegExGTrue', 'checkScanTime', 'checkSleep', 'cliOptions', 'codecs', 'commentConfig', 'configFile', 'configFileNotes', 'convertMoz3ToNet', 'convertSafariToMoz', 'cookieHandler', 'cookielib', 'createDaemon', 'division', 'downloadFile', 'downloader', 'email', 'encodeQuoteUrl', 'feedparser', 'findNewFile', 'getConfig', 'getFileSize', 'getFilenameFromHTTP', 'getSaved', 'getVersion', 'getopt', 'helpMessage', 'htmlUnQuote', 'httplib', 'isRunning', 'killDaemon', 'logging', 'main', 'make_handler', 'mechRetrievePage', 'mechanize', 'mimetypes', 'minidom', 'natsorted', 'nonCoreDependencies', 'noprint', 'operator', 'os', 'percentIsQuoted', 'percentNeedsQuoted', 'percentQuote', 'percentQuoteDict', 'percentUnQuote', 'percentunQuoteDict', 'pickle', 'random', 're', 'resource', 'rss', 'rssparse', 'run', 'saved', 'searchFailed', 'securityIssues', 'setDebug', 'setLogging', 'sgmllib', 'signal', 'signalHandler', 'socket', 'sqlite3', 'sys', 'time', 'traceback', 'unQuoteReQuote', 'unicodeC', 'urllib', 'urllib2', 'urllib2RetrievePage', 'urlparse', 'writeNewFile', 'xmlUnEscape'
     check docstrings/source for use notes on these reserved words."""
     global userFunctions
     # to generate if userFunctions part, add ", " to end of global list, 
@@ -2104,17 +2100,13 @@ Thread options:
 Most options can be altered during runtime (i.e. by editing then saving the
     config file. Those that require a restart include: 
     - config file location
-    - cookie file type/location ; extra cookie data in the file 
     - verbosity/logging level ; log file location
     - daemonInfo
-    - umask
+    - debug
+    - changes to userFunctions
 
 A Netscape cookies file must have the proper header that looks like this:
-# HTTP Cookie File
-# http://www.netscape.com/newsref/std/cookie_spec.html
-# This is a generated file!  Do not edit.
-# To delete cookies, use the Cookie Manager.
-
+%s
 cookiedata ....
 
 %s
@@ -2123,7 +2115,7 @@ Contact for problems, bugs, and/or feature requests:
   http://groups.google.com/group/rssdler or 
   http://code.google.com/p/rssdler/issues/list or
 Author: %s
-""" % (cliOptions, nonCoreDependencies, securityIssues, configFileNotes, GlobalOptions.__doc__, ThreadLink.__doc__, __copyright__, __author__)
+""" % (cliOptions, nonCoreDependencies, securityIssues, configFileNotes, GlobalOptions.__doc__, ThreadLink.__doc__, netscapeHeader, __copyright__, __author__)
 
 def _main(arglist):
     try: 
