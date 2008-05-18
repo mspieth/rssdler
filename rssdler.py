@@ -466,9 +466,7 @@ def convertMoz3ToNet(cookie_file):
   cur = conn.cursor()
   cur.execute("""SELECT host, path, isSecure, expiry, name, value FROM \
 moz_cookies;""")
-  s = StringIO.StringIO("""# HTTP Cookie File
-# http://www.netscape.com/newsref/std/cookie_spec.html
-# This is a generated file!  Do not edit.\n\n""")
+  s = StringIO.StringIO(netscapeHeader)
   s.seek(0,2)
   s.writelines( "%s\tTRUE\t%s\t%s\t%d\t%s\t%s\n" % (row[0], row[1],
       unicode(bool(row[2])).upper(), row[3], unicode(row[4]), unicode(row[5]))
@@ -478,12 +476,10 @@ moz_cookies;""")
   return s
 
 def convertSafariToMoz(cookie_file):
-  "convert Safari cookies to a Netscape format readable by rssdler"
+  "convert Safari cookies to a Netscape/Mozilla/Firefox format"
   if not minidom: 
     raise ImportError('xml.dom.minidom needed for use of Safari Cookies')
-  s = StringIO.StringIO("""# HTTP Cookie File
-# http://www.netscape.com/newsref/std/cookie_spec.html
-# This is a generated file!  Do not edit.\n\n""")
+  s = StringIO.StringIO(netscapeHeader)
   s.seek(0,2)
   try: x = minidom.parse(cookie_file)
   except IOError: # No xml parsing errors caught.
@@ -1692,11 +1688,10 @@ def callUserFunction( functionName, *args ):
     """
     global userFunctions
     logging.debug( u"attempting a user function")
-    if not hasattr(userFunctions, functionName):
-        logging.critical( u"module does not have function named %s called from thread %s" % (functionName, threadName))
-        return None
-    userFunct = getattr(userFunctions, functionName)
-    userFunct( *args )
+    if hasattr(userFunctions, functionName):
+      getattr(userFunctions, functionName)(*args)
+    else:
+      logging.critical( u"module does not have function named %s called from thread %s" % (functionName, args[-1]))
 
 def userFunctHandling():
     u"""tries to import userFunctions, sets up the namespace
@@ -1704,24 +1699,12 @@ def userFunctHandling():
     Reserved words: 'Config', 'ConfigParser', 'DownloadItemConfig', 'FailedItem', 'Fkout', 'GlobalOptions', 'LevelFilter', 'Locked', 'MAXFD', 'MakeRss', 'SaveInfo', 'SaveProcessor', 'StringIO', 'ThreadLink', '_USER_AGENT', '__author__', '__copyright__', '__file__', '__version__', '_action', '_configInstance', '_main', '_runOnce', 'bdecode', 'callDaemon', 'checkFileSize', 'checkRegEx', 'checkRegExDown', 'checkRegExGFalse', 'checkRegExGTrue', 'checkScanTime', 'checkSleep', 'cliOptions', 'codecs', 'commentConfig', 'configFile', 'configFileNotes', 'convertMoz3ToNet', 'convertSafariToMoz', 'cookieHandler', 'cookielib', 'createDaemon', 'division', 'downloadFile', 'downloader', 'email', 'encodeQuoteUrl', 'feedparser', 'findNewFile', 'getConfig', 'getFileSize', 'getFilenameFromHTTP', 'getSaved', 'getVersion', 'getopt', 'helpMessage', 'htmlUnQuote', 'httplib', 'isRunning', 'killDaemon', 'logging', 'main', 'make_handler', 'mechRetrievePage', 'mechanize', 'mimetypes', 'minidom', 'natsorted', 'nonCoreDependencies', 'noprint', 'operator', 'os', 'percentIsQuoted', 'percentNeedsQuoted', 'percentQuote', 'percentQuoteDict', 'percentUnQuote', 'percentunQuoteDict', 'pickle', 'random', 're', 'resource', 'rss', 'rssparse', 'run', 'saved', 'searchFailed', 'securityIssues', 'setDebug', 'setLogging', 'sgmllib', 'signal', 'signalHandler', 'socket', 'sqlite3', 'sys', 'time', 'traceback', 'unQuoteReQuote', 'unicodeC', 'urllib', 'urllib2', 'urllib2RetrievePage', 'urlparse', 'writeNewFile', 'xmlUnEscape'
     check docstrings/source for use notes on these reserved words."""
     global userFunctions
-    # to generate if userFunctions part, add ", " to end of global list, 
-    # then feed to sed: 
-    # echo globalList | sed -r 's/([a-zA-Z0-9_]*), /userFunctions.\1 = \1\n/g' \
-    # | xclip, paste below
-    if not userFunctions:
-        for threadKey in getConfig()['threads'].keys():
-            if getConfig()['threads'][threadKey]['postDownloadFunction'] or getConfig()['threads'][threadKey]['postScanFunction']:
-                import userFunctions
-                break
-        else:           userFunctions = 1
-    bypassGlobalsList = ('__builtins__', '__name__', '__doc__', 'userFunctHandling', 'callUserFunction', 'userFunctions' )
-    globalList = []
-    for key, value in globals().iteritems():
-        if key in bypassGlobalsList: continue
-        if userFunctions != 1:  setattr(userFunctions, key, value )
-        globalList.append(key)
-    return globalList
-
+    bypassGlobalsList = set(('__builtins__', '__name__', '__doc__'))
+    g = globals()
+    keys = set(g.keys()).difference(bypassGlobalsList)
+    if userFunctions: #may be None
+      for key in keys: setattr(userFunctions, key, g[key])
+    return sorted(list(keys))
 
 def getVersion():
     u"""returns the version of the program"""
@@ -1756,7 +1739,7 @@ def setLogging(reset=False):
     logging.addLevelName(30, '')
     if v:
         logging.getLogger('').addHandler(make_handler(logging.StreamHandler,
-            '%(levelname)s %(funcName)s %(lineno)d %(message)s', [max(40,v),50],
+            '%(levelname)s %(lineno)d %(message)s', [max(40,v),50],
             sys.stderr))
         logging.getLogger('').addHandler(make_handler(logging.StreamHandler,
             '%(levelname)s %(message)s', [max(v,10),30], sys.stdout))
@@ -2022,7 +2005,7 @@ Creating new saveFile.""")
     getSaved().unlock()
 
 def main( ):
-    global _runOnce
+    global _runOnce, userFunctions
     setLogging()
     logging.info( u"--- RSSDler %s" % getVersion() )
     if isRunning() and os.name != 'nt':
@@ -2035,6 +2018,8 @@ def main( ):
           u"Could not write to, or not set, daemonInfo")))
     if not _runOnce:
         _runOnce = getConfig()['global']['runOnce']
+    try: import userFunctions
+    except ImportError: pass
     while True:
         try:
             logging.info( u"[Waking up] %s" % time.asctime() )
