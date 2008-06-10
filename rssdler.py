@@ -123,7 +123,7 @@ cookieFile = /home/user/.mozilla/firefox/user/cookies.txt
 # type of cookie file to be found at above location. default MozillaCookieJar
 cookieType = MozillaCookieJar
 # other possible types are:
-# LWPCookieJar, Safari, Firefox3
+# LWPCookieJar, Safari, Firefox3, KDE
 # only works if urllib = False and mechanize is installed
 # cookieType = MSIECookieJar
 
@@ -507,6 +507,24 @@ def convertSafariToMoz(cookie_file):
   s.seek(0)
   return s
 
+def convertKDEToMoz(cookie_file):
+  s = StringIO.StringIO(netscapeHeader)
+  s.seek(0,2)
+  for line in open(cookie_file,'r').readlines():
+    line = line.strip()
+    if (line.startswith('#') or (line.startswith('[') and line.endswith(']'))
+      or line == ''):
+        continue
+    line = [ x.strip('"') for x in line.split() ]
+    if line[1] == '': line[1] = line[0]
+    del line[6], line[4], line[0] #Sec Prot Host
+    line.insert(2,'FALSE')
+    line.insert(1, str(line[0].startswith('.')).upper())
+    s.write('\t'.join(line))
+    s.write('\n')
+  s.seek(0)
+  return s
+
 def cookieHandler():
     u"""tries to turn cj into a *CookieJar according to user preferences."""
     cj = None
@@ -518,13 +536,15 @@ def cookieHandler():
     if not cFile: logging.debug(u"""no cookie file configured""")
     elif netMod:
         logging.debug(u"""attempting to load cookie type: %s""" % cType)
-        if cType in ['Safari', 'Firefox3']: cj = cookielib.MozillaCookieJar()
+        if cType in ['Safari', 'Firefox3','KDE']: cj = cookielib.MozillaCookieJar()
         else: cj = getattr(cookielib, cType)()
         try: 
           if cType == 'Firefox3':
-            cj._really_load(convertMoz3ToNet(cFile), 'fake_filename', 0, 0)
+            cj._really_load(convertMoz3ToNet(cFile), cFile, 0, 0)
           elif cType == 'Safari': 
-            cj._really_load(convertSafariToMoz(cFile), 'fake_filename', 0, 0)
+            cj._really_load(convertSafariToMoz(cFile), cFile, 0, 0)
+          elif cType == 'KDE':
+            cj._really_load(convertKDEToMoz(cFile), cFile, 0, 0)
           else: cj.load(cFile)
         except (cookielib.LoadError, IOError):
           logging.critical( traceback.format_exc() + m)
@@ -532,13 +552,15 @@ def cookieHandler():
         else: logging.debug(u"""cookies loaded""")
     else:
         logging.debug(u"""attempting to load cookie type: %s""" % cType)
-        if cType in [ 'Safari', 'Firefox3']: cj = mechanize.MozillaCookieJar()
+        if cType in [ 'Safari', 'Firefox3', 'KDE']: cj = mechanize.MozillaCookieJar()
         else: cj = getattr(mechanize, cType )()
         try: 
           if cType == 'Firefox3':
-            cj._really_load(convertMoz3ToNet(cFile), 'fake_filename', 0, 0)
+            cj._really_load(convertMoz3ToNet(cFile), cFile, 0, 0)
           elif cType == 'Safari':
-            cj._really_load(convertSafariToMoz(cFile), 'fake_filename', 0, 0)
+            cj._really_load(convertSafariToMoz(cFile), cFile, 0, 0)
+          elif cType == 'KDE':
+            cj._really_load(convertKDEToMoz(cFile), cFile, 0, 0)
           else: cj.load(cFile)
         except(mechanize._clientcookie.LoadError, IOError):
           logging.critical( traceback.format_exc() + m)
@@ -1084,7 +1106,7 @@ class GlobalOptions(dict):
         that has cookie data for whatever site(s) you have set that require it.
     cookieType: [Optional] A string option. Default 'MozillaCookieJar.' 
         Possible values (case sensitive): 'MozillaCookieJar', 'LWPCookieJar', 
-        'MSIECookieJar', 'Firefox3', 'Safari'. Only mechanize supports MSIECookieJar.
+        'MSIECookieJar', 'Firefox3', 'Safari', 'KDE'. Only mechanize supports MSIECookieJar.
         Program will exit with error if you try to use urllib and MSIECookieJar.
         Firefox3 requires that you use Python 2.5+, specifically sqlite3 must be
           available.
@@ -1422,7 +1444,7 @@ class Config(ConfigParser.SafeConfigParser, dict):
         'rssLength', 'sleepTime', 'verbose', 'umask','log', 'maxLogLength']
     intOptionsThread = ['maxSize', 'minSize', 'scanMins']
     validCookies = ['MSIECookieJar' , 'LWPCookieJar' , 'MozillaCookieJar', 
-      'Firefox3', 'Safari']
+      'Firefox3', 'Safari', 'KDE']
     def __init__(self, filename=None, parsecheck=1):
         u"""
         see helpMessage
