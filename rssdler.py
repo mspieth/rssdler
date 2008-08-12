@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.0"
+__version__ = u"0.4.1a1"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -512,8 +512,9 @@ def convertKDEToMoz(cookie_file):
   s.seek(0,2)
   for line in open(cookie_file,'r').readlines():
     line = line.strip()
-    if (line.startswith('#') or (line.startswith('[') and line.endswith(']'))
-      or line == ''):
+    if (line.startswith('#') or 
+      (line.startswith('[') and line.endswith(']')) or
+      line == ''):
         continue
     line = [ x.strip('"') for x in line.split() ]
     if line[1] == '': line[1] = line[0]
@@ -750,6 +751,16 @@ def checkRegExDown(tName, itemNode):
 # # # # #
 # Download
 # # # # #
+def validFileName(aStr, invalid=set(('?','\\', '/', '*','<','>','"',':',';','!','|','\b','\0','\t'))):
+  invalid.update(map(chr, range(32)))
+  aList = list(aStr)
+  length= len(aList)-1
+  for j,i in enumerate(reversed(aList)):
+    if i in invalid:  del aList[length-j]
+  if not aList: raise ValueError("no characters are valid!")
+  elif isinstance(aStr, unicode): return u''.join(aList)
+  else: return ''.join(aList)
+  
 def downloadFile(link=None, threadName=None, rssItemNode=None, 
     downItemConfig=None):
     u"""tries to download data at URL. returns None if it was not supposed to, 
@@ -791,6 +802,7 @@ def downloadFile(link=None, threadName=None, rssItemNode=None,
 def writeNewFile(filename, directory, data):
     u"""write a file to disk at location. won't clobber, depending on config. 
         writes to .__filename.tmp first, then moves to filename"""
+    filename = validFileName(filename)
     if getConfig()['global']['noClobber']: 
         directory, filename = findNewFile( filename, directory)
         tmpPath = os.path.join( *findNewFile( u'.__' + filename + u'.tmp', 
@@ -1225,6 +1237,7 @@ class ThreadLink(dict):
         no exceptions are caught. Check docstrings (or source) of 
         userFunctHandling and callUserFunction to see reserved words/access to 
         RSSDler functions/classes/methods.
+    preScanFunction: [Optional] See postScanFunction, only before scan.
     postScanFunction: [Optional] A string option. Default None. 
         The name of a function, stored in userFunctions.py. Any changes to this 
         requires a restart of RSSDler. Calls the named function after a scan of 
@@ -1300,6 +1313,7 @@ class ThreadLink(dict):
         self['scanMins'] = scanMins
         self['downloads'] = []
         self['postScanFunction'] = None
+        self['preScanFunction'] = None
 
 class SaveInfo(dict):
     u"""lastChecked: when we last checked the rss feeds
@@ -1439,7 +1453,7 @@ class Config(ConfigParser.SafeConfigParser, dict):
         'rssDescription', 'rssTitle', ]
     stringOptionsThread = ['link', 'directory', 'postDownloadFunction', 
         'regExTrue', 'regExTrueOptions', 'regExFalse', 'regExFalseOptions', 
-        'postScanFunction']    
+        'postScanFunction', 'preScanFunction']    
     intOptionsGlobal = ['maxSize', 'minSize', 'lockPort', 'scanMins', 
         'rssLength', 'sleepTime', 'verbose', 'umask','log', 'maxLogLength']
     intOptionsThread = ['maxSize', 'minSize', 'scanMins']
@@ -1911,6 +1925,8 @@ def rssparse(tName):
                 ):
                     ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
             else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
+            if getConfig()['threads'][tName]['preScanFunction']:
+              callUserFunction( getConfig()['threads'][tName]['preScanFunction'], pr, ppage, page.geturl(), tName )
             #if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
             if ppage['entries'][i]['link'] in getSaved().downloads: 
                 logging.debug(u"already downloaded %s" % ppage['entries'][i]['link'])
