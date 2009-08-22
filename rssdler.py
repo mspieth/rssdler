@@ -1910,6 +1910,8 @@ def rssparse(tName):
             else: entry['link'] = unQuoteReQuote( entry['link'] )
             getSaved().downloads.append(entry['link'])
     else:
+        if getConfig()['threads'][tName]['preScanFunction']:
+          callUserFunction( getConfig()['threads'][tName]['preScanFunction'], pr, ppage, page.geturl(), tName )
         for i in range(len(ppage['entries'])):
             # deals with feedparser bug with not properly uri unquoting/xml unescaping links from some feeds
             if 'link' not in ppage['entries'][i]: continue
@@ -1925,8 +1927,6 @@ def rssparse(tName):
                 ):
                     ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['enclosures'][0]['href'] )
             else: ppage['entries'][i]['link'] = unQuoteReQuote( ppage['entries'][i]['link'] )
-            if getConfig()['threads'][tName]['preScanFunction']:
-              callUserFunction( getConfig()['threads'][tName]['preScanFunction'], pr, ppage, page.geturl(), tName )
             #if we have downloaded before, just skip (but what about e.g. multiple rips of about same size/type we might download multiple times)
             if ppage['entries'][i]['link'] in getSaved().downloads: 
                 logging.debug(u"already downloaded %s" % ppage['entries'][i]['link'])
