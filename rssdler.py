@@ -681,15 +681,15 @@ def checkFileSize(size, threadName, downloadDict):
 def checkRegExGTrue(tName, itemNode):
     u"""return type True or False if search matches or no, respectively."""
     if getConfig()['threads'][tName]['regExTrue']:
-        logging.debug(u"checking regExTrue on %s" % itemNode['title'].lower())
+        logging.debug(u"checking regExTrue on %s" % itemNode['title'])
         if getConfig()['threads'][tName]['regExTrueOptions']: 
             regExSearch = re.compile(
-                getConfig()['threads'][tName]['regExTrue'].lower(),
-                getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) )
+                getConfig()['threads'][tName]['regExTrue'],
+                getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) | re.I )
         else: 
             regExSearch = re.compile(
-                getConfig()['threads'][tName]['regExTrue'].lower())
-        if regExSearch.search(itemNode['title'].lower()): return True
+                getConfig()['threads'][tName]['regExTrue'], re.I)
+        if regExSearch.search(itemNode['title']): return True
         else: return False
     else: return True
 
@@ -697,15 +697,15 @@ def checkRegExGFalse(tName, itemNode):
     u"""return type True or False if search doesn't match or does, respectively.
     """
     if getConfig()['threads'][tName]['regExFalse']:
-        logging.debug(u"checking regExFalse on %s" % itemNode['title'].lower())
+        logging.debug(u"checking regExFalse on %s" % itemNode['title'])
         if getConfig()['threads'][tName]['regExFalseOptions']: 
             regExSearch = re.compile(
-                getConfig()['threads'][tName]['regExFalse'].lower(), 
-                getattr(re, getConfig()['threads'][tName]['regExFalseOptions']))
+                getConfig()['threads'][tName]['regExFalse'], 
+                getattr(re, getConfig()['threads'][tName]['regExFalseOptions']) | re.I )
         else: 
             regExSearch = re.compile(
-                getConfig()['threads'][tName]['regExFalse'].lower())
-        if regExSearch.search(itemNode['title'].lower()):   return False
+                getConfig()['threads'][tName]['regExFalse'], re.I)
+        if regExSearch.search(itemNode['title']):   return False
         else: return True
     else: return True
 
@@ -730,15 +730,15 @@ def checkRegExDown(tName, itemNode):
     for downloadDict in getConfig()['threads'][tName]['downloads']:
         if getConfig()['threads'][tName]['regExTrueOptions']: 
             LTrue = re.compile( downloadDict['localTrue'], 
-                getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) )
-        else: LTrue = re.compile(downloadDict['localTrue'])
-        if not LTrue.search(itemNode['title'].lower()): continue
+                getattr(re, getConfig()['threads'][tName]['regExTrueOptions']) | re.I )
+        else: LTrue = re.compile(downloadDict['localTrue'], re.I )
+        if not LTrue.search(itemNode['title']): continue
         if type(downloadDict['False']) == type(''):
             if getConfig()['threads'][tName]['regExFalseOptions']: 
                 LFalse = re.compile(downloadDict['False'],
-                getattr(re, getConfig()['threads'][tName]['regExFalseOptions']))
-            else: LFalse = re.compile(downloadDict['False'])
-            if LFalse.search(itemNode['title'].lower()): continue
+                getattr(re, getConfig()['threads'][tName]['regExFalseOptions']) | re.I )
+            else: LFalse = re.compile(downloadDict['False'], re.I)
+            if LFalse.search(itemNode['title']): continue
         elif downloadDict['False'] == False: pass
         elif downloadDict['False'] == True:
             if not checkRegExGFalse(tName, itemNode): continue
