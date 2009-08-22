@@ -316,7 +316,12 @@ class Locked( Exception ):
 #String/URI Handling
 # # # # #
 def unicodeC( s ):
-    if not isinstance(s, basestring): s= unicode(s) # __str__ for exceptions etc
+    if not isinstance(s, basestring):
+        try:
+            s= unicode(s) # __str__ for exceptions etc
+        except:
+            s= unicode(s.__str__(), errors='ignore')
+
     if isinstance(s, str): s = unicode(s, 'utf-8', 'replace')
     if not isinstance(s, unicode): 
         raise UnicodeEncodeError(u'could not encode %s to unicode' % s)
