@@ -1891,7 +1891,10 @@ def rssparse(tName):
     if not page: 
         logging.critical( u"failed to grab url %s" % getConfig()['threads'][tName]['link'])
         return None
-    pr = page.read()
+    try: pr = page.read()
+    except Exception, m:
+        logging.critical(''.join((traceback.format_exc(), os.linesep, u"could not grab rss feed")))
+        return None
     try: ppage = feedparser.parse(pr)
     except Exception, m: # feedparser does not seem to throw exceptions properly, is a dictionary of some kind
         logging.critical(''.join((traceback.format_exc(), os.linesep,
