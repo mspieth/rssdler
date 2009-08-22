@@ -2157,7 +2157,7 @@ def _main(arglist):
         (argp, rest) =  getopt.gnu_getopt(arglist[1:], "sdfrokc:h", 
             longopts=["state", "daemon", "full-help", "run", "runonce", "kill", 
             "config=", "set-default-config=", "help", "list-failed", 
-            "list-saved", "purged-saved", "purge-failed", "comment-config"])
+            "list-saved", "purge-saved", "purge-failed", "comment-config"])
     except  getopt.GetoptError:
             print >> sys.stderr, helpMessage
             sys.exit(1)
