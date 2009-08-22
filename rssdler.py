@@ -751,15 +751,19 @@ def checkRegExDown(tName, itemNode):
 # # # # #
 # Download
 # # # # #
-def validFileName(aStr, invalid=set(('?','\\', '/', '*','<','>','"',':',';','!','|','\b','\0','\t'))):
-  invalid.update(map(chr, range(32)))
-  aList = list(aStr)
-  length= len(aList)-1
-  for j,i in enumerate(reversed(aList)):
-    if i in invalid:  del aList[length-j]
-  if not aList: raise ValueError("no characters are valid!")
-  elif isinstance(aStr, unicode): return u''.join(aList)
-  else: return ''.join(aList)
+def validFileName(aStr, invalid=('?','\\', '/', '*','<','>','"',':',';','!','|','\b','\0','\t')):
+    invalid = set(invalid)
+    invalid.update(map(chr, range(32)))
+    outStr = aStr
+    for i in invalid:  
+        outStr = outStr.replace(i,'')
+    if not outStr: 
+        raise ValueError("no characters are valid!")
+    if aStr== outStr: 
+        logging.debug('no replacement made to filename')
+    else: 
+        logging.debug('potentially illegal characters removed from filename')
+    return outStr
   
 def downloadFile(link=None, threadName=None, rssItemNode=None, 
     downItemConfig=None):
