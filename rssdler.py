@@ -1075,7 +1075,7 @@ class MakeRss(object):
             self.channelMeta = p['feed']
         self.itemsQuaDict.extend(p['entries'])
     def _write(self, data, fd):
-        fd.write( data.toprettyxml() )
+        fd.write( data.toxml() )
         fd.flush()
     def write(self, filename=None, file=None):
         """Writes self.feed to a file, default self.filename. 
