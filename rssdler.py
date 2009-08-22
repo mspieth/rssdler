@@ -500,7 +500,7 @@ def convertSafariToMoz(cookie_file):
       elif keyText == 'value': d['value'] = valueText
     else: 
       if 5 == len(set(d.keys()).intersection(('domain','path','expires','name','value'))):
-        d['dspec'] = str(d['host'].startswith('.')).upper()
+        d['dspec'] = str(d['domain'].startswith('.')).upper()
         s.writelines( "%(domain)s\t%(dspec)s\t%(path)s\tFALSE\t%(expires)s\t%(name)s\t%(value)s\n" % d)
       else:
         logging.error('there was an error parsing the cookie with these values\n%s' % d)
