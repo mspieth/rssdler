@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.1a1"
+__version__ = u"0.4.2"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or 
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
