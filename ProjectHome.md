@@ -15,6 +15,8 @@ A utility to automatically download enclosures and other objects linked to from 
 Because it is written in Python, it is highly cross-platform compatible. It tries to be memory efficient, with reports of it functioning on consumer routers. Minimal external dependencies help keep that a reality. It became popular when people started using it in conjunction with [rTorrent](http://libtorrent.rakshasa.no/) for torrent broadcatching.
 
 ### News ###
+  * 2015.09.19  Version 0.4.4 released  See ChangeLog for details.
+  * 2015.09.19  Version 0.4.3 released  See ChangeLog for details.
   * 2009.10.01  Version 0.4.2 released  See ChangeLog for details.
   * 2008.04.29: Version 0.4.0 released. See ChangeLog and [release message](http://groups.google.com/group/rssdler/t/f2321368ed5cf476) for details.
   * 2008.01.13: Version 0.3.4 released. See ChangeLog for details
@@ -24,6 +26,7 @@ Because it is written in Python, it is highly cross-platform compatible. It trie
 ### Dependencies ###
   * [Python 2.4 or later](http://python.org) (required)
   * [feedparser](http://feedparser.org/) (required)
+  * [libtorrent] (for magnet link support)
   * [mechanize](http://wwwsearch.sourceforge.net/mechanize/) (suggested)]
 
 ### Support ###

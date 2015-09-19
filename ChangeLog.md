@@ -27,3 +27,7 @@ Due to formatting bugs (e.g. no display of the star character), we'll have to de
 
 
 [0.4.2](http://rssdler.googlecode.com/svn/changelog/0.4.2)
+
+[0.4.3](http://rssdler.googlecode.com/svn/changelog/0.4.3)
+
+[0.4.4](http://rssdler.googlecode.com/svn/changelog/0.4.4)
