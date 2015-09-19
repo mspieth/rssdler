@@ -25,7 +25,7 @@ setup(
     Handles all RSS feeds supported by feedparser 0.9x, 1.0, and 2.0; CDF; and
     Atom 0.3 and 1.0
     Required: Python 2.4 or later
-    Required: feedparser 
+    Required: feedparser libtorrent
     Recommended: mechanize""",
     author = 'lostnihilist',
     author_email = 'lostnihilist@gmail.com',

@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.3"
+__version__ = u"0.4.4"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -46,6 +46,9 @@ import urllib
 import urllib2
 import urlparse
 import zlib
+import tempfile
+import libtorrent as lt
+import shutil
 try: import xml.dom.minidom as minidom
 except ImportError: minidom = None
 
@@ -771,24 +774,86 @@ def validFileName(aStr, invalid=('?','\\', '/', '*','<','>','"',':',';','!','|',
         logging.debug('potentially illegal characters removed from filename')
     return outStr
 
+class MagnetData(object):
+    def __init__(self):
+        self.url = ''
+
+    def geturl(self):
+        return self.url
+
+def magnet2Torrent(link=None):
+    tempdir = tempfile.mkdtemp()
+    ses = lt.session()
+    logging.debug( u"getting magnet as torrent")
+    params = {
+        'save_path': tempdir,
+        'duplicate_is_error': True,
+        'storage_mode': lt.storage_mode_t(2),
+        'paused': False,
+        'auto_managed': True,
+        'duplicate_is_error': True
+    }
+    handle = lt.add_magnet_uri(ses, str(link), params)
+
+    logging.debug( u"Downloading Metadata (this may take a while)")
+    loops = 30
+    while (not handle.has_metadata()):
+        try:
+            time.sleep(1)
+            loops -= 1
+            if loops <= 0:
+                return False
+        except KeyboardInterrupt:
+            logging.debug( u"Aborting...")
+            ses.pause()
+            logging.debug( u"Cleanup dir " + tempdir)
+            shutil.rmtree(tempdir)
+            return False
+    ses.pause()
+    logging.debug( u"Done")
+
+    torinfo = handle.get_torrent_info()
+    torfile = lt.create_torrent(torinfo)
+
+    filename = torinfo.name() + ".torrent"
+
+    #logging.debug( u"Saving torrent file here : " + output + " ...")
+    torcontent = lt.bencode(torfile.generate())
+    logging.debug( u"Saved! Cleaning up dir: " + tempdir)
+    ses.remove_torrent(handle)
+    shutil.rmtree(tempdir)
+
+    data = MagnetData()
+    data.url = str(link)
+    logging.debug( u"magnet filename %s contentsize is %d" %
+                   (filename, len(torcontent)))
+    return (filename, data, torcontent)
+
 def downloadFile(link=None, threadName=None, rssItemNode=None,
                  downItemConfig=None):
     u"""tries to download data at URL. returns None if it was not supposed to,
     False if it failed, and a tuple of arguments for userFunct"""
     if str(link).startswith('magnet'):
-        logging.warning( u"magnet not supported")
-        return True
-    try: data = downloader(link)
-    except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m:
-        logging.critical(''.join((traceback.format_exc(), os.linesep,
-                                  u'error grabbing url: %s' % link)))
-        return False
-    filename = getFilenameFromHTTP(data.info(), link)
-    if not filename: return False
-    size, data2 = getFileSize(data.info(), data)
-    if size and not checkFileSize(size, threadName, downItemConfig):
-        del data, data2
-        return None
+        magnetResult = magnet2Torrent(link)
+        if magnetResult == False:
+            return False
+        filename = magnetResult[0]
+        data = magnetResult[1]
+        data2 = magnetResult[2]
+        if len(data2) == 0:
+            return False
+    else:
+        try: data = downloader(link)
+        except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m:
+            logging.critical(''.join((traceback.format_exc(), os.linesep,
+                                      u'error grabbing url: %s' % link)))
+            return False
+        filename = getFilenameFromHTTP(data.info(), link)
+        if not filename: return False
+        size, data2 = getFileSize(data.info(), data)
+        if size and not checkFileSize(size, threadName, downItemConfig):
+            del data, data2
+            return None
     if downItemConfig['Dir']: directory = downItemConfig['Dir']
     elif getConfig()['threads'][threadName]['directory']:
         directory = getConfig()['threads'][threadName]['directory']
@@ -1954,7 +2019,9 @@ def rssparse(tName):
                 logging.debug(u"link was in failedDown")
                 continue
             dirDict = checkRegEx(tName, ppage['entries'][i])
-            if not dirDict: continue
+            if not dirDict:
+                #logging.debug(u"not in dirDict")
+                continue
             userFunctArgs = downloadFile(ppage['entries'][i]['link'], tName, ppage['entries'][i], dirDict)
             if userFunctArgs == None: continue # size was inappropriate == None
             elif userFunctArgs == False: # was supposed to download, but failed
