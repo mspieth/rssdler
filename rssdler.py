@@ -5,7 +5,7 @@
 
 from __future__ import division
 
-__version__ = u"0.4.2"
+__version__ = u"0.4.3"
 
 __author__ = u"""lostnihilist <lostnihilist _at_ gmail _dot_ com> or
 "lostnihilist" on #libtorrent@irc.worldforge.org"""
@@ -45,6 +45,7 @@ import traceback
 import urllib
 import urllib2
 import urlparse
+import zlib
 try: import xml.dom.minidom as minidom
 except ImportError: minidom = None
 
@@ -774,6 +775,9 @@ def downloadFile(link=None, threadName=None, rssItemNode=None,
                  downItemConfig=None):
     u"""tries to download data at URL. returns None if it was not supposed to,
     False if it failed, and a tuple of arguments for userFunct"""
+    if str(link).startswith('magnet'):
+        logging.warning( u"magnet not supported")
+        return True
     try: data = downloader(link)
     except (urllib2.HTTPError, urllib2.URLError, httplib.HTTPException), m:
         logging.critical(''.join((traceback.format_exc(), os.linesep,
@@ -1900,6 +1904,8 @@ def rssparse(tName):
     except Exception, m:
         logging.critical(''.join((traceback.format_exc(), os.linesep, u"could not grab rss feed")))
         return None
+    try: pr = zlib.decompress(pr, 16+zlib.MAX_WBITS)
+    except: pass
     try: ppage = feedparser.parse(pr)
     except Exception, m: # feedparser does not seem to throw exceptions properly, is a dictionary of some kind
         logging.critical(''.join((traceback.format_exc(), os.linesep,
