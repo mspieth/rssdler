@@ -11,6 +11,16 @@
 # sudo chown root:root /etc/init.d/rssdler
 # sudo update-rc.d rssdler defaults
 
+### BEGIN INIT INFO
+# Provides:          rssdler
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start rssdler at boot time
+# Description:       Enable rssdler
+### END INIT INFO
+
 ########
 #BEGIN CONFIG
 ########
