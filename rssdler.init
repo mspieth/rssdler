@@ -36,6 +36,7 @@ DAEMON="$NAME"
 DAEMON_ARGS="-d -c '$CONFIGFILE'"
 #where to log errors from this script
 logfile="/var/log/rssdler.log"
+[ -e /etc/default/rssdler ] && source /etc/default/rssdler
 ########
 #END CONFIG
 ########
